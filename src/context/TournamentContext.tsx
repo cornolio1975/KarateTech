@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/db/dbClient';
+import { supabase, basePath } from '@/db/dbClient';
 
 export interface FilterState {
   gender: string[];
@@ -131,7 +131,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [refreshKey, setRefreshKey] = useState(0);
   const [tournamentName, setTournamentNameState] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
   const [liveStreamUrl, setLiveStreamUrlState] = useState('');
-  const [logoUrl, setLogoUrlState] = useState('/logo.jpg');
+  const [logoUrl, setLogoUrlState] = useState(`${basePath}/logo.jpg`);
   
   // Auth state
   const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | null>(null);

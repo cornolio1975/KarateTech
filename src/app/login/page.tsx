@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { Users, Eye, Mail, Lock, EyeOff, Shield } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/db/dbClient';
+import { supabase, isSupabaseConfigured, basePath } from '@/db/dbClient';
 
 export default function LoginPage() {
   const { login, usersList } = useTournament();
@@ -83,7 +83,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center space-y-2 text-center">
           {/* Emblem Karate silhouette custom logo.jpg */}
           <div className="h-14 w-14 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xs mb-1">
-            <img src="/logo.jpg" alt="Logo" className="h-full w-full object-cover" />
+            <img src={`${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
           </div>
           <h2 className="text-xl font-extrabold tracking-tight text-foreground dark:text-white">Karate Tournament App</h2>
           <span className="text-xs text-muted-foreground font-semibold">Choose your role to continue</span>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
-import { db } from '@/db/dbClient';
+import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, Country } from '@/db/types';
 import { 
   Trophy, Tv, Calendar, Flame, RefreshCw, X, ShieldAlert, Award, 
@@ -239,7 +239,7 @@ export default function PublicSpectatorHub() {
       <header className="border-b border-gray-800 bg-[#0c1322]/80 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl flex items-center justify-center overflow-hidden shadow-lg border border-gray-800 bg-[#0c1322]">
-            <img src={logoUrl || "/logo.jpg"} alt="Logo" className="h-full w-full object-cover" />
+            <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
           </div>
           <div>
             <h1 className="font-black text-sm tracking-widest text-white leading-none uppercase">SENSHI LIVE HUB</h1>

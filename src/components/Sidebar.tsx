@@ -8,6 +8,7 @@ import {
   CalendarDays, Sword, ShieldCheck, Award, FileText, Settings, Trophy, Tv, LogOut
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
+import { basePath } from '@/db/dbClient';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -38,7 +39,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-card border-r border-border h-screen flex flex-col sticky top-0 z-20 shrink-0">
       <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
         <div className="h-9 w-9 rounded-lg flex items-center justify-center overflow-hidden shadow-sm bg-neutral-100 dark:bg-neutral-800 border border-border">
-          <img src={logoUrl || "/logo.jpg"} alt="Logo" className="h-full w-full object-cover" />
+          <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
         </div>
         <div>
           <span className="font-bold text-sm leading-tight block">KARATE TECH</span>

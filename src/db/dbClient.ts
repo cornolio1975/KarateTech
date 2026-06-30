@@ -20,6 +20,8 @@ if (isSupabaseConfigured) {
   }
 }
 
+export const basePath = process.env.NODE_ENV === 'production' ? '/Kelab-Senshi-Goju-Ryu-Karate-' : '';
+
 // Global DB client interface
 export const db = {
   isSupabase: (): boolean => !!supabase,
