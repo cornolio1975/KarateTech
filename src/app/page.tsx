@@ -79,7 +79,7 @@ export default function Dashboard() {
   const chartPoints = "10,120 75,90 140,110 205,60 270,80 335,40 400,20";
 
   return (
-    <div className="p-6 space-y-6 text-foreground max-w-7xl mx-auto">
+    <div className="p-6 space-y-6 text-foreground w-full">
       {/* Page Title & Refresh */}
       <div className="flex items-center justify-between">
         <div>

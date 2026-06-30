@@ -222,7 +222,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 text-foreground max-w-4xl mx-auto">
+    <div className="p-6 space-y-6 text-foreground w-full">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">System Settings</h1>
         <p className="text-sm text-muted-foreground">Configure championship parameters, live broadcasting streams, and system accessibility/access controls.</p>

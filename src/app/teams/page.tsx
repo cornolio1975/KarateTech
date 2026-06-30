@@ -203,7 +203,7 @@ export default function TeamsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 text-foreground max-w-7xl mx-auto h-full overflow-y-auto">
+    <div className="p-6 space-y-6 text-foreground w-full h-full overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

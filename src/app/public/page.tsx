@@ -273,7 +273,7 @@ export default function PublicSpectatorHub() {
 
       {/* SUB MENU TABS */}
       <div className="border-b border-gray-900 bg-[#0a0f1c]/50 flex shrink-0 sticky top-[72px] z-30">
-        <div className="max-w-7xl mx-auto w-full px-4 flex">
+        <div className="w-full px-6 flex">
           {[
             { id: 'STREAM', label: 'Live Stream & Arena', icon: Tv },
             { id: 'BRACKETS', label: 'Draws & Brackets', icon: Award },
@@ -301,7 +301,7 @@ export default function PublicSpectatorHub() {
       </div>
 
       {/* CORE BODY CONTAINER */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 min-h-0 overflow-y-auto">
+      <main className="flex-1 w-full p-6 min-h-0 overflow-y-auto">
         
         {/* T1: LIVE STREAM PLAYER & ACTIVE ARENA */}
         {activeTab === 'STREAM' && (
@@ -497,7 +497,7 @@ export default function PublicSpectatorHub() {
                 </div>
               ) : isRoundRobinDraw ? (
                 /* Round Robin Grid for public */
-                <div className="border border-gray-800 rounded-xl overflow-hidden w-full max-w-4xl mx-auto">
+                <div className="border border-gray-800 rounded-xl overflow-hidden w-full">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-[#0c1322] font-bold border-b border-gray-800 text-gray-300">
                       <tr>
@@ -711,7 +711,7 @@ export default function PublicSpectatorHub() {
         {activeTab === 'STANDINGS' && (
           <div className="space-y-6">
             
-            <div className="bg-[#0d1322] border border-gray-800 rounded-2xl shadow-xl flex flex-col overflow-hidden max-w-4xl mx-auto">
+            <div className="bg-[#0d1322] border border-gray-800 rounded-2xl shadow-xl flex flex-col overflow-hidden w-full">
               <div className="p-5 border-b border-gray-800 flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-amber-500 animate-pulse" />
                 <h2 className="text-sm font-bold uppercase tracking-widest text-white">Championship Standings Tally</h2>
