@@ -162,3 +162,70 @@ input[type=number] {
   z-index: 10;
   background: var(--background);
 }
+
+/* Accessibility Styles */
+
+/* 1. High Contrast Override */
+.high-contrast {
+  --background: #000000 !important;
+  --foreground: #ffffff !important;
+  --card: #000000 !important;
+  --card-foreground: #ffffff !important;
+  --popover: #000000 !important;
+  --popover-foreground: #ffffff !important;
+  --primary: #ffffff !important;
+  --primary-foreground: #000000 !important;
+  --secondary: #111111 !important;
+  --secondary-foreground: #ffffff !important;
+  --muted: #111111 !important;
+  --muted-foreground: #ffff00 !important;
+  --border: #ffffff !important;
+  --input: #ffffff !important;
+}
+
+html:not(.dark).high-contrast {
+  --background: #ffffff !important;
+  --foreground: #000000 !important;
+  --card: #ffffff !important;
+  --card-foreground: #000000 !important;
+  --popover: #ffffff !important;
+  --popover-foreground: #000000 !important;
+  --primary: #000000 !important;
+  --primary-foreground: #ffffff !important;
+  --secondary: #eeeeee !important;
+  --secondary-foreground: #000000 !important;
+  --muted: #eeeeee !important;
+  --muted-foreground: #0000ff !important;
+  --border: #000000 !important;
+  --input: #000000 !important;
+}
+
+/* 2. Text Scaling */
+html.text-scale-large {
+  font-size: 18px !important;
+}
+
+html.text-scale-xl {
+  font-size: 20px !important;
+}
+
+/* 3. Reduced Motion */
+.reduced-motion,
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-delay: -1ms !important;
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* 4. Legibility Font (Dyslexia Friendly) */
+.legibility-font,
+.legibility-font * {
+  font-family: 'Comic Sans MS', 'Comic Neue', cursive, sans-serif !important;
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.1em !important;
+}
+

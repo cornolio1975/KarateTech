@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tournament Management System",
-  description: "Tournament Participant Management System - KumiteTechnology Style",
+  title: "Kelab Senshi Goju-Ryu Open Karate Championship 2026",
+  description: "Tournament Participant Management System - KarateTech Style",
 };
 
 export default function RootLayout({

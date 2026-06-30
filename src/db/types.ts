@@ -152,3 +152,16 @@ export interface Bout {
   created_at?: string;
 }
 
+export interface Official {
+  id: string;
+  name: string;
+  role: 'Referee' | 'Judge' | 'Table Official' | 'Tatami Manager' | 'Coach';
+  qualification: string;
+  assigned_tatami?: string;
+  email?: string;
+  phone?: string;
+  status: 'Active' | 'Inactive';
+  created_at?: string;
+}
+
+

@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS participant_categories (
 -- 9. PAYMENTS TABLE
 CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    participant_id UUID REFERENCES participants(id) ON DELETE CASCADE,
+    participant_id UUID REFERENCES participants(id) ON DELETE CASCADE UNIQUE,
     amount DECIMAL(10, 2) NOT NULL,
     status VARCHAR(20) NOT NULL CHECK (status IN ('Paid', 'Unpaid', 'Refunded', 'Pending')),
     payment_method VARCHAR(50), -- Credit Card, Cash, Bank Transfer, PayPal
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS payments (
 -- 10. MEDICAL RECORDS
 CREATE TABLE IF NOT EXISTS medical_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    participant_id UUID REFERENCES participants(id) ON DELETE CASCADE,
+    participant_id UUID REFERENCES participants(id) ON DELETE CASCADE UNIQUE,
     conditions TEXT, -- Medical conditions (e.g. Asthma, none)
     allergies TEXT,
     blood_type VARCHAR(5),
@@ -279,3 +279,47 @@ INSERT INTO team_members (team_id, participant_id) VALUES
 ('aa5e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'd35e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f'),
 ('bb5e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'd25e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f')
 ON CONFLICT (team_id, participant_id) DO NOTHING;
+
+-- 15. OFFICIALS TABLE
+CREATE TABLE IF NOT EXISTS officials (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(150) NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Referee', 'Judge', 'Table Official', 'Tatami Manager', 'Coach')),
+    qualification VARCHAR(150) NOT NULL,
+    assigned_tatami VARCHAR(20),
+    email VARCHAR(150),
+    phone VARCHAR(30),
+    status VARCHAR(20) DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed Initial Officials
+INSERT INTO officials (id, name, role, qualification, assigned_tatami, email, phone, status) VALUES
+('f15e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Sensei Haris Ahmad', 'Referee', 'WKF Referee A', 'Tatami 1', 'haris@senshikarate.com', '+6012-3456789', 'Active'),
+('f25e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Sensei Chloe Tan', 'Tatami Manager', 'National Referee A', 'Tatami 2', 'chloe@senshikarate.com', '+6013-9876543', 'Active'),
+('f35e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Judith Lim', 'Judge', 'State Judge B', 'Tatami 1', 'judith@gmail.com', '+6017-1234567', 'Active'),
+('f45e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Tan Wei Jin', 'Table Official', 'Scorekeeper Cert', 'Tatami 1', 'weijin@gmail.com', '+6016-5551234', 'Active'),
+('f55e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Sensei Somporn', 'Referee', 'National Judge A', 'Tatami 3', 'somporn@karate.or.th', '+662-1112222', 'Active'),
+('f65e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Ahmad Syafiq', 'Judge', 'State Referee C', 'Tatami 2', 'syafiq@yahoo.com', '+6018-4443333', 'Active')
+ON CONFLICT (id) DO NOTHING;
+
+-- Disable Row Level Security (RLS) on all tables to allow client writes via the Anon key
+ALTER TABLE countries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clubs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE coaches DISABLE ROW LEVEL SECURITY;
+ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE teams DISABLE ROW LEVEL SECURITY;
+ALTER TABLE participants DISABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE participant_categories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE medical_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE documents DISABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE bouts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE officials DISABLE ROW LEVEL SECURITY;
+
+-- Force PostgREST schema cache to reload
+NOTIFY pgrst, 'reload schema';
+

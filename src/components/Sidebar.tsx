@@ -5,35 +5,43 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, UsersRound, Tags, GitPullRequest, 
-  CalendarDays, Sword, ShieldCheck, Award, FileText, Settings, Trophy 
+  CalendarDays, Sword, ShieldCheck, Award, FileText, Settings, Trophy, Tv, LogOut
 } from 'lucide-react';
+import { useTournament } from '@/context/TournamentContext';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
   { name: 'Participants', icon: Users, path: '/participants' },
   { name: 'Teams', icon: UsersRound, path: '/teams' },
+  { name: 'Dojos', icon: Award, path: '/clubs' },
   { name: 'Categories', icon: Tags, path: '/categories' },
   { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'Draft' },
-  { name: 'Schedule', icon: CalendarDays, path: '#' },
-  { name: 'Bouts', icon: Sword, path: '#' },
-  { name: 'Officials', icon: ShieldCheck, path: '#' },
-  { name: 'Certificates', icon: Award, path: '#' },
-  { name: 'Reports', icon: FileText, path: '#' },
-  { name: 'Settings', icon: Settings, path: '#' },
+  { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
+  { name: 'Bouts', icon: Sword, path: '/bouts' },
+  { name: 'Officials', icon: ShieldCheck, path: '/officials' },
+  { name: 'Public Scoreboard', icon: Tv, path: '/public', badge: 'Live' },
+  { name: 'Reports', icon: FileText, path: '/reports' },
+  { name: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { userRole, userEmail, logout, logoUrl } = useTournament();
+
+  const getInitials = () => {
+    if (!userRole) return 'AD';
+    if (userRole === 'Co-Admin') return 'CO';
+    return 'AD';
+  };
 
   return (
     <aside className="w-64 bg-card border-r border-border h-screen flex flex-col sticky top-0 z-20 shrink-0">
-      {/* Brand Logo */}
       <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
-        <div className="h-9 w-9 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-lg shadow-sm">
-          <Trophy className="h-5 w-5 text-white" />
+        <div className="h-9 w-9 rounded-lg flex items-center justify-center overflow-hidden shadow-sm bg-neutral-100 dark:bg-neutral-800 border border-border">
+          <img src={logoUrl || "/logo.jpg"} alt="Logo" className="h-full w-full object-cover" />
         </div>
         <div>
-          <span className="font-bold text-sm leading-tight block">KUMITE TECH</span>
+          <span className="font-bold text-sm leading-tight block">KARATE TECH</span>
           <span className="text-xs text-muted-foreground">Tournament Admin</span>
         </div>
       </div>
@@ -70,16 +78,24 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-border bg-secondary/20">
+      <div className="p-4 border-t border-border bg-secondary/20 space-y-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm">
-            AD
+            {getInitials()}
           </div>
-          <div className="min-w-0">
-            <span className="font-semibold text-xs block text-foreground truncate">Admin Director</span>
-            <span className="text-[10px] text-muted-foreground truncate block">admin@senshikarate.com</span>
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-xs block text-foreground truncate">{userRole || 'Admin'} Director</span>
+            <span className="text-[10px] text-muted-foreground truncate block">{userEmail || 'admin@senshikarate.com'}</span>
           </div>
         </div>
+        
+        <button
+          onClick={logout}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-border text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition cursor-pointer"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span>Sign Out</span>
+        </button>
       </div>
     </aside>
   );

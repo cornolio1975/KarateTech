@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { mockStore } from './mockStore';
 import { 
   Country, Club, Coach, Category, Team, Participant, 
-  TeamMember, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout
+  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official
 } from './types';
 
 // Read Supabase credentials
@@ -11,7 +11,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-let supabase: SupabaseClient | null = null;
+export let supabase: SupabaseClient | null = null;
 if (isSupabaseConfigured) {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -53,6 +53,22 @@ export const db = {
         return data;
       }
       return mockStore.clubs.add(club);
+    },
+    update: async (id: string, updates: Partial<Club>): Promise<Club> => {
+      if (supabase) {
+        const { data, error } = await supabase.from('clubs').update(updates).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      }
+      return mockStore.clubs.update(id, updates);
+    },
+    delete: async (id: string): Promise<void> => {
+      if (supabase) {
+        const { error } = await supabase.from('clubs').delete().eq('id', id);
+        if (error) throw error;
+        return;
+      }
+      return mockStore.clubs.delete(id);
     }
   },
 
@@ -267,6 +283,18 @@ export const db = {
         return;
       }
       return mockStore.teams.removeMember(teamId, participantId);
+    }
+  },
+
+  // 5b. Participant Categories Mappings
+  participantCategories: {
+    list: async (): Promise<ParticipantCategory[]> => {
+      if (supabase) {
+        const { data, error } = await supabase.from('participant_categories').select('*');
+        if (error) throw error;
+        return data || [];
+      }
+      return mockStore.participantCategories.list();
     }
   },
 
@@ -655,6 +683,42 @@ export const db = {
         return data;
       }
       return mockStore.bouts.updateBoutResult(boutId, winnerId, scoreA, scoreB);
+    }
+  },
+
+  // 13. Officials
+  officials: {
+    list: async (): Promise<Official[]> => {
+      if (supabase) {
+        const { data, error } = await supabase.from('officials').select('*');
+        if (error) throw error;
+        return data || [];
+      }
+      return mockStore.officials.list();
+    },
+    add: async (off: Omit<Official, 'id'>): Promise<Official> => {
+      if (supabase) {
+        const { data, error } = await supabase.from('officials').insert([off]).select().single();
+        if (error) throw error;
+        return data;
+      }
+      return mockStore.officials.add(off);
+    },
+    update: async (id: string, updates: Partial<Official>): Promise<Official> => {
+      if (supabase) {
+        const { data, error } = await supabase.from('officials').update(updates).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      }
+      return mockStore.officials.update(id, updates);
+    },
+    delete: async (id: string): Promise<void> => {
+      if (supabase) {
+        const { error } = await supabase.from('officials').delete().eq('id', id);
+        if (error) throw error;
+        return;
+      }
+      return mockStore.officials.delete(id);
     }
   }
 };

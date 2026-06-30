@@ -18,6 +18,7 @@ export default function DrawsPage() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [bouts, setBouts] = useState<Bout[]>([]);
+  const [participantCategories, setParticipantCategories] = useState<{participant_id: string; category_id: string}[]>([]);
 
   // Navigation / Selection states
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
@@ -26,6 +27,8 @@ export default function DrawsPage() {
   // Generation Form configurations
   const [drawType, setDrawType] = useState<'Elimination' | 'Round-robin'>('Elimination');
   const [hasThirdPlace, setHasThirdPlace] = useState<boolean>(true);
+  // Track whether the CURRENTLY DISPLAYED draw is round-robin or elimination
+  const [isRoundRobinDraw, setIsRoundRobinDraw] = useState<boolean>(false);
 
   // Result dialog state
   const [selectedBoutToResolve, setSelectedBoutToResolve] = useState<Bout | null>(null);
@@ -40,16 +43,18 @@ export default function DrawsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [catList, pList, clList, bList] = await Promise.all([
+      const [catList, pList, clList, bList, pcList] = await Promise.all([
         db.categories.list(),
         db.participants.list(),
         db.clubs.list(),
-        db.bouts.list()
+        db.bouts.list(),
+        db.participantCategories.list()
       ]);
       setCategories(catList);
       setParticipants(pList);
       setClubs(clList);
       setBouts(bList);
+      setParticipantCategories(pcList);
       
       // Auto select first category if none selected
       if (catList.length > 0 && !selectedCatId) {
@@ -68,6 +73,19 @@ export default function DrawsPage() {
     }
   }, [mounted]);
 
+  // Sync isRoundRobinDraw when changing category (detect from existing bouts)
+  useEffect(() => {
+    const catBouts = bouts.filter(b => b.category_id === selectedCatId);
+    if (catBouts.length > 0) {
+      // Round-robin: all bouts in round 1, more than 1 bout usually
+      const allRound1 = catBouts.every(b => b.round_no === 1);
+      const hasMultiRound = catBouts.some(b => b.round_no > 1);
+      setIsRoundRobinDraw(allRound1 && !hasMultiRound && catBouts.length > 1);
+    } else {
+      setIsRoundRobinDraw(false);
+    }
+  }, [selectedCatId, bouts]);
+
   if (!mounted) return null;
 
   const currentCategory = categories.find(c => c.id === selectedCatId);
@@ -75,11 +93,10 @@ export default function DrawsPage() {
 
   // Category counts info
   const getCategoryCountInfo = (catId: string) => {
-    const rawpc = localStorage.getItem('ts_participant_categories');
-    const mappings = rawpc ? JSON.parse(rawpc) : [];
-    const matchedParts = mappings.filter((m: any) => m.category_id === catId).map((m: any) => m.participant_id);
+    const matchedParts = participantCategories
+      .filter(m => m.category_id === catId)
+      .map(m => m.participant_id);
     const activeInCat = participants.filter(p => matchedParts.includes(p.id));
-    
     const total = activeInCat.length;
     const confirmed = activeInCat.filter(p => p.status === 'Confirmed' || p.status === 'Checked In').length;
     return { confirmed, total };
@@ -94,7 +111,7 @@ export default function DrawsPage() {
       // Reload lists
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
-      alert('Draw generated successfully!');
+      setIsRoundRobinDraw(drawType === 'Round-robin');
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -105,17 +122,15 @@ export default function DrawsPage() {
   // Clear Draws Trigger
   const handleClearDraw = async () => {
     if (!selectedCatId) return;
-    if (confirm('Are you sure you want to delete all match bouts for this category? This will clear brackets and results.')) {
-      try {
-        setLoading(true);
-        await db.bouts.clearDraw(selectedCatId);
-        const updatedBouts = await db.bouts.list();
-        setBouts(updatedBouts);
-      } catch (err: any) {
-        alert(err.message);
-      } finally {
-        setLoading(false);
-      }
+    try {
+      setLoading(true);
+      await db.bouts.clearDraw(selectedCatId);
+      const updatedBouts = await db.bouts.list();
+      setBouts(updatedBouts);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -347,23 +362,24 @@ export default function DrawsPage() {
 
               {/* Draw generation buttons */}
               <div className="flex items-center gap-2 shrink-0">
-                {categoryBouts.length > 0 ? (
+                {categoryBouts.length > 0 && (
                   <button
                     onClick={handleClearDraw}
-                    className="px-4 py-2 border border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                    disabled={loading}
+                    className="px-4 py-2 border border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <Trash2 className="h-4 w-4" />
                     <span>Clear Draw</span>
                   </button>
-                ) : (
-                  <button
-                    onClick={handleGenerateDraw}
-                    className="px-5 py-2.5 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Sparkles className="h-4 w-4 text-white" />
-                    <span>Generate Draw Sheet</span>
-                  </button>
                 )}
+                <button
+                  onClick={handleGenerateDraw}
+                  disabled={loading}
+                  className="px-5 py-2.5 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles className="h-4 w-4 text-white" />
+                  <span>{categoryBouts.length > 0 ? 'Regenerate Draw' : 'Generate Draw Sheet'}</span>
+                </button>
               </div>
             </div>
 
@@ -382,7 +398,7 @@ export default function DrawsPage() {
                     </p>
                   </div>
                 </div>
-              ) : drawType === 'Round-robin' || (categoryBouts[0]?.round_no === 1 && categoryBouts.every(b => b.round_no === 1)) ? (
+              ) : isRoundRobinDraw ? (
                 
                 // ROUND ROBIN OR BOUT INDEX GRID
                 <div className="flex-1 overflow-auto p-6 space-y-6">

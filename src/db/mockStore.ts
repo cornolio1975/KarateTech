@@ -1,7 +1,7 @@
 import { 
   Country, Club, Coach, Category, Team, Participant, 
   TeamMember, ParticipantCategory, Payment, MedicalRecord, 
-  Document, ActivityLog, AuditLog, Bout
+  Document, ActivityLog, AuditLog, Bout, Official
 } from './types';
 
 // Seed data
@@ -46,6 +46,7 @@ const SEED_CATEGORIES: Category[] = [
 ];
 
 const SEED_PARTICIPANTS: Participant[] = [
+  // ── Original 8 participants ──────────────────────────────────────────
   {
     id: 'part-1',
     registration_no: 'REG-2026-001',
@@ -226,8 +227,81 @@ const SEED_PARTICIPANTS: Participant[] = [
     payment_status: 'Paid',
     remarks: 'Missed official weigh-in limits initially, re-registered',
     created_at: '2026-06-27T16:10:00Z'
-  }
+  },
+
+  // ── cat-1: Male Kumite -60kg (18+) ──────────────────────────────────
+  { id: 'part-9',  registration_no: 'REG-2026-009', photo_url: '', full_name: 'Hazwan Faris',       gender: 'Male', dob: '2004-03-10', nationality_code: 'MAS', passport_ic: '040310-05-1234', email: 'hazwan@example.com',    phone: '+6011-1122334', emergency_contact_name: 'Faris Hamid',    emergency_contact_phone: '+6011-4433221', club_id: 'club-1', coach_id: 'coach-1', weight: 58.0, height: 167.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-15T09:00:00Z' },
+  { id: 'part-10', registration_no: 'REG-2026-010', photo_url: '', full_name: 'Remy Azlan',         gender: 'Male', dob: '2002-07-22', nationality_code: 'MAS', passport_ic: '020722-03-5678', email: 'remy@example.com',      phone: '+6013-2233445', emergency_contact_name: 'Azlan Yusof',   emergency_contact_phone: '+6013-5544332', club_id: 'club-2', coach_id: 'coach-2', weight: 59.5, height: 165.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-15T09:10:00Z' },
+  { id: 'part-11', registration_no: 'REG-2026-011', photo_url: '', full_name: 'Tan Wei Jie',        gender: 'Male', dob: '2006-01-05', nationality_code: 'MAS', passport_ic: '060105-07-9012', email: 'weijie@example.com',    phone: '+6016-3344556', emergency_contact_name: 'Tan Ah Kow',    emergency_contact_phone: '+6016-6655443', club_id: 'club-2', coach_id: 'coach-2', weight: 57.5, height: 163.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-15T09:20:00Z' },
+  { id: 'part-12', registration_no: 'REG-2026-012', photo_url: '', full_name: 'Wan Ariff',          gender: 'Male', dob: '2007-11-18', nationality_code: 'MAS', passport_ic: '071118-02-3456', email: 'ariff@example.com',     phone: '+6019-4455667', emergency_contact_name: 'Wan Nordin',    emergency_contact_phone: '+6019-7766554', club_id: 'club-3', coach_id: 'coach-3', weight: 60.0, height: 169.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-15T09:30:00Z' },
+
+  // ── cat-2: Male Kumite -67kg (18+) ──────────────────────────────────
+  { id: 'part-13', registration_no: 'REG-2026-013', photo_url: '', full_name: 'Syafiq Hakim',       gender: 'Male', dob: '2001-05-14', nationality_code: 'MAS', passport_ic: '010514-14-7890', email: 'syafiq@example.com',    phone: '+6011-5566778', emergency_contact_name: 'Hakim Saari',   emergency_contact_phone: '+6011-8877665', club_id: 'club-1', coach_id: 'coach-1', weight: 65.0, height: 172.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-16T09:00:00Z' },
+  { id: 'part-14', registration_no: 'REG-2026-014', photo_url: '', full_name: 'Bryan Ng',           gender: 'Male', dob: '2004-08-30', nationality_code: 'SGP', passport_ic: 'S8765432B',      email: 'bryan@example.sg',     phone: '+65-9111-2222', emergency_contact_name: 'Ng Beng Huat', emergency_contact_phone: '+65-9333-4444', club_id: 'club-4',                    weight: 63.0, height: 170.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-16T09:10:00Z' },
+  { id: 'part-15', registration_no: 'REG-2026-015', photo_url: '', full_name: 'Nguyen Minh Duc',    gender: 'Male', dob: '1999-02-25', nationality_code: 'VIE', passport_ic: 'B12345678',      email: 'duc@example.vn',       phone: '+84-90-123-4567', emergency_contact_name: 'Nguyen Van A',  emergency_contact_phone: '+84-90-765-4321', club_id: 'club-5',               weight: 66.5, height: 174.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-16T09:20:00Z' },
+  { id: 'part-16', registration_no: 'REG-2026-016', photo_url: '', full_name: 'Faiz Irfan',         gender: 'Male', dob: '2007-09-03', nationality_code: 'MAS', passport_ic: '070903-05-2345', email: 'faiz@example.com',      phone: '+6017-6677889', emergency_contact_name: 'Irfan Zain',   emergency_contact_phone: '+6017-9988776', club_id: 'club-1', coach_id: 'coach-1', weight: 62.0, height: 168.0, status: 'Checked In', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-16T09:30:00Z' },
+
+  // ── cat-3: Male Kumite -75kg (18+) ──────────────────────────────────
+  { id: 'part-17', registration_no: 'REG-2026-017', photo_url: '', full_name: 'Amirul Hafiz',       gender: 'Male', dob: '2000-12-01', nationality_code: 'MAS', passport_ic: '001201-01-3456', email: 'amirul@example.com',    phone: '+6012-7788990', emergency_contact_name: 'Hafiz Osman',  emergency_contact_phone: '+6012-0099887', club_id: 'club-2', coach_id: 'coach-2', weight: 73.0, height: 176.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-17T09:00:00Z' },
+  { id: 'part-18', registration_no: 'REG-2026-018', photo_url: '', full_name: 'Wanchai Burakorn',   gender: 'Male', dob: '2003-04-17', nationality_code: 'THA', passport_ic: 'TH4567890',      email: 'wanchai@example.th',   phone: '+66-81-234-9876', emergency_contact_name: 'Burakorn Sri', emergency_contact_phone: '+66-81-876-5432', club_id: 'club-3', coach_id: 'coach-3', weight: 74.5, height: 177.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-17T09:10:00Z' },
+  { id: 'part-19', registration_no: 'REG-2026-019', photo_url: '', full_name: 'Ruzaini Musa',       gender: 'Male', dob: '2005-06-20', nationality_code: 'MAS', passport_ic: '050620-08-4567', email: 'ruzaini@example.com',   phone: '+6013-8899001', emergency_contact_name: 'Musa Daud',    emergency_contact_phone: '+6013-1100998', club_id: 'club-1', coach_id: 'coach-1', weight: 70.5, height: 173.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-17T09:20:00Z' },
+  { id: 'part-20', registration_no: 'REG-2026-020', photo_url: '', full_name: 'Dani Prasetyo',      gender: 'Male', dob: '1998-03-11', nationality_code: 'INA', passport_ic: 'C3456789',       email: 'dani@example.id',      phone: '+62-878-901-2345', emergency_contact_name: 'Prasetyo Sr',  emergency_contact_phone: '+62-878-543-2109', club_id: 'club-5',              weight: 68.0, height: 171.0, status: 'Checked In', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-17T09:30:00Z' },
+
+  // ── cat-4: Male Kumite +75kg (18+) ──────────────────────────────────
+  { id: 'part-21', registration_no: 'REG-2026-021', photo_url: '', full_name: 'Norzaidi Hamdan',    gender: 'Male', dob: '1996-08-05', nationality_code: 'MAS', passport_ic: '960805-14-5678', email: 'zaidi@example.com',     phone: '+6016-9900112', emergency_contact_name: 'Hamdan Salleh', emergency_contact_phone: '+6016-2211009', club_id: 'club-1', coach_id: 'coach-1', weight: 80.0, height: 183.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-18T09:00:00Z' },
+  { id: 'part-22', registration_no: 'REG-2026-022', photo_url: '', full_name: 'Takeshi Yamamoto',   gender: 'Male', dob: '2001-01-29', nationality_code: 'JPN', passport_ic: 'TK9876543',      email: 'takeshi@example.jp',   phone: '+81-80-9876-5432', emergency_contact_name: 'Yamamoto Jun', emergency_contact_phone: '+81-80-2345-6789', club_id: 'club-4',              weight: 82.5, height: 184.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-18T09:10:00Z' },
+  { id: 'part-23', registration_no: 'REG-2026-023', photo_url: '', full_name: 'Khairul Anwar',      gender: 'Male', dob: '2004-10-30', nationality_code: 'MAS', passport_ic: '041030-07-6789', email: 'khairul@example.com',   phone: '+6019-0011223', emergency_contact_name: 'Anwar Bakar',   emergency_contact_phone: '+6019-3322110', club_id: 'club-3', coach_id: 'coach-3', weight: 76.5, height: 179.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-18T09:20:00Z' },
+  { id: 'part-24', registration_no: 'REG-2026-024', photo_url: '', full_name: 'Fernando Santos',    gender: 'Male', dob: '2003-07-15', nationality_code: 'PHI', passport_ic: 'P1234567A',      email: 'fernando@example.ph',  phone: '+63-917-123-4567', emergency_contact_name: 'Santos Elena', emergency_contact_phone: '+63-917-765-4321', club_id: 'club-5',              weight: 79.0, height: 180.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-18T09:30:00Z' },
+
+  // ── cat-5: Female Kumite -50kg (18+) ────────────────────────────────
+  { id: 'part-25', registration_no: 'REG-2026-025', photo_url: '', full_name: 'Nurul Ain Siti',     gender: 'Female', dob: '2004-02-14', nationality_code: 'MAS', passport_ic: '040214-04-7890', email: 'ain@example.com',       phone: '+6011-1234987', emergency_contact_name: 'Siti Rahimah', emergency_contact_phone: '+6011-7899321', club_id: 'club-1', coach_id: 'coach-1', weight: 48.0, height: 155.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-19T09:00:00Z' },
+  { id: 'part-26', registration_no: 'REG-2026-026', photo_url: '', full_name: 'Priya Nambiar',      gender: 'Female', dob: '2007-06-08', nationality_code: 'MAS', passport_ic: '070608-10-8901', email: 'priya@example.com',     phone: '+6012-2345098', emergency_contact_name: 'Nambiar Ram',  emergency_contact_phone: '+6012-8900234', club_id: 'club-2', coach_id: 'coach-2', weight: 49.5, height: 157.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-19T09:10:00Z' },
+  { id: 'part-27', registration_no: 'REG-2026-027', photo_url: '', full_name: 'Mei Lin Chan',       gender: 'Female', dob: '2002-11-22', nationality_code: 'MAS', passport_ic: '021122-01-9012', email: 'meilin@example.com',    phone: '+6016-3456109', emergency_contact_name: 'Chan Boon',    emergency_contact_phone: '+6016-9011345', club_id: 'club-2', coach_id: 'coach-2', weight: 47.0, height: 153.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-19T09:20:00Z' },
+  { id: 'part-28', registration_no: 'REG-2026-028', photo_url: '', full_name: 'Nattaya Kaewkla',    gender: 'Female', dob: '2005-04-03', nationality_code: 'THA', passport_ic: 'TH1234560',      email: 'nattaya@example.th',   phone: '+66-82-345-6789', emergency_contact_name: 'Kaewkla Pim', emergency_contact_phone: '+66-82-987-6543', club_id: 'club-3', coach_id: 'coach-3', weight: 50.0, height: 160.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-19T09:30:00Z' },
+
+  // ── cat-6: Female Kumite -55kg (18+) ────────────────────────────────
+  { id: 'part-29', registration_no: 'REG-2026-029', photo_url: '', full_name: 'Aisyah Zainudin',    gender: 'Female', dob: '2003-08-19', nationality_code: 'MAS', passport_ic: '030819-06-0123', email: 'aisyah@example.com',    phone: '+6017-4567210', emergency_contact_name: 'Zainudin Mus', emergency_contact_phone: '+6017-0122456', club_id: 'club-1', coach_id: 'coach-1', weight: 53.0, height: 162.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-20T09:00:00Z' },
+  { id: 'part-30', registration_no: 'REG-2026-030', photo_url: '', full_name: 'Lisa Nguyen',        gender: 'Female', dob: '2006-03-27', nationality_code: 'VIE', passport_ic: 'C34567890',      email: 'lisa@example.vn',      phone: '+84-91-234-5678', emergency_contact_name: 'Nguyen Kim',   emergency_contact_phone: '+84-91-876-5432', club_id: 'club-5',               weight: 54.5, height: 163.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-20T09:10:00Z' },
+  { id: 'part-31', registration_no: 'REG-2026-031', photo_url: '', full_name: 'Siti Hajar',         gender: 'Female', dob: '2001-12-14', nationality_code: 'MAS', passport_ic: '011214-09-1234', email: 'hajar@example.com',     phone: '+6013-5678321', emergency_contact_name: 'Hajar Wahab',  emergency_contact_phone: '+6013-1233567', club_id: 'club-3', coach_id: 'coach-3', weight: 51.5, height: 160.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-20T09:20:00Z' },
+  { id: 'part-32', registration_no: 'REG-2026-032', photo_url: '', full_name: 'Grace Seah',         gender: 'Female', dob: '2004-05-31', nationality_code: 'SGP', passport_ic: 'S4567890C',      email: 'grace@example.sg',     phone: '+65-9222-3333', emergency_contact_name: 'Seah Ah Lian', emergency_contact_phone: '+65-9444-5555', club_id: 'club-4',                    weight: 52.5, height: 161.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-20T09:30:00Z' },
+
+  // ── cat-7: Female Kumite +55kg (18+) ────────────────────────────────
+  { id: 'part-33', registration_no: 'REG-2026-033', photo_url: '', full_name: 'Roszaida Othman',    gender: 'Female', dob: '2002-07-08', nationality_code: 'MAS', passport_ic: '020708-12-2345', email: 'roszaida@example.com',  phone: '+6019-6789432', emergency_contact_name: 'Othman Taib',  emergency_contact_phone: '+6019-2344678', club_id: 'club-1', coach_id: 'coach-1', weight: 58.0, height: 165.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-21T09:00:00Z' },
+  { id: 'part-34', registration_no: 'REG-2026-034', photo_url: '', full_name: 'Hana Kobayashi',     gender: 'Female', dob: '2005-10-15', nationality_code: 'JPN', passport_ic: 'TK5678901',      email: 'hana@example.jp',      phone: '+81-70-1234-9876', emergency_contact_name: 'Kobayashi M', emergency_contact_phone: '+81-70-6789-0123', club_id: 'club-4',              weight: 60.5, height: 167.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-21T09:10:00Z' },
+  { id: 'part-35', registration_no: 'REG-2026-035', photo_url: '', full_name: 'Natasha Yip',        gender: 'Female', dob: '1998-01-20', nationality_code: 'MAS', passport_ic: '980120-10-3456', email: 'natasha@example.com',   phone: '+6011-7890543', emergency_contact_name: 'Yip Chong',   emergency_contact_phone: '+6011-3455789', club_id: 'club-2', coach_id: 'coach-2', weight: 56.5, height: 166.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-21T09:20:00Z' },
+  { id: 'part-36', registration_no: 'REG-2026-036', photo_url: '', full_name: 'Sofia Cruz',         gender: 'Female', dob: '2003-09-25', nationality_code: 'PHI', passport_ic: 'P2345678B',      email: 'sofia@example.ph',     phone: '+63-918-234-5678', emergency_contact_name: 'Cruz Maria',   emergency_contact_phone: '+63-918-876-5432', club_id: 'club-5',              weight: 57.5, height: 164.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-21T09:30:00Z' },
+
+  // ── cat-8: Male Kata (18+) ───────────────────────────────────────────
+  { id: 'part-37', registration_no: 'REG-2026-037', photo_url: '', full_name: 'Zulfahmi Arif',      gender: 'Male', dob: '2002-04-11', nationality_code: 'MAS', passport_ic: '020411-14-4567', email: 'zulfahmi@example.com',  phone: '+6012-8901654', emergency_contact_name: 'Arif Bakri',   emergency_contact_phone: '+6012-4566890', club_id: 'club-1', coach_id: 'coach-1', weight: 68.0, height: 173.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-22T09:00:00Z' },
+  { id: 'part-38', registration_no: 'REG-2026-038', photo_url: '', full_name: 'Hideki Tanaka',      gender: 'Male', dob: '2000-08-28', nationality_code: 'JPN', passport_ic: 'TK6789012',      email: 'hideki@example.jp',    phone: '+81-90-2345-6780', emergency_contact_name: 'Tanaka Akira', emergency_contact_phone: '+81-90-8901-2345', club_id: 'club-4',              weight: 72.0, height: 176.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-22T09:10:00Z' },
+  { id: 'part-39', registration_no: 'REG-2026-039', photo_url: '', full_name: 'Luqmanul Hakim',     gender: 'Male', dob: '2005-02-14', nationality_code: 'MAS', passport_ic: '050214-02-5678', email: 'luqman@example.com',    phone: '+6017-9012765', emergency_contact_name: 'Hakim Razali', emergency_contact_phone: '+6017-5677901', club_id: 'club-2', coach_id: 'coach-2', weight: 65.0, height: 170.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-22T09:20:00Z' },
+  { id: 'part-40', registration_no: 'REG-2026-040', photo_url: '', full_name: 'Panya Suthirak',     gender: 'Male', dob: '2007-07-07', nationality_code: 'THA', passport_ic: 'TH2345671',      email: 'panya@example.th',     phone: '+66-83-456-7890', emergency_contact_name: 'Suthirak Pol', emergency_contact_phone: '+66-83-098-7654', club_id: 'club-3', coach_id: 'coach-3', weight: 70.0, height: 172.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-22T09:30:00Z' },
+
+  // ── cat-9: Female Kata (18+) ─────────────────────────────────────────
+  { id: 'part-41', registration_no: 'REG-2026-041', photo_url: '', full_name: 'Zara Hidayah',       gender: 'Female', dob: '2004-11-03', nationality_code: 'MAS', passport_ic: '041103-03-6789', email: 'zara@example.com',      phone: '+6013-0123876', emergency_contact_name: 'Hidayah Omar', emergency_contact_phone: '+6013-6788012', club_id: 'club-1', coach_id: 'coach-1', weight: 55.0, height: 162.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-23T09:00:00Z' },
+  { id: 'part-42', registration_no: 'REG-2026-042', photo_url: '', full_name: 'Yui Watanabe',       gender: 'Female', dob: '2001-06-16', nationality_code: 'JPN', passport_ic: 'TK7890123',      email: 'yui@example.jp',       phone: '+81-80-3456-7891', emergency_contact_name: 'Watanabe Eri', emergency_contact_phone: '+81-80-9012-3456', club_id: 'club-4',              weight: 52.0, height: 159.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-23T09:10:00Z' },
+  { id: 'part-43', registration_no: 'REG-2026-043', photo_url: '', full_name: 'Indah Permata',      gender: 'Female', dob: '2006-09-09', nationality_code: 'INA', passport_ic: 'D4567890',       email: 'indah@example.id',     phone: '+62-856-789-0123', emergency_contact_name: 'Permata Sri',  emergency_contact_phone: '+62-856-321-0987', club_id: 'club-5',              weight: 48.0, height: 156.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-23T09:20:00Z' },
+  { id: 'part-44', registration_no: 'REG-2026-044', photo_url: '', full_name: 'Amira Farida',       gender: 'Female', dob: '2005-12-28', nationality_code: 'MAS', passport_ic: '051228-11-7890', email: 'amira@example.com',     phone: '+6016-1234987', emergency_contact_name: 'Farida Zulk',  emergency_contact_phone: '+6016-7899123', club_id: 'club-3', coach_id: 'coach-3', weight: 58.0, height: 163.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-23T09:30:00Z' },
+
+  // ── cat-10: Junior Male Kumite -55kg (16-17) ─────────────────────────
+  { id: 'part-45', registration_no: 'REG-2026-045', photo_url: '', full_name: 'Hafiz Amsyar',       gender: 'Male', dob: '2010-01-17', nationality_code: 'MAS', passport_ic: '100117-05-8901', email: 'amsyar@example.com',    phone: '+6017-2345098', emergency_contact_name: 'Amsyar Johari', emergency_contact_phone: '+6017-8900234', club_id: 'club-1', coach_id: 'coach-1', weight: 53.0, height: 163.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-24T09:00:00Z' },
+  { id: 'part-46', registration_no: 'REG-2026-046', photo_url: '', full_name: 'Kevin Chong',        gender: 'Male', dob: '2009-05-23', nationality_code: 'MAS', passport_ic: '090523-07-9012', email: 'kevin@example.com',     phone: '+6012-3456109', emergency_contact_name: 'Chong Seng',   emergency_contact_phone: '+6012-9011345', club_id: 'club-2', coach_id: 'coach-2', weight: 54.0, height: 164.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-24T09:10:00Z' },
+  { id: 'part-47', registration_no: 'REG-2026-047', photo_url: '', full_name: 'Syamil Aqil',        gender: 'Male', dob: '2010-08-11', nationality_code: 'MAS', passport_ic: '100811-09-0123', email: 'aqil@example.com',      phone: '+6019-4567210', emergency_contact_name: 'Aqil Rusdi',   emergency_contact_phone: '+6019-0122456', club_id: 'club-3', coach_id: 'coach-3', weight: 52.0, height: 161.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-24T09:20:00Z' },
+  { id: 'part-48', registration_no: 'REG-2026-048', photo_url: '', full_name: 'Danial Akmal',       gender: 'Male', dob: '2009-11-29', nationality_code: 'MAS', passport_ic: '091129-06-1234', email: 'danial@example.com',    phone: '+6011-5678321', emergency_contact_name: 'Akmal Hadi',   emergency_contact_phone: '+6011-1233567', club_id: 'club-1', coach_id: 'coach-1', weight: 55.0, height: 165.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-24T09:30:00Z' },
+
+  // ── cat-11: Junior Male Kumite -61kg (16-17) ─────────────────────────
+  { id: 'part-49', registration_no: 'REG-2026-049', photo_url: '', full_name: 'Rizwan Hakimi',      gender: 'Male', dob: '2009-02-07', nationality_code: 'MAS', passport_ic: '090207-04-2345', email: 'rizwan@example.com',    phone: '+6013-6789432', emergency_contact_name: 'Hakimi Zaini', emergency_contact_phone: '+6013-2344678', club_id: 'club-2', coach_id: 'coach-2', weight: 59.0, height: 166.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-25T09:00:00Z' },
+  { id: 'part-50', registration_no: 'REG-2026-050', photo_url: '', full_name: 'Darren Khor',        gender: 'Male', dob: '2010-07-14', nationality_code: 'MAS', passport_ic: '100714-08-3456', email: 'darren@example.com',    phone: '+6016-7890543', emergency_contact_name: 'Khor Ah Beng', emergency_contact_phone: '+6016-3455789', club_id: 'club-2', coach_id: 'coach-2', weight: 60.5, height: 167.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-25T09:10:00Z' },
+  { id: 'part-51', registration_no: 'REG-2026-051', photo_url: '', full_name: 'Aiman Zulkifli',     gender: 'Male', dob: '2009-04-18', nationality_code: 'MAS', passport_ic: '090418-14-4567', email: 'aiman@example.com',     phone: '+6017-8901654', emergency_contact_name: 'Zulkifli Nor', emergency_contact_phone: '+6017-4566890', club_id: 'club-1', coach_id: 'coach-1', weight: 57.5, height: 165.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-25T09:20:00Z' },
+  { id: 'part-52', registration_no: 'REG-2026-052', photo_url: '', full_name: 'Isyraf Izzat',       gender: 'Male', dob: '2010-10-02', nationality_code: 'MAS', passport_ic: '101002-11-5678', email: 'isyraf@example.com',    phone: '+6012-9012765', emergency_contact_name: 'Izzat Kamal',  emergency_contact_phone: '+6012-5677901', club_id: 'club-3', coach_id: 'coach-3', weight: 58.5, height: 164.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-25T09:30:00Z' },
+
+  // ── cat-12: Junior Female Kumite -48kg (16-17) ───────────────────────
+  { id: 'part-53', registration_no: 'REG-2026-053', photo_url: '', full_name: 'Anis Husna',         gender: 'Female', dob: '2010-03-21', nationality_code: 'MAS', passport_ic: '100321-06-6789', email: 'anishusna@example.com', phone: '+6019-0123876', emergency_contact_name: 'Husna Saad',   emergency_contact_phone: '+6019-6788012', club_id: 'club-1', coach_id: 'coach-1', weight: 46.0, height: 155.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-26T09:00:00Z' },
+  { id: 'part-54', registration_no: 'REG-2026-054', photo_url: '', full_name: 'Yee Xin Rong',       gender: 'Female', dob: '2009-08-05', nationality_code: 'MAS', passport_ic: '090805-08-7890', email: 'xinrong@example.com',   phone: '+6011-1234076', emergency_contact_name: 'Yee Ah Mooi',  emergency_contact_phone: '+6011-7899312', club_id: 'club-2', coach_id: 'coach-2', weight: 47.0, height: 156.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-26T09:10:00Z' },
+  { id: 'part-55', registration_no: 'REG-2026-055', photo_url: '', full_name: 'Batrisyia Nadhira',  gender: 'Female', dob: '2010-06-13', nationality_code: 'MAS', passport_ic: '100613-03-8901', email: 'batrisyia@example.com', phone: '+6013-2345187', emergency_contact_name: 'Nadhira Fuad', emergency_contact_phone: '+6013-8900423', club_id: 'club-3', coach_id: 'coach-3', weight: 45.0, height: 153.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-26T09:20:00Z' },
+  { id: 'part-56', registration_no: 'REG-2026-056', photo_url: '', full_name: 'Suri Aina',          gender: 'Female', dob: '2009-12-30', nationality_code: 'MAS', passport_ic: '091230-05-9012', email: 'suri@example.com',      phone: '+6016-3456298', emergency_contact_name: 'Aina Roslan',  emergency_contact_phone: '+6016-9011534', club_id: 'club-1', coach_id: 'coach-1', weight: 48.0, height: 157.0, status: 'Confirmed', medical_status: 'Cleared', payment_status: 'Paid', remarks: '', created_at: '2026-06-26T09:30:00Z' },
 ];
+
 
 const SEED_TEAMS: Team[] = [
   { id: 'team-1', name: 'Senshi Warriors', club_id: 'club-1', coach_id: 'coach-1', captain_id: 'part-1', score: 120, ranking: 1 },
@@ -242,15 +316,77 @@ const SEED_TEAM_MEMBERS: TeamMember[] = [
 ];
 
 const SEED_PARTICIPANT_CATEGORIES: ParticipantCategory[] = [
-  { id: 'pc-1', participant_id: 'part-1', category_id: 'cat-2', manual_override: false },
-  { id: 'pc-2', participant_id: 'part-2', category_id: 'cat-6', manual_override: false },
-  { id: 'pc-3', participant_id: 'part-3', category_id: 'cat-4', manual_override: false },
-  { id: 'pc-4', participant_id: 'part-4', category_id: 'cat-11', manual_override: false },
-  { id: 'pc-5', participant_id: 'part-5', category_id: 'cat-3', manual_override: false },
-  { id: 'pc-6', participant_id: 'part-6', category_id: 'cat-5', manual_override: false },
-  { id: 'pc-7', participant_id: 'part-7', category_id: 'cat-2', manual_override: false },
-  { id: 'pc-8', participant_id: 'part-8', category_id: 'cat-4', manual_override: false }
+  // Original 8
+  { id: 'pc-1',  participant_id: 'part-1', category_id: 'cat-2',  manual_override: false },
+  { id: 'pc-2',  participant_id: 'part-2', category_id: 'cat-6',  manual_override: false },
+  { id: 'pc-3',  participant_id: 'part-3', category_id: 'cat-4',  manual_override: false },
+  { id: 'pc-4',  participant_id: 'part-4', category_id: 'cat-11', manual_override: false },
+  { id: 'pc-5',  participant_id: 'part-5', category_id: 'cat-3',  manual_override: false },
+  { id: 'pc-6',  participant_id: 'part-6', category_id: 'cat-5',  manual_override: false },
+  { id: 'pc-7',  participant_id: 'part-7', category_id: 'cat-2',  manual_override: false },
+  { id: 'pc-8',  participant_id: 'part-8', category_id: 'cat-4',  manual_override: false },
+  // cat-1: Male Kumite -60kg (18+)
+  { id: 'pc-9',  participant_id: 'part-9',  category_id: 'cat-1', manual_override: false },
+  { id: 'pc-10', participant_id: 'part-10', category_id: 'cat-1', manual_override: false },
+  { id: 'pc-11', participant_id: 'part-11', category_id: 'cat-1', manual_override: false },
+  { id: 'pc-12', participant_id: 'part-12', category_id: 'cat-1', manual_override: false },
+  // cat-2: Male Kumite -67kg (18+)
+  { id: 'pc-13', participant_id: 'part-13', category_id: 'cat-2', manual_override: false },
+  { id: 'pc-14', participant_id: 'part-14', category_id: 'cat-2', manual_override: false },
+  { id: 'pc-15', participant_id: 'part-15', category_id: 'cat-2', manual_override: false },
+  { id: 'pc-16', participant_id: 'part-16', category_id: 'cat-2', manual_override: false },
+  // cat-3: Male Kumite -75kg (18+)
+  { id: 'pc-17', participant_id: 'part-17', category_id: 'cat-3', manual_override: false },
+  { id: 'pc-18', participant_id: 'part-18', category_id: 'cat-3', manual_override: false },
+  { id: 'pc-19', participant_id: 'part-19', category_id: 'cat-3', manual_override: false },
+  { id: 'pc-20', participant_id: 'part-20', category_id: 'cat-3', manual_override: false },
+  // cat-4: Male Kumite +75kg (18+)
+  { id: 'pc-21', participant_id: 'part-21', category_id: 'cat-4', manual_override: false },
+  { id: 'pc-22', participant_id: 'part-22', category_id: 'cat-4', manual_override: false },
+  { id: 'pc-23', participant_id: 'part-23', category_id: 'cat-4', manual_override: false },
+  { id: 'pc-24', participant_id: 'part-24', category_id: 'cat-4', manual_override: false },
+  // cat-5: Female Kumite -50kg (18+)
+  { id: 'pc-25', participant_id: 'part-25', category_id: 'cat-5', manual_override: false },
+  { id: 'pc-26', participant_id: 'part-26', category_id: 'cat-5', manual_override: false },
+  { id: 'pc-27', participant_id: 'part-27', category_id: 'cat-5', manual_override: false },
+  { id: 'pc-28', participant_id: 'part-28', category_id: 'cat-5', manual_override: false },
+  // cat-6: Female Kumite -55kg (18+)
+  { id: 'pc-29', participant_id: 'part-29', category_id: 'cat-6', manual_override: false },
+  { id: 'pc-30', participant_id: 'part-30', category_id: 'cat-6', manual_override: false },
+  { id: 'pc-31', participant_id: 'part-31', category_id: 'cat-6', manual_override: false },
+  { id: 'pc-32', participant_id: 'part-32', category_id: 'cat-6', manual_override: false },
+  // cat-7: Female Kumite +55kg (18+)
+  { id: 'pc-33', participant_id: 'part-33', category_id: 'cat-7', manual_override: false },
+  { id: 'pc-34', participant_id: 'part-34', category_id: 'cat-7', manual_override: false },
+  { id: 'pc-35', participant_id: 'part-35', category_id: 'cat-7', manual_override: false },
+  { id: 'pc-36', participant_id: 'part-36', category_id: 'cat-7', manual_override: false },
+  // cat-8: Male Kata (18+)
+  { id: 'pc-37', participant_id: 'part-37', category_id: 'cat-8', manual_override: false },
+  { id: 'pc-38', participant_id: 'part-38', category_id: 'cat-8', manual_override: false },
+  { id: 'pc-39', participant_id: 'part-39', category_id: 'cat-8', manual_override: false },
+  { id: 'pc-40', participant_id: 'part-40', category_id: 'cat-8', manual_override: false },
+  // cat-9: Female Kata (18+)
+  { id: 'pc-41', participant_id: 'part-41', category_id: 'cat-9', manual_override: false },
+  { id: 'pc-42', participant_id: 'part-42', category_id: 'cat-9', manual_override: false },
+  { id: 'pc-43', participant_id: 'part-43', category_id: 'cat-9', manual_override: false },
+  { id: 'pc-44', participant_id: 'part-44', category_id: 'cat-9', manual_override: false },
+  // cat-10: Junior Male Kumite -55kg (16-17)
+  { id: 'pc-45', participant_id: 'part-45', category_id: 'cat-10', manual_override: false },
+  { id: 'pc-46', participant_id: 'part-46', category_id: 'cat-10', manual_override: false },
+  { id: 'pc-47', participant_id: 'part-47', category_id: 'cat-10', manual_override: false },
+  { id: 'pc-48', participant_id: 'part-48', category_id: 'cat-10', manual_override: false },
+  // cat-11: Junior Male Kumite -61kg (16-17)
+  { id: 'pc-49', participant_id: 'part-49', category_id: 'cat-11', manual_override: false },
+  { id: 'pc-50', participant_id: 'part-50', category_id: 'cat-11', manual_override: false },
+  { id: 'pc-51', participant_id: 'part-51', category_id: 'cat-11', manual_override: false },
+  { id: 'pc-52', participant_id: 'part-52', category_id: 'cat-11', manual_override: false },
+  // cat-12: Junior Female Kumite -48kg (16-17)
+  { id: 'pc-53', participant_id: 'part-53', category_id: 'cat-12', manual_override: false },
+  { id: 'pc-54', participant_id: 'part-54', category_id: 'cat-12', manual_override: false },
+  { id: 'pc-55', participant_id: 'part-55', category_id: 'cat-12', manual_override: false },
+  { id: 'pc-56', participant_id: 'part-56', category_id: 'cat-12', manual_override: false },
 ];
+
 
 const SEED_PAYMENTS: Payment[] = [
   { id: 'pay-1', participant_id: 'part-1', amount: 150.00, status: 'Paid', payment_method: 'Credit Card', transaction_id: 'TXN-9871625', created_at: '2026-06-15T08:35:00Z' },
@@ -282,8 +418,44 @@ const SEED_ACTIVITY_LOGS: ActivityLog[] = [
   { id: 'act-3', participant_id: 'part-2', operator_name: 'System', action: 'Registration Created', details: 'Chloe Tan registered online', created_at: '2026-06-16T09:15:00Z' }
 ];
 
+const SEED_OFFICIALS: Official[] = [
+  { id: 'off-1', name: 'Sensei Haris Ahmad', role: 'Referee', qualification: 'WKF Referee A', assigned_tatami: 'Tatami 1', email: 'haris@senshikarate.com', phone: '+6012-3456789', status: 'Active' },
+  { id: 'off-2', name: 'Sensei Chloe Tan', role: 'Tatami Manager', qualification: 'National Referee A', assigned_tatami: 'Tatami 2', email: 'chloe@senshikarate.com', phone: '+6013-9876543', status: 'Active' },
+  { id: 'off-3', name: 'Judith Lim', role: 'Judge', qualification: 'State Judge B', assigned_tatami: 'Tatami 1', email: 'judith@gmail.com', phone: '+6017-1234567', status: 'Active' },
+  { id: 'off-4', name: 'Tan Wei Jin', role: 'Table Official', qualification: 'Scorekeeper Cert', assigned_tatami: 'Tatami 1', email: 'weijin@gmail.com', phone: '+6016-5551234', status: 'Active' },
+  { id: 'off-5', name: 'Sensei Somporn', role: 'Referee', qualification: 'National Judge A', assigned_tatami: 'Tatami 3', email: 'somporn@karate.or.th', phone: '+662-1112222', status: 'Active' },
+  { id: 'off-6', name: 'Ahmad Syafiq', role: 'Judge', qualification: 'State Referee C', assigned_tatami: 'Tatami 2', email: 'syafiq@yahoo.com', phone: '+6018-4443333', status: 'Active' }
+];
+
 // Helper to check if we are running in browser context
 const isClient = () => typeof window !== 'undefined';
+
+// ── Seed versioning ─────────────────────────────────────────────────────────
+// Bump this string whenever SEED_* data changes. The app will automatically
+// wipe the old localStorage cache and re-seed on the next page load.
+const SEED_VERSION = 'v2026-06-30-off';
+const SEED_VERSION_KEY = 'ts_seed_version';
+
+const SEED_KEYS = [
+  'ts_countries', 'ts_clubs', 'ts_coaches', 'ts_categories',
+  'ts_teams', 'ts_team_members', 'ts_participant_categories',
+  'ts_participants', 'ts_payments', 'ts_medical_records',
+  'ts_documents', 'ts_activity_logs', 'ts_bouts', 'ts_officials'
+];
+
+function initSeedStore() {
+  if (!isClient()) return;
+  const storedVersion = localStorage.getItem(SEED_VERSION_KEY);
+  if (storedVersion !== SEED_VERSION) {
+    // Clear all cached seed data so getStoreData() re-seeds from SEED_* arrays
+    SEED_KEYS.forEach(k => localStorage.removeItem(k));
+    localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
+    console.info('[mockStore] Seed version changed → cache cleared and re-seeded.');
+  }
+}
+initSeedStore();
+// ────────────────────────────────────────────────────────────────────────────
+
 
 // Fetch a key from localStorage or return default seed data
 function getStoreData<T>(key: string, seed: T[]): T[] {
@@ -319,6 +491,20 @@ export const mockStore = {
       list.push(newClub);
       saveStoreData('ts_clubs', list);
       return newClub;
+    },
+    update: (id: string, updates: Partial<Club>): Club => {
+      const list = getStoreData('ts_clubs', SEED_CLUBS);
+      const idx = list.findIndex(c => c.id === id);
+      if (idx === -1) throw new Error('Club not found');
+      const updated = { ...list[idx], ...updates };
+      list[idx] = updated;
+      saveStoreData('ts_clubs', list);
+      return updated;
+    },
+    delete: (id: string): void => {
+      const list = getStoreData('ts_clubs', SEED_CLUBS);
+      const filtered = list.filter(c => c.id !== id);
+      saveStoreData('ts_clubs', filtered);
     }
   },
 
@@ -499,6 +685,11 @@ export const mockStore = {
       const filtered = mapping.filter(m => !(m.team_id === teamId && m.participant_id === participantId));
       saveStoreData('ts_team_members', filtered);
     }
+  },
+
+  // 5b. Participant Category Mappings
+  participantCategories: {
+    list: (): ParticipantCategory[] => getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES),
   },
 
   // 6. Participants
@@ -850,12 +1041,10 @@ export const mockStore = {
       saveStoreData('ts_bouts', filtered);
     },
     generateDraw: (catId: string, drawType: 'Elimination' | 'Round-robin', hasThirdPlace: boolean): Bout[] => {
-      const rawpc = localStorage.getItem('ts_participant_categories');
-      const mappings = rawpc ? JSON.parse(rawpc) : [];
-      const athleteIds = mappings.filter((m: any) => m.category_id === catId).map((m: any) => m.participant_id);
+      const mappings = getStoreData<ParticipantCategory>('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
+      const athleteIds = mappings.filter(m => m.category_id === catId).map(m => m.participant_id);
       
-      const rawParts = localStorage.getItem('ts_participants');
-      const participants: Participant[] = rawParts ? JSON.parse(rawParts) : [];
+      const participants = getStoreData<Participant>('ts_participants', SEED_PARTICIPANTS);
       const athletes = participants.filter(p => athleteIds.includes(p.id) && !p.deleted_at && p.status !== 'Cancelled');
 
       if (athletes.length === 0) {
@@ -1014,6 +1203,38 @@ export const mockStore = {
 
       saveStoreData('ts_bouts', list);
       return updatedBout;
+    }
+  },
+
+  // 13. Officials
+  officials: {
+    list: (): Official[] => {
+      return getStoreData<Official>('ts_officials', SEED_OFFICIALS);
+    },
+    add: (off: Omit<Official, 'id'>): Official => {
+      const list = getStoreData<Official>('ts_officials', SEED_OFFICIALS);
+      const newOff: Official = {
+        ...off,
+        id: `off-${Date.now()}`,
+        created_at: new Date().toISOString()
+      };
+      list.push(newOff);
+      saveStoreData('ts_officials', list);
+      return newOff;
+    },
+    update: (id: string, updates: Partial<Official>): Official => {
+      const list = getStoreData<Official>('ts_officials', SEED_OFFICIALS);
+      const idx = list.findIndex(o => o.id === id);
+      if (idx === -1) throw new Error('Official not found');
+      const updated = { ...list[idx], ...updates };
+      list[idx] = updated;
+      saveStoreData('ts_officials', list);
+      return updated;
+    },
+    delete: (id: string): void => {
+      const list = getStoreData<Official>('ts_officials', SEED_OFFICIALS);
+      const filtered = list.filter(o => o.id !== id);
+      saveStoreData('ts_officials', filtered);
     }
   },
 

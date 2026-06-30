@@ -43,16 +43,35 @@ export default function TeamsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [tList, clList, coList, pList] = await Promise.all([
+      const [tList, clList, coList, pList, offList] = await Promise.all([
         db.teams.list(),
         db.clubs.list(),
         db.coaches.list(),
-        db.participants.list()
+        db.participants.list(),
+        db.officials.list()
       ]);
+      
+      // Merge database coaches and officials registered as Coach
+      const officialCoaches: Coach[] = offList
+        .filter(o => o.role === 'Coach')
+        .map(o => ({
+          id: o.id,
+          name: o.name,
+          email: o.email,
+          phone: o.phone
+        }));
+
+      const mergedCoaches = [...coList];
+      // Avoid duplicate IDs just in case
+      officialCoaches.forEach(oc => {
+        if (!mergedCoaches.some(c => c.id === oc.id)) {
+          mergedCoaches.push(oc);
+        }
+      });
       
       setTeams(tList);
       setClubs(clList);
-      setCoaches(coList);
+      setCoaches(mergedCoaches);
       setParticipants(pList);
 
       if (clList.length > 0) setSelectedClubId(clList[0].id);
@@ -103,6 +122,13 @@ export default function TeamsPage() {
   }, [selectedPartId, activeTeamId, teams, participants, clubs]);
 
   if (!mounted) return null;
+
+  const handleOpenCreateModal = () => {
+    setTeamName('');
+    setSelectedClubId(clubs.length > 0 ? clubs[0].id : '');
+    setSelectedCoachId(coaches.length > 0 ? coaches[0].id : '');
+    setIsCreateOpen(true);
+  };
 
   // Actions
   const handleCreateTeamSubmit = async (e: React.FormEvent) => {
@@ -185,7 +211,7 @@ export default function TeamsPage() {
           <p className="text-sm text-muted-foreground">Form club squads, define team captains, check validation rules, and track rankings.</p>
         </div>
         <button
-          onClick={() => setIsCreateOpen(true)}
+          onClick={handleOpenCreateModal}
           className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
@@ -344,6 +370,7 @@ export default function TeamsPage() {
                   onChange={(e) => setSelectedClubId(e.target.value)}
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                 >
+                  <option value="">Choose representing club dojo...</option>
                   {clubs.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
