@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d out"
+    "deploy": "node -e \"require('fs').writeFileSync('out/.nojekyll', '')\" && gh-pages -d out"
   },
   "dependencies": {
     "@supabase/server": "^1.2.0",
