@@ -58,10 +58,8 @@ export default function PublicRegistrationPage() {
     "Hao\tXuan\tMale\t2003-05-10\t72.3\t180\t030510-02-1234\tTiger Claw Dojo\thaoxuan@example.com\t6018-7776655\tUnpaid\tNeeded";
 
   const downloadCSVTemplate = () => {
-    const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
+    link.setAttribute("href", `${basePath}/senshi_karate_registration_template.csv`);
     link.setAttribute("download", "senshi_karate_registration_template.csv");
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
