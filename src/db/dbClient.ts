@@ -707,7 +707,12 @@ export const db = {
     },
     updateBoutResult: async (boutId: string, winnerId: string, scoreA: number, scoreB: number): Promise<Bout> => {
       if (supabase) {
-        const localUpdated = mockStore.bouts.updateBoutResult(boutId, winnerId, scoreA, scoreB);
+        try {
+          mockStore.bouts.updateBoutResult(boutId, winnerId, scoreA, scoreB);
+        } catch (e) {
+          console.warn('Local mockStore sync skipped:', e);
+        }
+        
         const { data, error } = await supabase.from('bouts').update({
           winner_id: winnerId,
           score_a: scoreA,
@@ -715,17 +720,22 @@ export const db = {
           status: 'Completed'
         }).eq('id', boutId).select().single();
         
-        const list = mockStore.bouts.list();
-        const bout = list.find(b => b.id === boutId);
-        if (bout && bout.round_no !== 99 && bout.round_no < 5) {
-          const nextRoundNo = bout.round_no + 1;
-          const nextBoutNo = Math.ceil(bout.bout_no / 2);
-          const nextBout = list.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
-          if (nextBout) {
-            await supabase.from('bouts').update({
-              participant_a_id: nextBout.participant_a_id,
-              participant_b_id: nextBout.participant_b_id
-            }).eq('id', nextBout.id);
+        // Fetch fresh list from Supabase to correctly calculate and advance brackets
+        const { data: dbBouts, error: boutsErr } = await supabase.from('bouts').select('*');
+        if (!boutsErr && dbBouts) {
+          const bout = dbBouts.find(b => b.id === boutId);
+          if (bout && bout.round_no !== 99 && bout.round_no < 5) {
+            const nextRoundNo = bout.round_no + 1;
+            const nextBoutNo = Math.ceil(bout.bout_no / 2);
+            const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
+            if (nextBout) {
+              const isSlotA = bout.bout_no % 2 !== 0;
+              const updateData = isSlotA 
+                ? { participant_a_id: winnerId } 
+                : { participant_b_id: winnerId };
+
+              await supabase.from('bouts').update(updateData).eq('id', nextBout.id);
+            }
           }
         }
 
