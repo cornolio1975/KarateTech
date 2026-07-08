@@ -144,7 +144,8 @@ export default function PublicRegistrationPage() {
         if (cols.length >= 12) {
           // Tabbed layout (12 columns: Full, Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical)
           fullName = `${cols[0]?.trim()} ${cols[1]?.trim()}`.trim();
-          gender = cols[2]?.trim() === 'Female' ? 'Female' : 'Male';
+          const rawGen = cols[2]?.trim().toLowerCase();
+          gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
           dob = cols[3]?.trim() || '2005-01-01';
           weight = parseFloat(cols[4]?.trim()) || 60;
           height = parseFloat(cols[5]?.trim()) || 170;
@@ -157,7 +158,8 @@ export default function PublicRegistrationPage() {
         } else {
           // Comma layout or standard (11 columns: Full Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical)
           fullName = cols[0]?.trim();
-          gender = cols[1]?.trim() === 'Female' ? 'Female' : 'Male';
+          const rawGen = cols[1]?.trim().toLowerCase();
+          gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
           dob = cols[2]?.trim() || '2005-01-01';
           weight = parseFloat(cols[3]?.trim()) || 60;
           height = parseFloat(cols[4]?.trim()) || 170;
