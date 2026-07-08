@@ -263,10 +263,8 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 
         {/* Register Button */}
         <div className="t-card__actions">
-          <a
-            href={REGISTRATION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/public/register"
             className="btn-register"
             title="Register for this tournament"
             aria-label={`Register for ${tournament.name}`}
@@ -276,7 +274,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
             </span>
             Register Now
             <ChevronRight size={16} className="btn-register__arrow" />
-          </a>
+          </Link>
 
           <Link
             href={`/public/past-tournaments`}
