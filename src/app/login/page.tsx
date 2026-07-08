@@ -202,7 +202,7 @@ export default function LoginPage() {
         }
 
         login(matchedUser.role, matchedUser.email);
-        window.location.href = `${basePath}/`;
+        window.location.href = `${basePath}/admin`;
       } else {
         // Mock Sign In
         const userObj = usersList.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
@@ -225,7 +225,7 @@ export default function LoginPage() {
         }
 
         login(activeRole, userObj.email);
-        window.location.href = `${basePath}/`;
+        window.location.href = `${basePath}/admin`;
       }
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred.');
@@ -497,7 +497,7 @@ export default function LoginPage() {
                         // Mock Google Auth Flow
                         const targetEmail = email.trim() || `${activeRole.toLowerCase()}@senshikarate.com`;
                         login(activeRole, targetEmail);
-                        window.location.href = `${basePath}/`;
+                        window.location.href = `${basePath}/admin`;
                       }
                     } catch (err: any) {
                       setError(err?.message || 'Google Auth Error');

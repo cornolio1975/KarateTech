@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Calendar, MapPin, Clock, Users, ChevronRight,
   ExternalLink, Trophy, Flame, Star, ArrowLeft,
-  Tag, AlarmClock, Info
+  Tag, AlarmClock, Info, Home
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,29 +56,11 @@ const TOURNAMENTS: Tournament[] = [
     bannerGradient: 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)',
     featured: true,
   },
-  {
-    id: 'msn-invitational-2026',
-    name: 'MSN State Karate Invitational 2026',
-    organizer: 'Majlis Sukan Negeri Selangor',
-    date: '20 September 2026',
-    dateIso: '2026-09-20T08:00:00',
-    venue: 'Stadium Tertutup Shah Alam',
-    city: 'Shah Alam, Selangor',
-    registrationClose: '5 September 2026',
-    registrationCloseIso: '2026-09-05T23:59:59',
-    categories: [
-      { name: 'Kata', color: '#d97706' },
-      { name: 'Kumite', color: '#dc2626' },
-    ],
-    status: 'Open',
-    bannerGradient: 'linear-gradient(135deg, #0c1a2e 0%, #0b2244 40%, #0d3b1a 100%)',
-    featured: false,
-  },
 ];
 
 // ─── Registration URL ──────────────────────────────────────────────────────
 const REGISTRATION_URL =
-  'https://darkseagreen-manatee-236634.hostingersite.com/Kelab-Senshi-Goju-Ryu-Karate/';
+  'https://cornolio1975.github.io/Kelab-Senshi-Goju-Ryu-Karate-/login/';
 
 // ─── Countdown Hook ────────────────────────────────────────────────────────
 
@@ -312,8 +294,51 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 // ─── Page Component ────────────────────────────────────────────────────────
 
 export default function TournamentsPage() {
+  const [tournamentsList, setTournamentsList] = useState<Tournament[]>(TOURNAMENTS);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const customName = localStorage.getItem('ts_upcoming_name');
+      const customDate = localStorage.getItem('ts_upcoming_date');
+      const customTime = localStorage.getItem('ts_upcoming_time');
+      const customRegClose = localStorage.getItem('ts_upcoming_reg_close');
+      const customVenue = localStorage.getItem('ts_upcoming_venue');
+      const customCity = localStorage.getItem('ts_upcoming_city');
+
+      if (customName || customDate || customRegClose || customVenue || customCity) {
+        setTournamentsList(prev => prev.map(t => {
+          if (t.id === 'ksg-open-2026') {
+            return {
+              ...t,
+              name: customName || t.name,
+              date: customDate ? new Date(customDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t.date,
+              dateIso: customDate ? `${customDate}T${customTime || '09:00'}:00Z` : t.dateIso,
+              registrationClose: customRegClose ? new Date(customRegClose).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t.registrationClose,
+              registrationCloseIso: customRegClose ? `${customRegClose}T23:59:59Z` : t.registrationCloseIso,
+              venue: customVenue || t.venue,
+              city: customCity || t.city,
+            };
+          }
+          return t;
+        }));
+      }
+    }
+  }, []);
+
   return (
     <div className="tournaments-page">
+      {/* Floating Home button */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem 1.5rem 0' }}>
+        <Link
+          href="/"
+          prefetch={false}
+          className="flex items-center gap-1.5 w-fit px-3 py-1.5 border border-gray-800 hover:border-gray-700 bg-gray-900/40 hover:bg-gray-900/80 rounded-lg text-xs font-bold transition text-gray-300 hover:text-white cursor-pointer"
+        >
+          <Home className="h-3.5 w-3.5" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
       {/* Hero Header */}
       <header className="tournaments-hero">
         <div className="tournaments-hero__content">
@@ -338,7 +363,7 @@ export default function TournamentsPage() {
 
       {/* Cards grid */}
       <section className="tournaments-grid" aria-label="Upcoming tournaments">
-        {TOURNAMENTS.map((t) => (
+        {tournamentsList.map((t) => (
           <TournamentCard key={t.id} tournament={t} />
         ))}
       </section>

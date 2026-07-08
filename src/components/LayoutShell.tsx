@@ -26,6 +26,12 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  useEffect(() => {
+    const handleOpenImport = () => setIsImportOpen(true);
+    window.addEventListener('open-import-modal', handleOpenImport);
+    return () => window.removeEventListener('open-import-modal', handleOpenImport);
+  }, []);
+
   // Auto-close sidebar when navigating on mobile
   useEffect(() => {
     const isMobile = !window.matchMedia('(min-width: 768px)').matches;
@@ -34,7 +40,7 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  const isPublicOrAuthRoute = pathname?.startsWith('/public') || pathname?.startsWith('/auth');
+  const isPublicOrAuthRoute = pathname === '/' || pathname === '/login' || pathname?.startsWith('/public') || pathname?.startsWith('/auth');
 
   // If public or auth route, render directly without admin frame
   if (isPublicOrAuthRoute) {

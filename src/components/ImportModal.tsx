@@ -46,6 +46,18 @@ Rayyan Iskandar,Male,2006-11-20,68,175,061120-10-2222,Senshi Karate Academy,rayy
 Sophia Lee,Female,2005-02-14,53.5,163,050214-14-9999,Goju-Ryu Karate Club,sophia@example.com,+6011-3334445,Pending,Review Needed
 Hao Xuan,Male,2003-05-10,72.3,180,030510-02-1234,Tiger Claw Dojo,haoxuan@example.com,,Unpaid,Review Needed`;
 
+  const downloadCSVTemplate = () => {
+    const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "senshi_karate_participants_template.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -248,6 +260,22 @@ Hao Xuan,Male,2003-05-10,72.3,180,030510-02-1234,Tiger Claw Dojo,haoxuan@example
         <div className="flex-1 overflow-y-auto p-6">
           {step === 1 && (
             <div className="space-y-6">
+              {/* Template Download Panel */}
+              <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-0.5 text-left w-full">
+                  <span className="font-bold text-xs text-foreground block">Download CSV Import Template</span>
+                  <span className="text-[11px] text-muted-foreground block">Get the official spreadsheet layout to prepare your Dojo participant list.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={downloadCSVTemplate}
+                  className="px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>Download Template</span>
+                </button>
+              </div>
+
               {/* Drag n Drop area */}
               <div 
                 onDragEnter={handleDrag}

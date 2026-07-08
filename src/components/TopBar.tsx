@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Search, SlidersHorizontal, Download, Upload, MoreHorizontal, 
-  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu
+  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home
 } from 'lucide-react';
 import { db } from '@/db/dbClient';
 
@@ -84,6 +85,15 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
+        <Link
+          href="/"
+          prefetch={false}
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-border hover:bg-secondary rounded-lg text-xs font-bold transition text-muted-foreground hover:text-foreground cursor-pointer"
+          title="Back to Dashboard"
+        >
+          <Home className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Home</span>
+        </Link>
         <div className="flex items-center gap-1 bg-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground border border-border">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>LIVE EVENT</span>

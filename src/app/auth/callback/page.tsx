@@ -61,7 +61,7 @@ export default function AuthCallback() {
 
           login(matchedUser.role, matchedUser.email);
           setStatusMessage(`Logged in as ${matchedUser.role}. Redirecting...`);
-          router.push(matchedUser.role === 'Viewer' ? '/public' : '/');
+          router.push(matchedUser.role === 'Viewer' ? '/public' : '/admin');
         } else {
           // Extract OAuth user metadata
           // Force newly signed in OAuth users to Spectator (Viewer) role with no write access
@@ -87,7 +87,7 @@ export default function AuthCallback() {
           login(oauthRole, email);
           
           setStatusMessage(`Account registered. Logged in as ${oauthRole}. Redirecting...`);
-          router.push(oauthRole === 'Viewer' ? '/public' : '/');
+          router.push(oauthRole === 'Viewer' ? '/public' : '/admin');
         }
       }
     };

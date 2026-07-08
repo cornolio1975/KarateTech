@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTournament, SystemUser, AccessibilitySettings } from '@/context/TournamentContext';
-import { db, basePath } from '@/db/dbClient';
+import { db, basePath, supabase } from '@/db/dbClient';
 import { 
   Save, Trash2, ShieldAlert, UserPlus, Edit2, Check, X, 
-  Shield, Users, Eye, Accessibility, Info 
+  Shield, Users, Eye, Accessibility, Info, Trophy 
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -24,6 +24,11 @@ export default function SettingsPage() {
   const [localLogo, setLocalLogo] = useState(logoUrl);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [startingNew, setStartingNew] = useState(false);
+  const [newTName, setNewTName] = useState('New Karate Championship 2026');
+  const [newTDate, setNewTDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newTVenue, setNewTVenue] = useState('Dewan Serbaguna Puchong');
+  const [newTCity, setNewTCity] = useState('Puchong, Selangor');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isCoAdmin = userRole === 'Co-Admin';
@@ -60,6 +65,30 @@ export default function SettingsPage() {
     reducedMotion: false,
     legibilityFont: 'standard'
   });
+
+  const [upcomingName, setUpcomingName] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
+  const [upcomingDate, setUpcomingDate] = useState('2026-06-14');
+  const [upcomingTime, setUpcomingTime] = useState('09:00');
+  const [upcomingRegClose, setUpcomingRegClose] = useState('2026-06-07');
+  const [upcomingVenue, setUpcomingVenue] = useState('Dewan Serbaguna Puchong');
+  const [upcomingCity, setUpcomingCity] = useState('Puchong, Selangor');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem('ts_upcoming_name');
+      if (storedName) setUpcomingName(storedName);
+      const storedDate = localStorage.getItem('ts_upcoming_date');
+      if (storedDate) setUpcomingDate(storedDate);
+      const storedTime = localStorage.getItem('ts_upcoming_time');
+      if (storedTime) setUpcomingTime(storedTime);
+      const storedRegClose = localStorage.getItem('ts_upcoming_reg_close');
+      if (storedRegClose) setUpcomingRegClose(storedRegClose);
+      const storedVenue = localStorage.getItem('ts_upcoming_venue');
+      if (storedVenue) setUpcomingVenue(storedVenue);
+      const storedCity = localStorage.getItem('ts_upcoming_city');
+      if (storedCity) setUpcomingCity(storedCity);
+    }
+  }, []);
 
   useEffect(() => {
     setLocalName(tournamentName);
@@ -107,7 +136,38 @@ export default function SettingsPage() {
       setLiveStreamUrl(localStream);
       setLogoUrl(localLogo);
       setGlobalAccessibility(localAccessibility);
+
+      // Save upcoming tournament configs
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ts_upcoming_name', upcomingName);
+        localStorage.setItem('ts_upcoming_date', upcomingDate);
+        localStorage.setItem('ts_upcoming_time', upcomingTime);
+        localStorage.setItem('ts_upcoming_reg_close', upcomingRegClose);
+        localStorage.setItem('ts_upcoming_venue', upcomingVenue);
+        localStorage.setItem('ts_upcoming_city', upcomingCity);
+      }
+
       setMessage({ type: 'success', text: 'System settings saved successfully.' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to save settings.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveUpcoming = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ts_upcoming_name', upcomingName);
+        localStorage.setItem('ts_upcoming_date', upcomingDate);
+        localStorage.setItem('ts_upcoming_time', upcomingTime);
+        localStorage.setItem('ts_upcoming_reg_close', upcomingRegClose);
+        localStorage.setItem('ts_upcoming_venue', upcomingVenue);
+        localStorage.setItem('ts_upcoming_city', upcomingCity);
+      }
+      setMessage({ type: 'success', text: 'Upcoming tournament settings saved successfully.' });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to save settings.' });
     } finally {
@@ -138,6 +198,139 @@ export default function SettingsPage() {
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Reset failed.' });
       setResetting(false);
+    }
+  };
+
+  const handleStartNewTournament = async () => {
+    if (!newTName.trim()) {
+      alert('Please specify a tournament name.');
+      return;
+    }
+    const confirmStart = window.confirm(
+      `Are you sure you want to archive the current tournament "${tournamentName}" and clear all active participant and bout records to start "${newTName}"?`
+    );
+    if (!confirmStart) return;
+
+    setStartingNew(true);
+    setMessage(null);
+
+    try {
+      if (typeof window !== 'undefined' && supabase) {
+        // 1. Fetch current database states for archiving
+        const { data: dbParticipants } = await supabase.from('participants').select('id, full_name, club_id').is('deleted_at', null);
+        const { data: dbClubs } = await supabase.from('clubs').select('id, name');
+        const { data: dbCats } = await supabase.from('categories').select('id, name');
+        const { data: dbBouts } = await supabase.from('bouts').select('*');
+
+        const participantsCount = dbParticipants?.length || 0;
+        const clubsCount = dbClubs?.length || 0;
+
+        const championsList: any[] = [];
+        const finalBoutsMap: Record<string, any> = {};
+
+        if (dbBouts && dbBouts.length > 0) {
+          dbBouts.forEach((b) => {
+            const catId = b.category_id;
+            if (b.round_no !== 99) {
+              const currentMax = finalBoutsMap[catId];
+              if (!currentMax || b.round_no > currentMax.round_no) {
+                finalBoutsMap[catId] = b;
+              }
+            }
+          });
+
+          // Fetch champion names and dojos
+          for (const catId in finalBoutsMap) {
+            const finalBout = finalBoutsMap[catId];
+            if (finalBout.winner_id && finalBout.status === 'Completed') {
+              const winnerPart = dbParticipants?.find(p => p.id === finalBout.winner_id);
+              const winnerClub = dbClubs?.find(c => c.id === winnerPart?.club_id);
+              const category = dbCats?.find(c => c.id === catId);
+
+              if (winnerPart && category) {
+                championsList.push({
+                  name: winnerPart.full_name,
+                  club: winnerClub ? winnerClub.name : 'Unknown Dojo',
+                  category: category.name,
+                  medal: '🥇'
+                });
+              }
+            }
+          }
+        }
+
+        // 2. Format custom PastTournament object
+        const newArchiveProfile = {
+          id: `custom-tournament-${Date.now()}`,
+          name: tournamentName,
+          year: new Date().getFullYear(),
+          date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }),
+          venue: 'Pusat Komersial Anggun City, Rawang',
+          city: 'Rawang, Selangor',
+          discipline: ['Kata', 'Kumite'],
+          medals: {
+            gold: championsList.length,
+            silver: championsList.length,
+            bronze: Math.round(championsList.length * 1.5)
+          },
+          totalParticipants: participantsCount,
+          totalClubs: clubsCount,
+          posterGradient: 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #3b82f6 100%)',
+          posterEmoji: '🥇',
+          photos: [
+            { id: 'p26-1', caption: 'Opening Ceremony', gradient: 'linear-gradient(135deg,#1e1b4b,#312e81)' },
+            { id: 'p26-2', caption: 'Tournament Pools', gradient: 'linear-gradient(135deg,#7f1d1d,#b91c1c)' }
+          ],
+          champions: championsList
+        };
+
+        // Prepend to localStorage custom past tournaments list
+        const storedCustom = localStorage.getItem('ts_custom_past_tournaments');
+        const customPastList = storedCustom ? JSON.parse(storedCustom) : [];
+        customPastList.unshift(newArchiveProfile);
+        localStorage.setItem('ts_custom_past_tournaments', JSON.stringify(customPastList));
+
+        // 3. Clear database tables
+        const tablesToClear = [
+          'bouts',
+          'participant_categories',
+          'team_members',
+          'payments',
+          'medical_records',
+          'documents',
+          'activity_logs',
+          'teams',
+          'participants',
+          'clubs'
+        ];
+
+        for (const table of tablesToClear) {
+          const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          if (error) {
+            console.error(`Failed to clear table ${table}:`, error.message);
+          }
+        }
+
+        // Re-seed Host Club so we always have the default club
+        const TARGET_CLUB = {
+          id: '9a5e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f',
+          name: 'Kelab Senshi Goju-Ryu Karate Do',
+          city: 'Kuala Lumpur',
+          state: 'W.P. Kuala Lumpur'
+        };
+        await supabase.from('clubs').insert([TARGET_CLUB]);
+
+        // 4. Update current tournament name
+        setTournamentName(newTName);
+
+        setMessage({ type: 'success', text: 'New tournament initialized and current records archived successfully! Reloading...' });
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to start new tournament.' });
+      setStartingNew(false);
     }
   };
 
@@ -255,16 +448,98 @@ export default function SettingsPage() {
             General Configuration
           </h2>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground block">Tournament Name</label>
+            <label className="text-xs font-medium text-foreground block">Active Tournament name</label>
             <input
               type="text"
               value={localName}
               onChange={(e) => setLocalName(e.target.value)}
               disabled={!canModify}
-              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
               placeholder="e.g. 1st Kelab Senshi Goju-Ryu Championship"
               required
             />
+          </div>
+        </div>
+
+        {/* Upcoming Tournament Details Configuration */}
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            Upcoming Tournament Configuration
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground block">Event Name</label>
+              <input
+                type="text"
+                value={upcomingName}
+                onChange={(e) => setUpcomingName(e.target.value)}
+                disabled={!canModify}
+                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground block">Venue</label>
+              <input
+                type="text"
+                value={upcomingVenue}
+                onChange={(e) => setUpcomingVenue(e.target.value)}
+                disabled={!canModify}
+                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground block">Event Date</label>
+              <input
+                type="date"
+                value={upcomingDate}
+                onChange={(e) => setUpcomingDate(e.target.value)}
+                disabled={!canModify}
+                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground block">Start Time</label>
+              <input
+                type="time"
+                value={upcomingTime}
+                onChange={(e) => setUpcomingTime(e.target.value)}
+                disabled={!canModify}
+                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground block">Registration Deadline</label>
+              <input
+                type="date"
+                value={upcomingRegClose}
+                onChange={(e) => setUpcomingRegClose(e.target.value)}
+                disabled={!canModify}
+                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground block">City / State</label>
+            <input
+              type="text"
+              value={upcomingCity}
+              onChange={(e) => setUpcomingCity(e.target.value)}
+              disabled={!canModify}
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
+            />
+          </div>
+          <div className="flex justify-end pt-2">
+            <button
+              type="button"
+              onClick={handleSaveUpcoming}
+              disabled={saving || !canModify}
+              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 disabled:opacity-50 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+            >
+              <Save className="h-4 w-4 text-white" />
+              <span>{saving ? 'Saving...' : 'Save Upcoming Settings'}</span>
+            </button>
           </div>
         </div>
 
@@ -896,6 +1171,80 @@ export default function SettingsPage() {
           </table>
         </div>
       </div>
+
+      {/* Start New Tournament Profile Section */}
+      {!isCoAdmin && (
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <div className="flex items-center gap-2 text-primary">
+            <Trophy className="h-5 w-5" />
+            <h2 className="text-sm font-extrabold uppercase tracking-wider">Start New Tournament</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Archive the current tournament records (participants count, dojo count, gold/silver/bronze medal count, and champions lists) into the Past Tournaments log. This then resets the database (participants, bouts, teams, and clubs) so you can start setting up a fresh profile.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                New Tournament Name
+              </label>
+              <input
+                type="text"
+                value={newTName}
+                onChange={(e) => setNewTName(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-sans"
+                placeholder="e.g. 2nd Kelab Senshi Tournament 2026"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Tournament Date
+              </label>
+              <input
+                type="date"
+                value={newTDate}
+                onChange={(e) => setNewTDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-sans"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Venue
+              </label>
+              <input
+                type="text"
+                value={newTVenue}
+                onChange={(e) => setNewTVenue(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-sans"
+                placeholder="e.g. Pusat Komersial Anggun City, Rawang"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                City / State
+              </label>
+              <input
+                type="text"
+                value={newTCity}
+                onChange={(e) => setNewTCity(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-sans"
+                placeholder="e.g. Rawang, Selangor"
+              />
+            </div>
+          </div>
+          <div>
+            <button
+              onClick={handleStartNewTournament}
+              disabled={startingNew}
+              className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+            >
+              <Trophy className="h-4 w-4" />
+              <span>{startingNew ? 'Initializing New Tournament...' : 'Archive & Start New Tournament'}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dangerous Zone */}
       {isCoAdmin ? (

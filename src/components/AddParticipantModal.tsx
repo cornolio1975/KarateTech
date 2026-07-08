@@ -189,9 +189,28 @@ export default function AddParticipantModal() {
           </button>
         </div>
 
-        {/* Form Body */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+          {/* Quick Notice for Bulk Import */}
+          <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+            <div className="space-y-0.5 text-left w-full">
+              <span className="font-bold text-xs text-foreground block">Need to import participants in bulk?</span>
+              <span className="text-[11px] text-muted-foreground block">
+                Use the CSV Import Wizard to load participants grouped by Dojo club automatically.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddOpen(false);
+                resetForm();
+                window.dispatchEvent(new CustomEvent('open-import-modal'));
+              }}
+              className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border text-foreground hover:text-primary rounded-lg text-xs font-bold transition shrink-0 cursor-pointer shadow-2xs"
+            >
+              Go to CSV Import
+            </button>
+          </div>
+
           {/* Section 1: Photo & Main */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Mock Photo Select */}

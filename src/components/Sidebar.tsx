@@ -12,7 +12,7 @@ import { useTournament } from '@/context/TournamentContext';
 import { basePath } from '@/db/dbClient';
 
 const MENU_ITEMS = [
-  { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
   { name: 'Participants', icon: Users, path: '/participants' },
   { name: 'Teams', icon: UsersRound, path: '/teams' },
   { name: 'Dojos', icon: Award, path: '/clubs' },

@@ -2,326 +2,282 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { db } from '@/db/dbClient';
-import { Participant, Club, Country } from '@/db/types';
 import { 
-  Users, UserCheck, Flame, HeartPulse, CreditCard, ShieldAlert, 
-  MapPin, Landmark, ArrowRight, ArrowUpRight, TrendingUp, RefreshCw 
+  Trophy, Flame, Users, Calendar, MapPin, ArrowRight, ShieldCheck, 
+  Tv, LogIn, ExternalLink, Activity, Info, Award
 } from 'lucide-react';
+import { basePath } from '@/db/dbClient';
 
-export default function Dashboard() {
+export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [clubs, setClubs] = useState<Club[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
+  
+  // Dynamic upcoming tournament details from settings/localStorage
+  const [upcomingName, setUpcomingName] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
+  const [upcomingDate, setUpcomingDate] = useState('2026-06-14');
+  const [upcomingTime, setUpcomingTime] = useState('09:00');
+  const [upcomingVenue, setUpcomingVenue] = useState('Pusat Komersial Anggun City, Rawang');
+  const [upcomingCity, setUpcomingCity] = useState('Rawang, Selangor');
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [pList, cList, cntList] = await Promise.all([
-        db.participants.list(),
-        db.clubs.list(),
-        db.countries.list()
-      ]);
-      setParticipants(pList);
-      setClubs(cList);
-      setCountries(cntList);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Countdown timer values
+  const [days, setDays] = useState('00');
+  const [hours, setHours] = useState('00');
+  const [minutes, setMinutes] = useState('00');
+  const [seconds, setSeconds] = useState('00');
 
   useEffect(() => {
     setMounted(true);
-    loadData();
+
+    // Retrieve customized event parameters if set in admin console
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem('ts_upcoming_name');
+      if (storedName) setUpcomingName(storedName);
+      const storedDate = localStorage.getItem('ts_upcoming_date');
+      if (storedDate) setUpcomingDate(storedDate);
+      const storedTime = localStorage.getItem('ts_upcoming_time');
+      if (storedTime) setUpcomingTime(storedTime);
+      const storedVenue = localStorage.getItem('ts_upcoming_venue');
+      if (storedVenue) setUpcomingVenue(storedVenue);
+      const storedCity = localStorage.getItem('ts_upcoming_city');
+      if (storedCity) setUpcomingCity(storedCity);
+    }
   }, []);
+
+  // Update countdown clock
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const targetIso = `${upcomingDate}T${upcomingTime}:00Z`;
+    const target = new Date(targetIso).getTime();
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const difference = target - now;
+
+      if (difference <= 0) {
+        clearInterval(interval);
+        setDays('00');
+        setHours('00');
+        setMinutes('00');
+        setSeconds('00');
+      } else {
+        const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((difference % (1000 * 60)) / 1000);
+
+        setDays(String(d).padStart(2, '0'));
+        setHours(String(h).padStart(2, '0'));
+        setMinutes(String(m).padStart(2, '0'));
+        setSeconds(String(s).padStart(2, '0'));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [mounted, upcomingDate, upcomingTime]);
 
   if (!mounted) return null;
 
-  // Compute Statistics
-  const total = participants.length;
-  const male = participants.filter(p => p.gender === 'Male').length;
-  const female = participants.filter(p => p.gender === 'Female').length;
-  
-  const confirmed = participants.filter(p => p.status === 'Confirmed').length;
-  const checkedIn = participants.filter(p => p.status === 'Checked In').length;
-  const pending = participants.filter(p => p.status === 'Pending').length;
-  
-  const paid = participants.filter(p => p.payment_status === 'Paid').length;
-  const unpaid = participants.filter(p => p.payment_status === 'Unpaid').length;
-  const pendingPayment = participants.filter(p => p.payment_status === 'Pending').length;
-  
-  const medicalIssues = participants.filter(p => p.medical_status === 'Action Required').length;
-  const reviewNeeded = participants.filter(p => p.medical_status === 'Review Needed').length;
-
-  const uniqueClubsCount = Array.from(new Set(participants.map(p => p.club_id).filter(Boolean))).length;
-  const uniqueCountriesCount = Array.from(new Set(participants.map(p => p.nationality_code).filter(Boolean))).length;
-
-  // Recent 5 participants
-  const recentParticipants = [...participants]
-    .sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime())
-    .slice(0, 5);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Confirmed': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-      case 'Checked In': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
-      case 'Pending': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-      case 'Disqualified': return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
-      default: return 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20';
-    }
-  };
-
-  // SVG Registration Trend line coordinates (Simulating last 7 days of registrations)
-  const chartPoints = "10,120 75,90 140,110 205,60 270,80 335,40 400,20";
-
   return (
-    <div className="p-6 space-y-6 text-foreground w-full">
-      {/* Page Title & Refresh */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tournament Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Real-time participation telemetry and registration insight metrics</p>
-        </div>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="p-2 hover:bg-secondary border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Sync Data</span>
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#070b15] text-slate-100 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+      
+      {/* Dynamic Background Effects */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(79,70,229,0.15),rgba(255,255,255,0))] pointer-events-none" />
+      <div className="absolute top-[20%] left-[-10%] w-[35%] h-[35%] bg-indigo-900/10 rounded-full blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[-10%] w-[45%] h-[45%] bg-blue-900/10 rounded-full blur-[150px] pointer-events-none" />
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-secondary/35 rounded-xl animate-pulse"></div>
-          ))}
-        </div>
-      ) : (
-        <>
-          {/* KPI Widget Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* 1. Total Registrants */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex items-center justify-between relative group hover:border-muted-foreground/35 transition-all">
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Total Participants</span>
-                <span className="text-3xl font-extrabold block">{total}</span>
-                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <span className="text-emerald-500 font-semibold">{male} Male</span> • <span>{female} Female</span>
-                </span>
-              </div>
-              <div className="h-10 w-10 bg-primary/5 text-primary rounded-lg flex items-center justify-center">
-                <Users className="h-5 w-5" />
-              </div>
-            </div>
-
-            {/* 2. Confirmed & Checked In */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex items-center justify-between relative group hover:border-muted-foreground/35 transition-all">
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Checked In / Confirmed</span>
-                <span className="text-3xl font-extrabold block">{checkedIn} <span className="text-sm font-semibold text-muted-foreground">/ {confirmed}</span></span>
-                <span className="text-[10px] text-muted-foreground block">
-                  {pending} registration(s) pending approval
-                </span>
-              </div>
-              <div className="h-10 w-10 bg-emerald-500/5 text-emerald-500 rounded-lg flex items-center justify-center">
-                <UserCheck className="h-5 w-5" />
-              </div>
-            </div>
-
-            {/* 3. Payments Paid */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex items-center justify-between relative group hover:border-muted-foreground/35 transition-all">
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Payment Settlement</span>
-                <span className="text-3xl font-extrabold block">{paid} <span className="text-sm font-semibold text-muted-foreground">Paid</span></span>
-                <span className="text-[10px] text-muted-foreground block">
-                  {unpaid} unpaid • {pendingPayment} pending checkout
-                </span>
-              </div>
-              <div className="h-10 w-10 bg-blue-500/5 text-blue-500 rounded-lg flex items-center justify-center">
-                <CreditCard className="h-5 w-5" />
-              </div>
-            </div>
-
-            {/* 4. Medical Flags */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex items-center justify-between relative group hover:border-muted-foreground/35 transition-all">
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Medical Conditions Alert</span>
-                <span className={`text-3xl font-extrabold block ${medicalIssues > 0 ? 'text-red-500' : ''}`}>{medicalIssues}</span>
-                <span className="text-[10px] text-muted-foreground block">
-                  {reviewNeeded} dossier(s) awaiting clinical verification
-                </span>
-              </div>
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${medicalIssues > 0 ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/5 text-amber-500'}`}>
-                {medicalIssues > 0 ? <ShieldAlert className="h-5 w-5 animate-bounce" /> : <HeartPulse className="h-5 w-5" />}
-              </div>
-            </div>
+      {/* Navigation Header */}
+      <header className="relative z-10 max-w-7xl mx-auto px-6 py-4 flex items-center justify-between border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full overflow-hidden border border-white/10 bg-slate-900 shrink-0">
+            <img src={`${basePath}/logo.jpg`} alt="Kelab Senshi Logo" className="h-full w-full object-cover" />
           </div>
-
-          {/* Secondary stats & quick summaries */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Quick stats on Geography & Clubs */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-indigo-500/5 text-indigo-500 flex items-center justify-center">
-                  <Landmark className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-xs font-medium text-muted-foreground block">Participating Clubs</span>
-                  <span className="text-xl font-bold text-foreground mt-0.5 block">{uniqueClubsCount} club dojos</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-muted-foreground">Active in system</span>
-                <span className="text-xs font-semibold block text-indigo-500">{clubs.length} total registered</span>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-violet-500/5 text-violet-500 flex items-center justify-center">
-                  <MapPin className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-xs font-medium text-muted-foreground block">Represented Countries</span>
-                  <span className="text-xl font-bold text-foreground mt-0.5 block">{uniqueCountriesCount} nations</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-muted-foreground">Countries available</span>
-                <span className="text-xs font-semibold block text-violet-500">{countries.length} total flags</span>
-              </div>
-            </div>
+          <div>
+            <h1 className="text-sm font-black tracking-wider uppercase text-white leading-none">KELAB KARATE DO</h1>
+            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">SENSHI GOJU-RYU</span>
           </div>
+        </div>
 
-          {/* Chart & Recent Activity List */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Live Chart (SVG based registration trend) */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs lg:col-span-2 flex flex-col space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-sm">Registration Velocity Trend</h4>
-                  <p className="text-[11px] text-muted-foreground">Volume of registrations recorded over the last 7 days</p>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-semibold">
-                  <TrendingUp className="h-3 w-3" />
-                  <span>+14% Increase</span>
-                </div>
-              </div>
+        <nav className="hidden md:flex items-center gap-6">
+          <Link href="/public" className="text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors">
+            Spectator Hub
+          </Link>
+          <Link href="/public/tournaments" className="text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors">
+            Upcoming Events
+          </Link>
+          <Link href="/public/past-tournaments" className="text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors">
+            Tournament Archive
+          </Link>
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <Link 
+            href="/login"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-white/10 hover:bg-white/5 rounded-lg text-xs font-bold uppercase tracking-wide text-white transition-all"
+          >
+            <LogIn size={13} />
+            <span>Portal Login</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-12 flex flex-col items-center text-center space-y-8">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-400 uppercase tracking-widest animate-pulse">
+          <Flame size={12} fill="currentColor" />
+          Welcome to the Dojo
+        </div>
+
+        <h2 className="text-4xl sm:text-6xl font-black tracking-tight text-white max-w-4xl leading-tight">
+          DISCIPLINE. RESPECT.<br />
+          <span className="bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            UNLEASH THE WARRIOR WITHIN.
+          </span>
+        </h2>
+
+        <p className="text-sm sm:text-base text-slate-400 max-w-2xl leading-relaxed">
+          Kelab Senshi Goju-Ryu Karate Do is a premier traditional Okinawan karate academy. 
+          We dedicate ourselves to developing physical mastery, mental fortitude, and competitive excellence.
+        </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+          <Link 
+            href="/public"
+            className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold tracking-widest uppercase transition-all shadow-lg shadow-indigo-900/40 flex items-center gap-2"
+          >
+            <Tv size={14} />
+            <span>Spectator Live Hub</span>
+          </Link>
+          <Link 
+            href="/public/tournaments"
+            className="px-6 py-3.5 border border-white/10 hover:bg-white/5 rounded-xl text-xs font-bold tracking-widest uppercase text-white transition-all flex items-center gap-2"
+          >
+            <span>Upcoming Tournaments</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </section>
+
+      {/* Tournament Countdown Panel */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 py-8">
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 block">Next Championship</span>
+              <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
+                {upcomingName}
+              </h3>
               
-              {/* Custom SVG Line Chart */}
-              <div className="flex-1 w-full min-h-[220px] flex items-center justify-center relative pt-4">
-                <svg className="w-full h-[180px]" viewBox="0 0 410 130" preserveAspectRatio="none">
-                  {/* Grid lines */}
-                  <line x1="0" y1="20" x2="410" y2="20" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="3" />
-                  <line x1="0" y1="60" x2="410" y2="60" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="3" />
-                  <line x1="0" y1="100" x2="410" y2="100" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="3" />
-                  
-                  {/* Gradient fill */}
-                  <defs>
-                    <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.15" />
-                      <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-                  <path d={`M 10,130 L ${chartPoints} L 400,130 Z`} fill="url(#chart-grad)" />
-
-                  {/* Trend line */}
-                  <polyline
-                    fill="none"
-                    stroke="var(--foreground)"
-                    strokeWidth="2.5"
-                    points={chartPoints}
-                  />
-
-                  {/* Dots */}
-                  <circle cx="10" cy="120" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                  <circle cx="75" cy="90" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                  <circle cx="140" cy="110" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                  <circle cx="205" cy="60" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                  <circle cx="270" cy="80" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                  <circle cx="335" cy="40" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                  <circle cx="400" cy="20" r="4.5" fill="var(--card)" stroke="var(--foreground)" strokeWidth="2" />
-                </svg>
-
-                {/* Day Labels */}
-                <div className="flex justify-between w-full text-[10px] text-muted-foreground px-1.5 mt-1 font-semibold">
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                  <span>Sun</span>
+              <div className="space-y-2 text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-indigo-400" />
+                  <span>{new Date(upcomingDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {upcomingTime}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin size={14} className="text-indigo-400" />
+                  <span>{upcomingVenue}, {upcomingCity}</span>
                 </div>
               </div>
             </div>
 
-            {/* Recent Registrations Feed */}
-            <div className="bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-sm">Recent Registrations</h4>
-                  <p className="text-[11px] text-muted-foreground">Latest athletes onboarded to the championship</p>
+            {/* Live Countdown Clocks */}
+            <div className="flex flex-col items-center space-y-4 bg-black/40 p-5 rounded-2xl border border-white/5">
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">REGISTRATION COUNTDOWN</span>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl sm:text-3xl font-black text-white font-mono">{days}</span>
+                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider mt-1">Days</span>
                 </div>
-                <Link 
-                  href="/participants" 
-                  prefetch={false}
-                  className="text-xs text-primary font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
-                >
-                  <span>View All</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-
-              {/* List */}
-              <div className="flex-1 space-y-3.5 overflow-y-auto">
-                {recentParticipants.length === 0 ? (
-                  <div className="text-center text-xs text-muted-foreground py-8">
-                    No registered participants found.
-                  </div>
-                ) : (
-                  recentParticipants.map((p) => {
-                    const countryFlag = countries.find(c => c.code === p.nationality_code)?.flag_emoji || '🏳️';
-                    const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
-
-                    return (
-                      <div key={p.id} className="flex items-start justify-between border-b border-border/50 pb-3 last:border-b-0 last:pb-0">
-                        <div className="flex gap-2.5 min-w-0">
-                          <div className="h-8.5 w-8.5 rounded-full bg-secondary text-foreground font-bold flex items-center justify-center text-xs shrink-0 uppercase border border-border">
-                            {p.full_name.substring(0, 2)}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-semibold text-xs text-foreground block truncate hover:underline">
-                              {p.full_name}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground block truncate">
-                              {countryFlag} {clubName}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${getStatusColor(p.status)}`}>
-                            {p.status}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground block mt-0.5 font-mono">
-                            {p.registration_no}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                <span className="text-xl text-slate-700 font-bold mb-4">:</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl sm:text-3xl font-black text-white font-mono">{hours}</span>
+                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider mt-1">Hours</span>
+                </div>
+                <span className="text-xl text-slate-700 font-bold mb-4">:</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl sm:text-3xl font-black text-white font-mono">{minutes}</span>
+                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider mt-1">Mins</span>
+                </div>
+                <span className="text-xl text-slate-700 font-bold mb-4">:</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl sm:text-3xl font-black text-white font-mono">{seconds}</span>
+                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider mt-1">Secs</span>
+                </div>
               </div>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </section>
+
+      {/* Archives Summary Section */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 py-12">
+        <div className="border-t border-white/5 pt-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Stat 1 */}
+            <div className="bg-slate-900/30 border border-white/5 rounded-2xl p-6 flex items-start gap-4 hover:border-white/10 transition-colors">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                <Trophy size={18} fill="currentColor" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-2xl font-black text-white">88 Divisions</h4>
+                <p className="text-xs text-slate-400">Archived championship event divisions from 2026 draws.</p>
+              </div>
+            </div>
+
+            {/* Stat 2 */}
+            <div className="bg-slate-900/30 border border-white/5 rounded-2xl p-6 flex items-start gap-4 hover:border-white/10 transition-colors">
+              <div className="h-10 w-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                <Users size={18} />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-2xl font-black text-white">481 Competitors</h4>
+                <p className="text-xs text-slate-400">Total verified elite athletes listed across draw registries.</p>
+              </div>
+            </div>
+
+            {/* Stat 3 */}
+            <div className="bg-slate-900/30 border border-white/5 rounded-2xl p-6 flex items-start gap-4 hover:border-white/10 transition-colors">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                <Award size={18} />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-2xl font-black text-white">75 Dojos</h4>
+                <p className="text-xs text-slate-400">Participating karate clubs and regional martial art schools.</p>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="text-center pt-8">
+            <Link 
+              href="/public/past-tournaments" 
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:underline uppercase tracking-wider"
+            >
+              <span>Relive past results and view champions list</span>
+              <ArrowRight size={12} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative z-10 bg-black/60 border-t border-white/5 py-12 text-xs text-slate-500 mt-12">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div>
+            <span className="font-bold text-white block mb-1">Kelab Senshi Goju-Ryu Karate Do</span>
+            <p className="max-w-sm leading-relaxed">
+              Affiliated school promoting traditional values, athletic excellence, and character development in Puchong, Selangor.
+            </p>
+          </div>
+          <div className="flex flex-col md:items-end gap-1.5">
+            <span>Official Tournament Portal — All Rights Reserved.</span>
+            <span>Contact Dojo: <a href="mailto:senshikarate@gmail.com" className="text-indigo-400 hover:underline">senshikarate@gmail.com</a></span>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }

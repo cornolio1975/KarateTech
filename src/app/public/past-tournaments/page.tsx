@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Search, Filter, Trophy, MapPin, Calendar, Medal,
   Download, ChevronDown, ChevronUp, ArrowLeft, ArrowRight,
-  Crown, Users, Star, X, Image as ImageIcon
+  Crown, Users, Star, X, Image as ImageIcon, Home
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,16 +47,16 @@ interface PastTournament {
 
 const PAST_TOURNAMENTS: PastTournament[] = [
   {
-    id: 'ksg-open-2026',
-    name: 'Kelab Senshi Goju-Ryu Open Karate Championship 2026',
+    id: 'itosu-ryu-open-2026',
+    name: 'ITOSU-RYU OPEN KARATE CHAMPIONSHIP 2026',
     year: 2026,
-    date: '14 June 2026 18:41',
-    venue: 'Dewan Serbaguna Petaling Jaya',
-    city: 'Petaling Jaya, Selangor',
+    date: '2026-06-11',
+    venue: 'Pusat Komersial Anggun City, Rawang',
+    city: 'Rawang, Selangor',
     discipline: ['Kata', 'Kumite'],
-    medals: { gold: 24, silver: 24, bronze: 48 },
-    totalParticipants: 203,
-    totalClubs: 6,
+    medals: { gold: 88, silver: 88, bronze: 149 },
+    totalParticipants: 481,
+    totalClubs: 75,
     posterGradient: 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #3b82f6 100%)',
     posterEmoji: '🥇',
     pdfUrl: '#',
@@ -66,10 +66,94 @@ const PAST_TOURNAMENTS: PastTournament[] = [
       { id: 'p26-3', caption: 'Finalists Group Photo', gradient: 'linear-gradient(135deg,#14532d,#166534)' },
     ],
     champions: [
-      { name: 'YESHARLINNI MURULI', club: 'Kelab Senshi Goju-Ryu Karate Do', category: "Girls 10-11 Kumite -35kg", medal: '🥇' },
-      { name: 'Aqil bin Jaafar', club: 'Tiger Claw Dojo', category: "Junior Male Individual Kumite -61 kg", medal: '🥇' },
-      { name: 'Qistina bin Razali', club: 'Budokan Singapore', category: "U14 FEMALE INDIVIDUAL KUMITE -52KG", medal: '🥇' },
-      { name: 'Asyraf bin Salleh', club: 'Budokan Singapore', category: "Junior Male Individual Kumite -55 kg", medal: '🥇' },
+      { name: "KAASHISH LAL PURANCHAN LAL", club: "ITOSU-RYU", category: "10-11 YEARS MALE KUMITE -35 kg G1", medal: "🥇" },
+      { name: "THISHANRAJ JAYARAJ", club: "ITOSU-RYU", category: "10-11 YEARS MALE KUMITE -35 kg G2", medal: "🥇" },
+      { name: "GAUTHAM POOVENDRAN", club: "SHK", category: "10-11 YEARS MALE KUMITE -40 kg", medal: "🥇" },
+      { name: "MOHD FAIRUL AHMED SAIF FUDAEEL", club: "TSKA", category: "6-7  YEARS  INDIVIDUAL MALE KATA", medal: "🥇" },
+      { name: "AYYASH LUQMAN BIN AHMAD NAIM", club: "KAPJ", category: "6-7  YEARS MALE KUMITE -25 KG G1", medal: "🥇" },
+      { name: "AATISH SHIVRAM JEREMIA PHILLAI", club: "KAPJ", category: "6-7  YEARS MALE KUMITE -25 KG G2", medal: "🥇" },
+      { name: "YOGESAN VARSSHINIE", club: "HAYASHI-HA", category: "6-7 YEARS FEMALE KUMITE -20 KG", medal: "🥇" },
+      { name: "SAMERA SREE", club: "KAPJ", category: "6-7 YEARS FEMALE KUMITE -25 KG", medal: "🥇" },
+      { name: "VISHAAKAN KHARTE", club: "KIBOKAN SEL", category: "6-7 YEARS MALE -20 KG G1", medal: "🥇" },
+      { name: "KARTIGAN MURUGAN", club: "ITOSU-RYU", category: "6-7 YEARS MALE -20 KG G2", medal: "🥇" },
+      { name: "VIGNESWARAN YANSHIKA", club: "PSSKNS", category: "8-9 YEARS FEMALE_INDIVIDUAL KUMITE -30KG", medal: "🥇" },
+      { name: "SHOBAN SIVARAJAN", club: "JKBA", category: "8-9 YEARS MALE KUMITE -25 KG G1", medal: "🥇" },
+      { name: "DARWIN KANTHAN", club: "SHK", category: "8-9 YEARS MALE KUMITE -25 KG G2", medal: "🥇" },
+      { name: "MOHD FAIRUL SURI FATEEMA", club: "TSKA", category: "8-9 Years Individual Female Kumite -25KG", medal: "🥇" },
+      { name: "DATU NOORNIKMAN DATU NOAH EZRA", club: "MASK", category: "8-9 Years Kata Male", medal: "🥇" },
+      { name: "VARSHAN KAMAL", club: "ITOSU-RYU", category: "BOYS 10-11 YEARS INDIVIDUAL KATA G1", medal: "🥇" },
+      { name: "MUHAMMAD AFIF MUHAMMAD AIDAN ZIQRI", club: "KUNIBA KAI KL", category: "BOYS 10-11 YEARS INDIVIDUAL KATA G2", medal: "🥇" },
+      { name: "KAARTHICK PUVANESWARAN", club: "ITOSU-RYU", category: "BOYS 8-9 YEARS INDIVIDUAL KUMITE -30KG", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "BOYS BELOW 11 YEARS OLD & U14 TEAM KATA", medal: "🥇" },
+      { name: "TARUN KALAISELVAN", club: "KARATE KELANTAN BARU", category: "BOYS INDIVIDUAL KUMITE 10-11 YEARS +40KG", medal: "🥇" },
+      { name: "YOGESWARAN ANBALAGAN", club: "KARATE SPEED POWER WPKL", category: "BOYS INDIVIDUAL KUMITE 6-7 YEARS +25KG", medal: "🥇" },
+      { name: "LEYGAN VIGNESWARAN", club: "KKJK", category: "BOYS INDIVIDUAL KUMITE 8-9 YEARS +30KG G1", medal: "🥇" },
+      { name: "LACKSHYAN SHARVINTHIRAN", club: "KIBOKAN SEL", category: "BOYS INDIVIDUAL KUMITE 8-9 YEARS +30KG G2", medal: "🥇" },
+      { name: "PERSATUAN KARATEDO DAERAH GOMBAK", club: "ITOSU-RYU", category: "BOYS TEAM KUMITE BELOW 11 YEARS", medal: "🥇" },
+      { name: "SHOTOKAN HAYAIDESU KARATE", club: "SHK", category: "BOYS U14 TEAM KUMITE", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "CADET AND JUNIOR FEMALE TEAM KATA", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "CADET AND JUNIOR MALE TEAM KATA", medal: "🥇" },
+      { name: "PERSATUAN KARATE KELANTAN BARU", club: "KARATE KELANTAN BARU", category: "CADET FEMALE TEAM KUMITE", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "CADET MALE TEAM KUMITE 14-15 YEARS OLD", medal: "🥇" },
+      { name: "SURESH YUVASRI", club: "GOJU-KAI", category: "Cadet Female Individual Kata", medal: "🥇" },
+      { name: "PENGERAN TAUFIQ HABIBALLAH PUTERI FAKHIRA HIDAYAH", club: "PKDKULAI", category: "Cadet Female Individual Kumite  +61Kg", medal: "🥇" },
+      { name: "THAKSHAYANI SURESH KUMAR", club: "HAYASHI-HA", category: "Cadet Female Individual Kumite  -54Kg", medal: "🥇" },
+      { name: "MURUGAN VARSHNI", club: "PKDKULAI", category: "Cadet Female Individual Kumite  -61Kg", medal: "🥇" },
+      { name: "RAMU YUGAKAALI", club: "KARATE SPEED POWER WPKL", category: "Cadet Female Individual Kumite -47kg", medal: "🥇" },
+      { name: "GUNASEGRAN YUGENDEVAN", club: "GOJU-KAI", category: "Cadet Male Individual Kata", medal: "🥇" },
+      { name: "SENTHILNATHAN NIROSHAN", club: "PKDKULAI", category: "Cadet Male Individual Kumite +70kg", medal: "🥇" },
+      { name: "RAGAVAN OMNESH VASHAN", club: "HAYASHI-HA", category: "Cadet Male Individual Kumite -52kg G1", medal: "🥇" },
+      { name: "GURUNAATH POOBALAN", club: "ITOSU-RYU", category: "Cadet Male Individual Kumite -52kg G2", medal: "🥇" },
+      { name: "TUSHANTH SATHISH", club: "ITOSU-RYU", category: "Cadet Male Individual Kumite -57kg", medal: "🥇" },
+      { name: "TATYA BAABA KUMARESAN", club: "ITOSU-RYU", category: "Cadet Male Individual Kumite -63kg", medal: "🥇" },
+      { name: "SHARVES BALAKRISHNAN", club: "KKJK", category: "Cadet Male Individual Kumite -70kg", medal: "🥇" },
+      { name: "MONISHA YAYADI", club: "PKNK", category: "FEMALE KUMITE U21 18 - 21 YRS +68KG", medal: "🥇" },
+      { name: "RANEYA MOHAMED ZAMIR", club: "KARATE KELANTAN BARU", category: "FEMALE KUMITE U21 18 - 21 YRS -50KG", medal: "🥇" },
+      { name: "PERAVISHAH NADARAJAN", club: "PKNK", category: "FEMALE KUMITE U21 18 - 21 YRS -55KG", medal: "🥇" },
+      { name: "GHAYATHRI SURESH", club: "PKNK", category: "FEMALE KUMITE U21 18 - 21 YRS -61KG", medal: "🥇" },
+      { name: "NARMATHAA SELVAKUMARAN", club: "PKNK", category: "FEMALE KUMITE U21 18 - 21 YRS -68KG", medal: "🥇" },
+      { name: "OLUWAFIKAYO SUCCESS ATOYEBI BRIDGET", club: "TSKA", category: "GIRLS 10-11 YEARS INDIVIDUAL KUMITE -40 KG", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "GIRLS BELOW 11 YEARS OLD & U14 TEAM KATA", medal: "🥇" },
+      { name: "SHANMUGANATHAN SAKTHIKA", club: "PKDKULAI", category: "GIRLS INDIVIDUAL KATA  10 -11 YEARS OLD", medal: "🥇" },
+      { name: "MOHD FAIRUL SURI FATEEMA", club: "TSKA", category: "GIRLS INDIVIDUAL KATA 8 - 9 YEARS OLD", medal: "🥇" },
+      { name: "SUGAKUMAR SHIVAANI", club: "GSRM", category: "GIRLS INDIVIDUAL KUMITE 10-11 YEARS +40KG G1", medal: "🥇" },
+      { name: "AISHWARIYAH NANTHA KUMAR", club: "ITOSU-RYU", category: "GIRLS INDIVIDUAL KUMITE 10-11 YEARS +40KG G2", medal: "🥇" },
+      { name: "LEENASHA KUMARI PURANCHAN LAL", club: "ITOSU-RYU", category: "GIRLS INDIVIDUAL KUMITE 5 YEARS OLD", medal: "🥇" },
+      { name: "SORNAM TAMERRA SATHIA", club: "HOSHI RYU KL", category: "GIRLS INDIVIDUAL KUMITE 6-7 YEARS +25KG", medal: "🥇" },
+      { name: "CHARVY LAXMI JEGESWARAN", club: "ITOSU-RYU", category: "GIRLS INDIVIDUAL KUMITE 8-9 YEARS +30KG", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "GIRLS TEAM KUMITE BELOW 11 YEARS", medal: "🥇" },
+      { name: "PERSATUAN KARATE KELANTAN BARU- TEAM A", club: "KARATE KELANTAN BARU", category: "GIRLS U14 TEAM KUMITE", medal: "🥇" },
+      { name: "KAYALVILY KHARTE", club: "KIBOKAN SEL", category: "Girls 10-11 Kumite -35kg", medal: "🥇" },
+      { name: "MAHAGANAPATHY YUVIKA", club: "HAYASHI-HA", category: "JUNIOR FEMALE INDIVIDUAL KUMITE +59KG", medal: "🥇" },
+      { name: "ITOSU RYU KARATE", club: "ITOSU-RYU", category: "JUNIOR FEMALE TEAM KUMITE", medal: "🥇" },
+      { name: "SHOTOKAN HAYAIDESU KARATE", club: "SHK", category: "JUNIOR MALE TEAM KUMITE", medal: "🥇" },
+      { name: "VADIVELOO VRITTIKHA", club: "GOJU-KAI", category: "Junior Female Individual Kata", medal: "🥇" },
+      { name: "RAJASEKARAN JAY SHEERA", club: "HAYASHI-HA", category: "Junior Female Individual Kumite -48 kg", medal: "🥇" },
+      { name: "THASHAH BALASUNTHRAM", club: "KARATE KELANTAN BARU", category: "Junior Female Individual Kumite -53 kg", medal: "🥇" },
+      { name: "NUR ALEESYA BINTI NUAR RAZLAN", club: "ITOSU-RYU", category: "Junior Female Individual Kumite -59 kg", medal: "🥇" },
+      { name: "DHIINESHSANKARANATH RAVINDRANATH", club: "ITOSU-RYU", category: "Junior Male Individual Kata", medal: "🥇" },
+      { name: "SENTHILNATHAN SANJAY", club: "PKDKULAI", category: "Junior Male Individual Kumite +76 kg", medal: "🥇" },
+      { name: "JEGATHISWARAN NAVANITHAN", club: "GOJU-KAI", category: "Junior Male Individual Kumite -55 kg", medal: "🥇" },
+      { name: "YUMEN DRAN KASVIN", club: "GOJU-KAI", category: "Junior Male Individual Kumite -61 kg", medal: "🥇" },
+      { name: "DHIINESHSANKARANATH RAVINDRANATH", club: "ITOSU-RYU", category: "Junior Male Individual Kumite -68 kg", medal: "🥇" },
+      { name: "ARJUN KHANNA KHANNA MUREN", club: "PKNK", category: "Junior Male Individual Kumite -76 kg", medal: "🥇" },
+      { name: "IMAN BIN MUHAMMAD FADHIL", club: "PKNK", category: "MALE KUMITE U21 +75KG", medal: "🥇" },
+      { name: "TRISHAANTH TRISHAANTH", club: "GOJU-KAI", category: "MALE KUMITE U21 18 - 21 YRS -55KG", medal: "🥇" },
+      { name: "THINAGARAJ ANANDAN", club: "PKNK", category: "MALE KUMITE U21 18 - 21 YRS -60KG", medal: "🥇" },
+      { name: "KRISHNAN VELLU", club: "PKNK", category: "MALE KUMITE U21 18 - 21 YRS -67KG", medal: "🥇" },
+      { name: "MUHAMMAD AMMAR BIN SIRAJUDEEN", club: "PKNK", category: "MALE KUMITE U21 18 - 21 YRS -75KG", medal: "🥇" },
+      { name: "QAIREEN NASUHA DZULKARNAIN", club: "KARATE KELANTAN BARU", category: "U14 FEMALE INDIVIDUAL KATA", medal: "🥇" },
+      { name: "LARANYA VASUTHEVAN", club: "JKBA", category: "U14 FEMALE INDIVIDUAL KUMITE +52KG", medal: "🥇" },
+      { name: "SHARAANI SANGAR", club: "SHK", category: "U14 FEMALE INDIVIDUAL KUMITE -42KG", medal: "🥇" },
+      { name: "MAHA SYAHIRAH KUPPAN MOHAN", club: "KARATE KELANTAN BARU", category: "U14 FEMALE INDIVIDUAL KUMITE -47KG", medal: "🥇" },
+      { name: "DARRSHAH BALAMBGAI BALAMURUGAN", club: "JKBA", category: "U14 FEMALE INDIVIDUAL KUMITE -52KG", medal: "🥇" },
+      { name: "YATESH LAL PUWAN LAL", club: "ITOSU-RYU", category: "U14 MALE INDIVIDUAL KATA", medal: "🥇" },
+      { name: "THIRUCHELVAN BARTHY", club: "ITOSU-RYU", category: "U14 MALE INDIVIDUAL KUMITE +55KG", medal: "🥇" },
+      { name: "ARIF KHAIRULLAH MOHD KHAIRUL ROSLAN", club: "KAPJ", category: "U14 MALE INDIVIDUAL KUMITE -40KG G1", medal: "🥇" },
+      { name: "NITEESH ATHISIVAM", club: "JKBA", category: "U14 MALE INDIVIDUAL KUMITE -40KG G2", medal: "🥇" },
+      { name: "MUHAMMAD NAZRI SAFWAN ARRIYAN", club: "HAYASHI-HA", category: "U14 MALE INDIVIDUAL KUMITE -45KG", medal: "🥇" },
+      { name: "VARMAN SUJESH", club: "GOJU-KAI", category: "U14 MALE INDIVIDUAL KUMITE -50KG", medal: "🥇" },
+      { name: "VARSHAN JAMES SIVAM BALAKRISHNAN", club: "ITOSU-RYU", category: "U14 MALE INDIVIDUAL KUMITE -55KG", medal: "🥇" }
     ],
   },
   {
@@ -377,24 +461,40 @@ function PastTournamentCard({ tournament }: { tournament: PastTournament }) {
 export default function PastTournamentsPage() {
   const [searchYear, setSearchYear] = useState('');
   const [filterDiscipline, setFilterDiscipline] = useState<Discipline>('All');
+  const [customTournaments, setCustomTournaments] = useState<PastTournament[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('ts_custom_past_tournaments');
+      if (stored) {
+        try {
+          setCustomTournaments(JSON.parse(stored));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
+  const allTournaments = useMemo(() => {
+    return [...customTournaments, ...PAST_TOURNAMENTS];
+  }, [customTournaments]);
 
   const years = useMemo(
-    () => [...new Set(PAST_TOURNAMENTS.map((t) => t.year))].sort((a, b) => b - a),
-    []
+    () => [...new Set(allTournaments.map((t) => t.year))].sort((a, b) => b - a),
+    [allTournaments]
   );
 
   const filtered = useMemo(() => {
-    return PAST_TOURNAMENTS.filter((t) => {
+    return allTournaments.filter((t) => {
       const yearMatch = searchYear ? t.year === parseInt(searchYear, 10) : true;
       const disciplineMatch =
         filterDiscipline === 'All' || t.discipline.includes(filterDiscipline);
       return yearMatch && disciplineMatch;
     });
-  }, [searchYear, filterDiscipline]);
+  }, [searchYear, filterDiscipline, allTournaments]);
 
   const totalMedals = useMemo(
     () =>
-      PAST_TOURNAMENTS.reduce(
+      allTournaments.reduce(
         (acc, t) => ({
           gold: acc.gold + t.medals.gold,
           silver: acc.silver + t.medals.silver,
@@ -402,11 +502,23 @@ export default function PastTournamentsPage() {
         }),
         { gold: 0, silver: 0, bronze: 0 }
       ),
-    []
+    [allTournaments]
   );
 
   return (
     <div className="pt-page">
+      {/* Floating Home button */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem 1.5rem 0' }}>
+        <Link
+          href="/"
+          prefetch={false}
+          className="flex items-center gap-1.5 w-fit px-3 py-1.5 border border-gray-800 hover:border-gray-700 bg-gray-900/40 hover:bg-gray-900/80 rounded-lg text-xs font-bold transition text-gray-300 hover:text-white cursor-pointer"
+        >
+          <Home className="h-3.5 w-3.5" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
       {/* Hero */}
       <header className="pt-hero">
         <div className="pt-hero__content">
@@ -424,13 +536,13 @@ export default function PastTournamentsPage() {
           {/* Summary stats */}
           <div className="pt-hero__stats">
             <div className="pt-hero__stat">
-              <span className="pt-hero__stat-value">{PAST_TOURNAMENTS.length}</span>
+              <span className="pt-hero__stat-value">{allTournaments.length}</span>
               <span className="pt-hero__stat-label">Tournaments</span>
             </div>
             <div className="pt-hero__stat-divider" />
             <div className="pt-hero__stat">
               <span className="pt-hero__stat-value">
-                {PAST_TOURNAMENTS.reduce((a, t) => a + t.totalParticipants, 0)}
+                {allTournaments.reduce((a, t) => a + t.totalParticipants, 0)}
               </span>
               <span className="pt-hero__stat-label">Total Athletes</span>
             </div>

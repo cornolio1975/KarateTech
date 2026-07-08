@@ -3,7 +3,7 @@ import "./globals.css";
 import LayoutShell from "@/components/LayoutShell";
 
 export const metadata: Metadata = {
-  title: "Kelab Senshi Goju-Ryu Open Karate Championship 2026",
+  title: "Kelab Karate Do Senshi Goju-Ryu",
   description: "Tournament Participant Management System - KarateTech Style",
 };
 
