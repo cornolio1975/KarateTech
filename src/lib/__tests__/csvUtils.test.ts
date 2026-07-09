@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseCSV, athletesToCSV, exportBracketResults } from './csvUtils';
-import { Athlete } from './bracketGenerator';
+import { parseCSV, athletesToCSV, exportBracketResults } from '../csvUtils';
+import { Athlete } from '../bracketGenerator';
 
 const mockAthletes: Athlete[] = [
   {
@@ -157,7 +157,7 @@ REG-2026-002,"Chloe Tan",Female,52,161,"Goju-Ryu Karate Club",Confirmed,Cleared`
       const parsed = parseCSV(csv);
 
       expect(parsed.length).toBe(original.length);
-      parsed.forEach((athlete, index) => {
+      parsed.forEach((athlete: Athlete, index: number) => {
         expect(athlete.registrationNo).toBe(original[index].registrationNo);
         expect(athlete.fullName).toBe(original[index].fullName);
         expect(athlete.weight).toBe(original[index].weight);

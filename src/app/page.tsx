@@ -7,16 +7,17 @@ import {
   Tv, LogIn, ExternalLink, Activity, Info, Award
 } from 'lucide-react';
 import { basePath } from '@/db/dbClient';
+import { formatLocalDate } from '@/lib/dateUtils';
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   
   // Dynamic upcoming tournament details from settings/localStorage
   const [upcomingName, setUpcomingName] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
-  const [upcomingDate, setUpcomingDate] = useState('2026-06-14');
-  const [upcomingTime, setUpcomingTime] = useState('09:00');
-  const [upcomingVenue, setUpcomingVenue] = useState('Pusat Komersial Anggun City, Rawang');
-  const [upcomingCity, setUpcomingCity] = useState('Rawang, Selangor');
+  const [upcomingDate, setUpcomingDate] = useState('2026-08-15');
+  const [upcomingTime, setUpcomingTime] = useState('08:00');
+  const [upcomingVenue, setUpcomingVenue] = useState('Dewan Serbaguna Petaling Jaya');
+  const [upcomingCity, setUpcomingCity] = useState('Petaling Jaya, Selangor');
 
   // Countdown timer values
   const [days, setDays] = useState('00');
@@ -30,15 +31,15 @@ export default function LandingPage() {
     // Retrieve customized event parameters if set in admin console
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem('ts_upcoming_name');
-      if (storedName) setUpcomingName(storedName);
+      if (storedName !== null) setUpcomingName(storedName);
       const storedDate = localStorage.getItem('ts_upcoming_date');
-      if (storedDate) setUpcomingDate(storedDate);
+      if (storedDate !== null) setUpcomingDate(storedDate);
       const storedTime = localStorage.getItem('ts_upcoming_time');
-      if (storedTime) setUpcomingTime(storedTime);
+      if (storedTime !== null) setUpcomingTime(storedTime);
       const storedVenue = localStorage.getItem('ts_upcoming_venue');
-      if (storedVenue) setUpcomingVenue(storedVenue);
+      if (storedVenue !== null) setUpcomingVenue(storedVenue);
       const storedCity = localStorage.getItem('ts_upcoming_city');
-      if (storedCity) setUpcomingCity(storedCity);
+      if (storedCity !== null) setUpcomingCity(storedCity);
     }
   }, []);
 
@@ -46,8 +47,24 @@ export default function LandingPage() {
   useEffect(() => {
     if (!mounted) return;
     
-    const targetIso = `${upcomingDate}T${upcomingTime}:00Z`;
+    if (!upcomingDate || !upcomingTime) {
+      setDays('00');
+      setHours('00');
+      setMinutes('00');
+      setSeconds('00');
+      return;
+    }
+
+    const targetIso = `${upcomingDate}T${upcomingTime}:00`;
     const target = new Date(targetIso).getTime();
+
+    if (isNaN(target)) {
+      setDays('00');
+      setHours('00');
+      setMinutes('00');
+      setSeconds('00');
+      return;
+    }
 
     const interval = setInterval(() => {
       const now = new Date().getTime();
@@ -172,7 +189,7 @@ export default function LandingPage() {
               <div className="space-y-2 text-xs text-slate-400">
                 <div className="flex items-center gap-2">
                   <Calendar size={14} className="text-indigo-400" />
-                  <span>{new Date(upcomingDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {upcomingTime}</span>
+                  <span>{upcomingDate ? `${formatLocalDate(upcomingDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${upcomingTime}` : 'TBD'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin size={14} className="text-indigo-400" />

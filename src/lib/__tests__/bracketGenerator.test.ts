@@ -4,8 +4,8 @@ import {
   generateBrackets,
   getBracketStats,
   WEIGHT_CATEGORIES,
-} from './bracketGenerator';
-import { Athlete } from './bracketGenerator';
+} from '../bracketGenerator';
+import { Athlete } from '../bracketGenerator';
 
 const mockAthletes: Athlete[] = [
   {

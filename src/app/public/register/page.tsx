@@ -47,15 +47,15 @@ export default function PublicRegistrationPage() {
       setBasePath(isProd ? '/Kelab-Senshi-Goju-Ryu-Karate-' : '');
       
       const customName = localStorage.getItem('ts_upcoming_name');
-      if (customName) setTournamentName(customName);
+      if (customName !== null) setTournamentName(customName);
     }
   }, []);
 
   // Raw mock CSV sample to seed pasting - Tab-separated to match user's custom template
-  const sampleCSV = "Full\tName\tGender\tDOB\tWeight\tHeight\tPassport/IC\tClub\tEmail\tPhone\tPayment\tMedical\n" +
-    "Rayyan\tIskandar\tMale\t2006-11-20\t68\t175\t061120-10-2222\tSenshi Karate Academy\trayyan@example.com\t60121523691\tPaid\tCleared\n" +
-    "Sophia\tLee\tFemale\t2005-02-14\t53.5\t163\t050214-14-9999\tGoju-Ryu Karate Club\tsophia@example.com\t6011-3334445\tPending\tReview\n" +
-    "Hao\tXuan\tMale\t2003-05-10\t72.3\t180\t030510-02-1234\tTiger Claw Dojo\thaoxuan@example.com\t6018-7776655\tUnpaid\tNeeded";
+  const sampleCSV = "First Name\tLast Name\tGender\tDOB\tWeight / kg\tSize / cm\tPassport/IC\tClub\tEMail\tPhone\tPayment\tMedical\n" +
+    "Aainesh\tAainesh\tm\t2012-05-01\t46\t0\t\tSenshi Goju-Ryu\t\t60121523691\tPaid\tCleared\n" +
+    "AKILESH\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t\tSenshi Goju-Ryu\t\t6011-3334445\tPaid\tCleared\n" +
+    "AKILESH ALAGAN\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t80906101709\tSenshi Goju-Ryu\t\t6018-7776655\tPaid\tCleared";
 
   const downloadCSVTemplate = () => {
     const link = document.createElement("a");
@@ -116,6 +116,45 @@ export default function PublicRegistrationPage() {
     parseCSV(csvContent);
   };
 
+  // Helper: normalize a name segment - replace underscores with spaces, trim
+  const normalizeName = (name: string): string => {
+    return name.replace(/_/g, ' ').trim();
+  };
+
+  // Helper: build full_name from first and last in Malaysian format
+  // If firstName == lastName (same word), just use one
+  // Last Name may have bracket suffix like [1], [2] for siblings - strip for display
+  const buildFullName = (rawFirst: string, rawLast: string): string => {
+    const firstName = normalizeName(rawFirst);
+    const lastName = normalizeName(rawLast);
+    const lastNameDisplay = lastName.replace(/\s*\[\d+\]$/, '');
+    if (!firstName && !lastName) return 'Unknown';
+    if (!lastName || firstName.toLowerCase() === lastNameDisplay.toLowerCase()) return firstName || lastName;
+    return `${firstName} ${lastNameDisplay}`.trim();
+  };
+
+  const splitCSVLine = (line: string, separator: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === separator && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    result.push(current);
+    return result;
+  };
+
   const parseCSV = (text: string) => {
     try {
       const lines = text.split('\n');
@@ -126,50 +165,61 @@ export default function PublicRegistrationPage() {
         if (!line) continue;
         
         // Support tab-separated and comma-separated layouts
-        const cols = line.includes('\t') ? line.split('\t') : line.split(',');
+        const separator = line.includes('\t') ? '\t' : ',';
+        const cols = splitCSVLine(line, separator);
         if (cols.length < 7) continue;
 
         let fullName = '';
         let gender: 'Male' | 'Female' = 'Male';
         let dob = '2005-01-01';
-        let weight = 60;
-        let height = 170;
+        let weight = 0;
+        let height = 0;
         let passport_ic = '';
-        let club_name = 'Senshi Karate Academy';
+        let club_name = 'Senshi Goju-Ryu';
         let email = '';
         let phone = '';
         let payment_status: 'Paid' | 'Unpaid' | 'Pending' = 'Unpaid';
         let medical_status: 'Cleared' | 'Review Needed' = 'Cleared';
 
         if (cols.length >= 12) {
-          // Tabbed layout (12 columns: Full, Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical)
-          fullName = `${cols[0]?.trim()} ${cols[1]?.trim()}`.trim();
+          // 12 columns: First Name, Last Name, Gender, DOB, Weight / kg, Size / cm, Passport/IC, Club, EMail, Phone, Payment, Medical
+          fullName = buildFullName(cols[0]?.trim() || '', cols[1]?.trim() || '');
           const rawGen = cols[2]?.trim().toLowerCase();
           gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
           dob = cols[3]?.trim() || '2005-01-01';
-          weight = parseFloat(cols[4]?.trim()) || 60;
-          height = parseFloat(cols[5]?.trim()) || 170;
-          passport_ic = cols[6]?.trim() || `IC-${Math.random()}`;
-          club_name = cols[7]?.trim() || 'Senshi Karate Academy';
+          weight = parseFloat(cols[4]?.trim()) || 0;
+          height = parseFloat(cols[5]?.trim()) || 0;
+          passport_ic = cols[6]?.trim() || '';
+          club_name = cols[7]?.trim() || 'Senshi Goju-Ryu';
           email = cols[8]?.trim() || '';
           phone = cols[9]?.trim() || '';
-          payment_status = (cols[10]?.trim() as any) || 'Unpaid';
-          medical_status = cols[11]?.trim() === 'Cleared' ? 'Cleared' : 'Review Needed';
+          
+          const payStr = cols[10]?.trim().toLowerCase();
+          payment_status = payStr === 'paid' ? 'Paid' : payStr === 'pending' ? 'Pending' : 'Unpaid';
+          
+          const medStr = cols[11]?.trim().toLowerCase();
+          medical_status = medStr === 'cleared' ? 'Cleared' : 'Review Needed';
         } else {
           // Comma layout or standard (11 columns: Full Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical)
-          fullName = cols[0]?.trim();
+          fullName = normalizeName(cols[0]?.trim() || '');
           const rawGen = cols[1]?.trim().toLowerCase();
           gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
           dob = cols[2]?.trim() || '2005-01-01';
-          weight = parseFloat(cols[3]?.trim()) || 60;
-          height = parseFloat(cols[4]?.trim()) || 170;
-          passport_ic = cols[5]?.trim() || `IC-${Math.random()}`;
-          club_name = cols[6]?.trim() || 'Senshi Karate Academy';
-          email = cols[7]?.trim() || '',
-          phone = cols[8]?.trim() || '',
-          payment_status = (cols[9]?.trim() as any) || 'Unpaid';
-          medical_status = cols[10]?.trim() === 'Cleared' ? 'Cleared' : 'Review Needed';
+          weight = parseFloat(cols[3]?.trim()) || 0;
+          height = parseFloat(cols[4]?.trim()) || 0;
+          passport_ic = cols[5]?.trim() || '';
+          club_name = cols[6]?.trim() || 'Senshi Goju-Ryu';
+          email = cols[7]?.trim() || '';
+          phone = cols[8]?.trim() || '';
+          
+          const payStr = cols[9]?.trim().toLowerCase();
+          payment_status = payStr === 'paid' ? 'Paid' : payStr === 'pending' ? 'Pending' : 'Unpaid';
+          
+          const medStr = cols[10]?.trim().toLowerCase();
+          medical_status = medStr === 'cleared' ? 'Cleared' : 'Review Needed';
         }
+
+        if (!fullName) continue;
 
         rows.push({
           full_name: fullName,
@@ -197,6 +247,7 @@ export default function PublicRegistrationPage() {
       alert("Error parsing CSV: " + e.message);
     }
   };
+
 
   const handleImport = async () => {
     setIsProcessing(true);

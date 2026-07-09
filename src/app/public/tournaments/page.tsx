@@ -7,6 +7,7 @@ import {
   ExternalLink, Trophy, Flame, Star, ArrowLeft,
   Tag, AlarmClock, Info, Home
 } from 'lucide-react';
+import { formatLocalDate } from '@/lib/dateUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,10 @@ interface TimeLeft {
 
 function useCountdown(targetIso: string): TimeLeft {
   const calculate = useCallback((): TimeLeft => {
-    const diff = new Date(targetIso).getTime() - Date.now();
+    if (!targetIso) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+    const targetTime = new Date(targetIso).getTime();
+    if (isNaN(targetTime)) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+    const diff = targetTime - Date.now();
     if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
     return {
       days: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -309,10 +313,10 @@ export default function TournamentsPage() {
             return {
               ...t,
               name: customName || t.name,
-              date: customDate ? new Date(customDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t.date,
-              dateIso: customDate ? `${customDate}T${customTime || '09:00'}:00Z` : t.dateIso,
-              registrationClose: customRegClose ? new Date(customRegClose).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : t.registrationClose,
-              registrationCloseIso: customRegClose ? `${customRegClose}T23:59:59Z` : t.registrationCloseIso,
+              date: customDate ? formatLocalDate(customDate, { day: 'numeric', month: 'long', year: 'numeric' }) : t.date,
+              dateIso: customDate ? `${customDate}T${customTime || '09:00'}:00` : t.dateIso,
+              registrationClose: customRegClose ? formatLocalDate(customRegClose, { day: 'numeric', month: 'long', year: 'numeric' }) : t.registrationClose,
+              registrationCloseIso: customRegClose ? `${customRegClose}T23:59:59` : t.registrationCloseIso,
               venue: customVenue || t.venue,
               city: customCity || t.city,
             };

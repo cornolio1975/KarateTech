@@ -67,26 +67,26 @@ export default function SettingsPage() {
   });
 
   const [upcomingName, setUpcomingName] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
-  const [upcomingDate, setUpcomingDate] = useState('2026-06-14');
-  const [upcomingTime, setUpcomingTime] = useState('09:00');
-  const [upcomingRegClose, setUpcomingRegClose] = useState('2026-06-07');
-  const [upcomingVenue, setUpcomingVenue] = useState('Dewan Serbaguna Puchong');
-  const [upcomingCity, setUpcomingCity] = useState('Puchong, Selangor');
+  const [upcomingDate, setUpcomingDate] = useState('2026-08-15');
+  const [upcomingTime, setUpcomingTime] = useState('08:00');
+  const [upcomingRegClose, setUpcomingRegClose] = useState('2026-07-31');
+  const [upcomingVenue, setUpcomingVenue] = useState('Dewan Serbaguna Petaling Jaya');
+  const [upcomingCity, setUpcomingCity] = useState('Petaling Jaya, Selangor');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem('ts_upcoming_name');
-      if (storedName) setUpcomingName(storedName);
+      if (storedName !== null) setUpcomingName(storedName);
       const storedDate = localStorage.getItem('ts_upcoming_date');
-      if (storedDate) setUpcomingDate(storedDate);
+      if (storedDate !== null) setUpcomingDate(storedDate);
       const storedTime = localStorage.getItem('ts_upcoming_time');
-      if (storedTime) setUpcomingTime(storedTime);
+      if (storedTime !== null) setUpcomingTime(storedTime);
       const storedRegClose = localStorage.getItem('ts_upcoming_reg_close');
-      if (storedRegClose) setUpcomingRegClose(storedRegClose);
+      if (storedRegClose !== null) setUpcomingRegClose(storedRegClose);
       const storedVenue = localStorage.getItem('ts_upcoming_venue');
-      if (storedVenue) setUpcomingVenue(storedVenue);
+      if (storedVenue !== null) setUpcomingVenue(storedVenue);
       const storedCity = localStorage.getItem('ts_upcoming_city');
-      if (storedCity) setUpcomingCity(storedCity);
+      if (storedCity !== null) setUpcomingCity(storedCity);
     }
   }, []);
 
