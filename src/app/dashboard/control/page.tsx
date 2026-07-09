@@ -39,6 +39,7 @@ export default function ScoreboardControlPage() {
   const [matchDuration, setMatchDuration] = useState<number>(180);
   const [goldenScore, setGoldenScore] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [hasTimerRun, setHasTimerRun] = useState<boolean>(false);
 
   // History stack for Undo
   const [history, setHistory] = useState<any[]>([]);
@@ -91,6 +92,7 @@ export default function ScoreboardControlPage() {
         setPenaltiesAo(currentBout.penalties_b ? currentBout.penalties_b.split(',').filter(Boolean) : []);
         setTimeLeft((currentBout.timer_seconds ?? 180) * 10);
         setMatchDuration(currentBout.timer_seconds ?? 180);
+        setHasTimerRun(false);
       }
     } catch (err) {
       console.error('Error loading scoreboard bout details:', err);
@@ -239,7 +241,8 @@ export default function ScoreboardControlPage() {
   }, [timerActive]);
 
   // Save current state to history for undo operations
-  const pushHistory = (prevScoreAka = scoreAka, prevScoreAo = scoreAo, prevPenAka = penaltiesAka, prevPenAo = penaltiesAo, prevSenshuAka = senshuAka, prevSenshuAo = senshuAo) => {
+  // Save current state to history for undo operations
+  const pushHistory = (prevScoreAka = scoreAka, prevScoreAo = scoreAo, prevPenAka = penaltiesAka, prevPenAo = penaltiesAo, prevSenshuAka = senshuAka, prevSenshuAo = senshuAo, prevHasTimerRun = hasTimerRun) => {
     setHistory((prev) => [
       ...prev,
       {
@@ -248,7 +251,8 @@ export default function ScoreboardControlPage() {
         penaltiesAka: [...prevPenAka],
         penaltiesAo: [...prevPenAo],
         senshuAka: prevSenshuAka,
-        senshuAo: prevSenshuAo
+        senshuAo: prevSenshuAo,
+        hasTimerRun: prevHasTimerRun
       }
     ]);
   };
@@ -263,6 +267,7 @@ export default function ScoreboardControlPage() {
     setPenaltiesAo(lastState.penaltiesAo);
     setSenshuAka(lastState.senshuAka);
     setSenshuAo(lastState.senshuAo);
+    setHasTimerRun(lastState.hasTimerRun ?? false);
     setHistory((prev) => prev.slice(0, -1));
   }, [history]);
 
@@ -272,18 +277,42 @@ export default function ScoreboardControlPage() {
     if (side === 'aka') {
       const newScore = Math.max(0, scoreAka + points);
       setScoreAka(newScore);
+      
       // Senshu rule: First scoring competitor receives Senshu if uncontested
-      if (points > 0 && newScore > 0 && scoreAo === 0 && !senshuAo && !senshuAka) {
-        setSenshuAka(true);
+      if (points > 0 && newScore > 0) {
+        if (scoreAka === 0) { // AKA's first score
+          if (scoreAo === 0) {
+            setSenshuAka(true);
+            setHasTimerRun(false);
+          } else if (scoreAo > 0 && !hasTimerRun) {
+            // Both scored in the same exchange/stoppage -> Senshu off
+            setSenshuAka(false);
+            setSenshuAo(false);
+          }
+        }
+      } else if (points < 0 && newScore === 0 && senshuAka) {
+        setSenshuAka(false);
       }
     } else {
       const newScore = Math.max(0, scoreAo + points);
       setScoreAo(newScore);
-      if (points > 0 && newScore > 0 && scoreAka === 0 && !senshuAka && !senshuAo) {
-        setSenshuAo(true);
+      
+      if (points > 0 && newScore > 0) {
+        if (scoreAo === 0) { // AO's first score
+          if (scoreAka === 0) {
+            setSenshuAo(true);
+            setHasTimerRun(false);
+          } else if (scoreAka > 0 && !hasTimerRun) {
+            // Both scored in the same exchange/stoppage -> Senshu off
+            setSenshuAka(false);
+            setSenshuAo(false);
+          }
+        }
+      } else if (points < 0 && newScore === 0 && senshuAo) {
+        setSenshuAo(false);
       }
     }
-  }, [scoreAka, scoreAo, senshuAka, senshuAo]);
+  }, [scoreAka, scoreAo, senshuAka, senshuAo, hasTimerRun]);
 
   // Manage Penalties WKF System (C1, C2, C3, HC)
   const handleTogglePenalty = (side: 'aka' | 'ao', penalty: string) => {
@@ -340,12 +369,20 @@ export default function ScoreboardControlPage() {
   const handleResetTimer = () => {
     setTimerActive(false);
     setTimeLeft(matchDuration * 10);
+    setHasTimerRun(false);
   };
 
   // Adjust timer by adding/subtracting seconds
   const handleAdjustTime = (seconds: number) => {
     setTimeLeft((prev) => Math.max(0, prev + seconds * 10));
   };
+
+  // Set hasTimerRun to true when timer is active
+  useEffect(() => {
+    if (timerActive) {
+      setHasTimerRun(true);
+    }
+  }, [timerActive]);
 
   // Keyboard Shortcuts implementation
   useEffect(() => {
@@ -445,11 +482,15 @@ export default function ScoreboardControlPage() {
   };
 
   // Format countdown clock
-  const formatTime = (tenths: number) => {
+  const formatMainTime = (tenths: number) => {
     const mins = Math.floor(tenths / 600);
     const secs = Math.floor((tenths % 600) / 10);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatDecsTime = (tenths: number) => {
     const decs = tenths % 10;
-    return `${mins}:${secs.toString().padStart(2, '0')}.${decs}`;
+    return `.${decs}0`;
   };
 
   if (!mounted || loading) {
@@ -615,10 +656,13 @@ export default function ScoreboardControlPage() {
               <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">Countdown</span>
               
               {/* Giant Digital Clock */}
-              <div className={`text-5xl font-black font-mono leading-none my-6 select-none ${
+              <div className={`text-5xl font-black font-mono leading-none my-6 select-none flex items-baseline justify-center ${
                 timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-yellow-400'
               }`}>
-                {formatTime(timeLeft)}
+                <span>{formatMainTime(timeLeft)}</span>
+                <span className={`text-2xl font-bold ml-0.5 ${
+                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/50'
+                }`}>{formatDecsTime(timeLeft)}</span>
               </div>
 
               {/* Status Indicator */}
