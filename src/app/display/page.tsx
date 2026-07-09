@@ -277,11 +277,15 @@ function SpectatorDisplayContent() {
   }, [timerActive]);
 
   // Format countdown clock
-  const formatTime = (tenths: number) => {
+  const formatMainTime = (tenths: number) => {
     const mins = Math.floor(tenths / 600);
     const secs = Math.floor((tenths % 600) / 10);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatDecsTime = (tenths: number) => {
     const decs = tenths % 10;
-    return `${mins}:${secs.toString().padStart(2, '0')}.${decs}`;
+    return `.${decs}0`;
   };
 
   if (!mounted) return null;
@@ -295,7 +299,7 @@ function SpectatorDisplayContent() {
       <button
         onClick={toggleFullscreen}
         className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-sm border ${
-          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+          showControls || !isFullscreen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
         } ${
           isFullscreen
             ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
@@ -385,12 +389,17 @@ function SpectatorDisplayContent() {
           </span>
           
           {/* Giant digital timer */}
-          <div className={`text-6xl lg:text-7xl font-black font-mono leading-none tracking-tighter transition-all duration-300 select-none ${
+          <div className={`text-6xl lg:text-7xl font-black font-mono leading-none tracking-tighter transition-all duration-300 select-none flex items-baseline justify-center ${
             timeLeft <= 150 && timeLeft > 0 
               ? 'text-red-500 scale-110 animate-pulse drop-shadow-[0_0_30px_rgba(239,68,68,0.3)]' 
               : 'text-yellow-400'
           }`}>
-            {formatTime(timeLeft)}
+            <span>{formatMainTime(timeLeft)}</span>
+            <span className={`text-3xl lg:text-4xl font-bold ml-1 ${
+              timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/50'
+            }`}>
+              {formatDecsTime(timeLeft)}
+            </span>
           </div>
 
           <div className="mt-6 flex flex-col items-center gap-1">
