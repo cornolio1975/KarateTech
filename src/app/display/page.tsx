@@ -36,7 +36,7 @@ function SpectatorDisplayContent() {
   const [penaltiesAo, setPenaltiesAo] = useState<string[]>([]);
 
   // Timer states
-  const [timeLeft, setTimeLeft] = useState<number>(180);
+  const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [goldenScore, setGoldenScore] = useState<boolean>(false);
 
@@ -179,7 +179,7 @@ function SpectatorDisplayContent() {
           setSenshuAo(bout.senshu_b ?? false);
           setPenaltiesAka(bout.penalties_a ? bout.penalties_a.split(',').filter(Boolean) : []);
           setPenaltiesAo(bout.penalties_b ? bout.penalties_b.split(',').filter(Boolean) : []);
-          setTimeLeft(bout.timer_seconds ?? 180);
+          setTimeLeft((bout.timer_seconds ?? 180) * 10);
           setTimerActive(bout.timer_active ?? false);
         }
       } catch (e) {
@@ -208,7 +208,7 @@ function SpectatorDisplayContent() {
             setSenshuAo(updated.senshu_b ?? false);
             setPenaltiesAka(updated.penalties_a ? updated.penalties_a.split(',').filter(Boolean) : []);
             setPenaltiesAo(updated.penalties_b ? updated.penalties_b.split(',').filter(Boolean) : []);
-            setTimeLeft(updated.timer_seconds ?? 180);
+            setTimeLeft((updated.timer_seconds ?? 180) * 10);
             setTimerActive(updated.timer_active ?? false);
             
             if (updated.status === 'Completed') {
@@ -239,7 +239,7 @@ function SpectatorDisplayContent() {
           }
           return prev - 1;
         });
-      }, 1000);
+      }, 100);
     } else if (interval) {
       clearInterval(interval);
     }
@@ -249,10 +249,11 @@ function SpectatorDisplayContent() {
   }, [timerActive]);
 
   // Format countdown clock
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (tenths: number) => {
+    const mins = Math.floor(tenths / 600);
+    const secs = Math.floor((tenths % 600) / 10);
+    const decs = tenths % 10;
+    return `${mins}:${secs.toString().padStart(2, '0')}.${decs}`;
   };
 
   if (!mounted) return null;
@@ -357,7 +358,7 @@ function SpectatorDisplayContent() {
           
           {/* Giant digital timer */}
           <div className={`text-6xl lg:text-7xl font-black font-mono leading-none tracking-tighter transition-all duration-300 select-none ${
-            timeLeft <= 10 && timeLeft > 0 
+            timeLeft <= 100 && timeLeft > 0 
               ? 'text-red-500 scale-110 animate-pulse drop-shadow-[0_0_30px_rgba(239,68,68,0.3)]' 
               : 'text-yellow-400'
           }`}>

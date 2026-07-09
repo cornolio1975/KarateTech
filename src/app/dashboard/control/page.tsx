@@ -34,7 +34,7 @@ export default function ScoreboardControlPage() {
   const [penaltiesAo, setPenaltiesAo] = useState<string[]>([]);
 
   // Timer state
-  const [timeLeft, setTimeLeft] = useState<number>(180); // 3 minutes default (180s)
+  const [timeLeft, setTimeLeft] = useState<number>(1800); // 3 minutes default (1800 deciseconds)
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [matchDuration, setMatchDuration] = useState<number>(180);
   const [goldenScore, setGoldenScore] = useState<boolean>(false);
@@ -89,7 +89,7 @@ export default function ScoreboardControlPage() {
         setSenshuAo(currentBout.senshu_b ?? false);
         setPenaltiesAka(currentBout.penalties_a ? currentBout.penalties_a.split(',').filter(Boolean) : []);
         setPenaltiesAo(currentBout.penalties_b ? currentBout.penalties_b.split(',').filter(Boolean) : []);
-        setTimeLeft(currentBout.timer_seconds ?? 180);
+        setTimeLeft((currentBout.timer_seconds ?? 180) * 10);
         setMatchDuration(currentBout.timer_seconds ?? 180);
       }
     } catch (err) {
@@ -148,7 +148,7 @@ export default function ScoreboardControlPage() {
             senshu_b: senshuAo,
             penalties_a: penaltiesAka.join(','),
             penalties_b: penaltiesAo.join(','),
-            timer_seconds: timeLeft,
+            timer_seconds: Math.round(timeLeft / 10),
             timer_active: timerActive
           });
         } catch (e) {
@@ -201,7 +201,7 @@ export default function ScoreboardControlPage() {
           }
           return prev - 1;
         });
-      }, 1000);
+      }, 100);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
     }
@@ -311,7 +311,12 @@ export default function ScoreboardControlPage() {
 
   const handleResetTimer = () => {
     setTimerActive(false);
-    setTimeLeft(matchDuration);
+    setTimeLeft(matchDuration * 10);
+  };
+
+  // Adjust timer by adding/subtracting seconds
+  const handleAdjustTime = (seconds: number) => {
+    setTimeLeft((prev) => Math.max(0, prev + seconds * 10));
   };
 
   // Keyboard Shortcuts implementation
@@ -412,10 +417,11 @@ export default function ScoreboardControlPage() {
   };
 
   // Format countdown clock
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (tenths: number) => {
+    const mins = Math.floor(tenths / 600);
+    const secs = Math.floor((tenths % 600) / 10);
+    const decs = tenths % 10;
+    return `${mins}:${secs.toString().padStart(2, '0')}.${decs}`;
   };
 
   if (!mounted || loading) {
@@ -582,7 +588,7 @@ export default function ScoreboardControlPage() {
               
               {/* Giant Digital Clock */}
               <div className={`text-5xl font-black font-mono leading-none my-6 select-none ${
-                timeLeft <= 10 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-yellow-400'
+                timeLeft <= 100 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-yellow-400'
               }`}>
                 {formatTime(timeLeft)}
               </div>
@@ -615,6 +621,24 @@ export default function ScoreboardControlPage() {
                 </button>
               )}
 
+              {/* Adjust time buttons (+10s and -10s) */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleAdjustTime(-10)}
+                  disabled={timerActive}
+                  className="py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
+                >
+                  -10s
+                </button>
+                <button
+                  onClick={() => handleAdjustTime(10)}
+                  disabled={timerActive}
+                  className="py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
+                >
+                  +10s
+                </button>
+              </div>
+
               <button
                 onClick={handleResetTimer}
                 className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-white/10"
@@ -633,7 +657,7 @@ export default function ScoreboardControlPage() {
                 onChange={e => {
                   const val = Number(e.target.value);
                   setMatchDuration(val);
-                  setTimeLeft(val);
+                  setTimeLeft(val * 10);
                 }}
                 disabled={timerActive}
                 className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"

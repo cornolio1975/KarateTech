@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '@/db/dbClient';
+import Link from 'next/link';
 import { Bout, Participant, Category, Club } from '@/db/types';
 import { 
   Sword, Play, Pause, RotateCcw, X, ShieldAlert, 
@@ -374,14 +375,23 @@ export default function BoutsAdminPage() {
                         </span>
                       </td>
                       <td className="p-3 text-center">
-                        <button
-                          onClick={() => startScoringSession(b)}
-                          disabled={isBye || b.status === 'Completed' || !canModify}
-                          className="px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/95 text-[10px] font-bold rounded-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center gap-1 mx-auto"
-                        >
-                          <Sword className="h-3 w-3" />
-                          <span>{canModify ? 'Run scoring' : 'Read-Only'}</span>
-                        </button>
+                        {isBye || b.status === 'Completed' || !canModify ? (
+                          <button
+                            disabled
+                            className="px-2.5 py-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-md opacity-40 cursor-not-allowed flex items-center gap-1 mx-auto"
+                          >
+                            <Sword className="h-3 w-3" />
+                            <span>{canModify ? 'Run scoring' : 'Read-Only'}</span>
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/dashboard/control?boutId=${b.id}`}
+                            className="px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/95 text-[10px] font-bold rounded-md cursor-pointer transition-all flex items-center gap-1 mx-auto"
+                          >
+                            <Sword className="h-3 w-3" />
+                            <span>Run scoring</span>
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );
