@@ -5,7 +5,7 @@ const isHostinger = process.env.DEPLOY_TARGET === 'hostinger';
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.56.1'],
-  output: 'export',
+  output: isHostinger ? undefined : 'export',
   trailingSlash: true,
   // Hostinger serves from root /; GitHub Pages needs subfolder basePath
   basePath: isProduction && !isHostinger ? '/Kelab-Senshi-Goju-Ryu-Karate-' : '',
