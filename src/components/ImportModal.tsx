@@ -250,11 +250,17 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
       const clubs = await db.clubs.list();
 
       for (const row of previewRows) {
-        // 1. Duplicate Detection (check Passport/IC or Full Name)
-        const isDuplicate = activeParticipants.some(p => 
-          p.passport_ic.toLowerCase() === row.passport_ic.toLowerCase() ||
-          p.full_name.toLowerCase() === row.full_name.toLowerCase()
+        // 1. Duplicate Detection
+        // Only match IC when both sides are non-empty (empty IC must not cross-match)
+        const icMatch = row.passport_ic
+          ? activeParticipants.some(p => p.passport_ic && p.passport_ic.toLowerCase() === row.passport_ic.toLowerCase())
+          : false;
+        // Only match name as duplicate when there is also an IC match or name is truly identical
+        const nameMatch = activeParticipants.some(p =>
+          p.full_name.toLowerCase() === row.full_name.toLowerCase() &&
+          (!row.passport_ic || p.passport_ic.toLowerCase() === row.passport_ic.toLowerCase())
         );
+        const isDuplicate = icMatch || nameMatch;
 
         if (isDuplicate) {
           duplicates.push(row.full_name);
@@ -275,14 +281,14 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           dob: row.dob,
           weight: row.weight,
           height: row.height,
-          passport_ic: row.passport_ic,
+          passport_ic: row.passport_ic || '',
           club_id: clubId,
           email: row.email,
           phone: row.phone,
           status: 'Pending',
           payment_status: row.payment_status,
           medical_status: row.medical_status === 'Cleared' ? 'Cleared' : 'Review Needed',
-          remarks: 'CSV Imported'
+          remarks: row.passport_ic ? 'CSV Imported' : 'CSV Imported — IC/Passport pending update'
         });
         
         importedIds.push(newPart.id);
@@ -457,7 +463,11 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                           <td className="p-3 font-mono">{row.dob}</td>
                           <td className="p-3 font-mono">{row.weight} kg</td>
                           <td className="p-3 font-mono">{row.height} cm</td>
-                          <td className="p-3 font-mono">{row.passport_ic}</td>
+                          <td className="p-3 font-mono">
+                            {row.passport_ic ? row.passport_ic : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">IC Pending</span>
+                            )}
+                          </td>
                           <td className="p-3">{row.club_name}</td>
                           <td className="p-3">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${

@@ -345,17 +345,41 @@ export const db = {
     },
     add: async (participant: Omit<Participant, 'id' | 'registration_no' | 'created_at'>): Promise<Participant> => {
       if (supabase) {
-        const regNo = `REG-2026-${Math.floor(100 + Math.random() * 900)}`;
-        const { data, error } = await supabase
-          .from('participants')
-          .insert([{ ...participant, registration_no: regNo }])
-          .select()
-          .single();
-        if (error) throw error;
+        // Generate unique reg no: REG-YYYY-<timestamp5>-<random4>
+        const generateRegNo = () => {
+          const year = new Date().getFullYear();
+          const ts = Date.now() % 100000; // last 5 digits of timestamp
+          const rand = Math.floor(1000 + Math.random() * 9000); // 4-digit random
+          return `REG-${year}-${ts}-${rand}`;
+        };
+
+        let data: Participant | null = null;
+        let lastError: any = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const regNo = generateRegNo();
+          const { data: insertData, error } = await supabase
+            .from('participants')
+            .insert([{ ...participant, registration_no: regNo }])
+            .select()
+            .single();
+          if (!error) {
+            data = insertData as Participant;
+            break;
+          }
+          // Only retry on unique constraint violations
+          if (error.code === '23505' && error.message.includes('registration_no')) {
+            lastError = error;
+            await new Promise(r => setTimeout(r, 50 * (attempt + 1)));
+            continue;
+          }
+          throw error;
+        }
+        if (!data) throw lastError ?? new Error('Failed to generate unique registration number');
+
+        const p = data as Participant;
 
         // Auto assign category in Supabase
-        const p = data as Participant;
-        const cat = await db.participants.autoAssignCategory(p);
+        await db.participants.autoAssignCategory(p);
 
         // Logs
         await db.activityLogs.log(p.id, 'System', 'Registration Created', `Participant ${p.full_name} registered successfully`);
@@ -401,6 +425,34 @@ export const db = {
         return;
       }
       return mockStore.participants.delete(id, operator);
+    },
+    deleteAll: async (operator = 'Admin'): Promise<number> => {
+      if (supabase) {
+        // Hard delete all participants (permanent clear)
+        const { data: all, error: listErr } = await supabase
+          .from('participants')
+          .select('id')
+          .is('deleted_at', null);
+        if (listErr) throw listErr;
+        const ids = (all || []).map(p => p.id);
+        if (ids.length === 0) return 0;
+
+        // Delete related participant_categories first
+        await supabase.from('participant_categories').delete().in('participant_id', ids);
+
+        // Hard delete all participants
+        const { error } = await supabase.from('participants').delete().in('id', ids);
+        if (error) throw error;
+
+        await db.activityLogs.log('system', operator, 'Bulk Delete', `Cleared ${ids.length} participants from database`);
+        return ids.length;
+      }
+      // Mock store: clear all
+      const all = mockStore.participants.list();
+      for (const p of all) {
+        mockStore.participants.delete(p.id, operator);
+      }
+      return all.length;
     },
     restore: async (id: string, operator = 'Admin'): Promise<Participant> => {
       if (supabase) {

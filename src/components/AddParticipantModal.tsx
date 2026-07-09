@@ -16,7 +16,8 @@ export default function AddParticipantModal() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   // Form Fields
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
   const [dob, setDob] = useState('');
   const [nationality, setNationality] = useState('MAS');
@@ -100,15 +101,16 @@ export default function AddParticipantModal() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const fullName = `${firstName} ${lastName}`.trim();
     if (!fullName || !dob || !passportIc || !weight || !height) {
-      alert('Please fill in all required fields (Name, DOB, IC/Passport, Weight, Height).');
+      alert('Please fill in all required fields (First Name, Last Name, DOB, IC/Passport, Weight, Height).');
       return;
     }
 
     setIsSaving(true);
     try {
       const newPart = await db.participants.add({
-        full_name: fullName,
+        full_name: `${firstName} ${lastName}`.trim(),
         gender,
         dob,
         nationality_code: nationality,
@@ -146,7 +148,8 @@ export default function AddParticipantModal() {
   };
 
   const resetForm = () => {
-    setFullName('');
+    setFirstName('');
+    setLastName('');
     setGender('Male');
     setDob('');
     setNationality('MAS');
@@ -243,16 +246,28 @@ export default function AddParticipantModal() {
 
             {/* Basic Info */}
             <div className="md:col-span-2 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Rayyan Iskandar"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Aainesh"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Vamathevan"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

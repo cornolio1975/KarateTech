@@ -260,10 +260,16 @@ export default function PublicRegistrationPage() {
       const clubs = await db.clubs.list();
 
       for (const row of previewRows) {
-        const isDuplicate = activeParticipants.some(p => 
-          p.passport_ic.toLowerCase() === row.passport_ic.toLowerCase() ||
-          p.full_name.toLowerCase() === row.full_name.toLowerCase()
+        // Only match IC when both sides are non-empty (empty IC must not cross-match)
+        const icMatch = row.passport_ic
+          ? activeParticipants.some(p => p.passport_ic && p.passport_ic.toLowerCase() === row.passport_ic.toLowerCase())
+          : false;
+        // Only match name as duplicate when IC also confirms it, or both IC are present and match
+        const nameMatch = activeParticipants.some(p =>
+          p.full_name.toLowerCase() === row.full_name.toLowerCase() &&
+          (!row.passport_ic || p.passport_ic.toLowerCase() === row.passport_ic.toLowerCase())
         );
+        const isDuplicate = icMatch || nameMatch;
 
         if (isDuplicate) {
           duplicates.push(row.full_name);
@@ -282,14 +288,14 @@ export default function PublicRegistrationPage() {
           dob: row.dob,
           weight: row.weight,
           height: row.height,
-          passport_ic: row.passport_ic,
+          passport_ic: row.passport_ic || '',
           club_id: clubId,
           email: row.email,
           phone: row.phone,
           status: 'Pending',
           payment_status: row.payment_status,
           medical_status: row.medical_status === 'Cleared' ? 'Cleared' : 'Review Needed',
-          remarks: 'Public CSV Registered'
+          remarks: row.passport_ic ? 'Public CSV Registered' : 'Public CSV Registered — IC/Passport pending update'
         });
         
         importedIds.push(newPart.id);

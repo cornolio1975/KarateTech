@@ -6,10 +6,11 @@ import { db } from '@/db/dbClient';
 import { Participant, Club, Country, Category, Coach } from '@/db/types';
 import AddParticipantModal from '@/components/AddParticipantModal';
 import EditParticipantDrawer from '@/components/EditParticipantDrawer';
+import ImportModal from '@/components/ImportModal';
 import { 
   Check, Eye, Trash2, Edit2, ArrowUpDown, ChevronLeft, 
   ChevronRight, HelpCircle, Columns, Download, Printer, UserCheck, 
-  Search, SlidersHorizontal, Trophy, Award, BadgeAlert, Plus, CheckSquare, ListFilter, X, RefreshCw
+  Search, SlidersHorizontal, Trophy, Award, BadgeAlert, Plus, CheckSquare, ListFilter, X, RefreshCw, Upload
 } from 'lucide-react';
 
 export default function ParticipantsPage() {
@@ -27,6 +28,9 @@ export default function ParticipantsPage() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -105,6 +109,15 @@ export default function ParticipantsPage() {
       age--;
     }
     return age;
+  };
+
+  // Helper: split full_name into first/last (Malaysian: last word = last name)
+  const splitName = (fullName: string): { firstName: string; lastName: string } => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+    const lastName = parts[parts.length - 1];
+    const firstName = parts.slice(0, parts.length - 1).join(' ');
+    return { firstName, lastName };
   };
 
   // Get count of participants currently in a category
@@ -346,15 +359,35 @@ export default function ParticipantsPage() {
             <h2 className="text-xl font-extrabold tracking-tight">Participants</h2>
             <p className="text-xs text-muted-foreground">Manage status, search school/club squads, and verify weights.</p>
           </div>
-          {canModify && (
-            <button
-              onClick={() => setIsAddOpen(true)}
-              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="h-4.5 w-4.5" />
-              <span>Add Participant</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {canModify && (
+              <button
+                onClick={() => setIsImportOpen(true)}
+                className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Import CSV</span>
+              </button>
+            )}
+            {canModify && (
+              <button
+                onClick={() => setIsClearConfirmOpen(true)}
+                className="px-4 py-2 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear All</span>
+              </button>
+            )}
+            {canModify && (
+              <button
+                onClick={() => setIsAddOpen(true)}
+                className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="h-4.5 w-4.5" />
+                <span>Add Participant</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filters Panel (KumiteTechnology demo structure) */}
@@ -498,8 +531,11 @@ export default function ParticipantsPage() {
                   <th className="p-3 w-32 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('registration_no')}>
                     <div className="flex items-center gap-1">Reg No <ArrowUpDown className="h-3 w-3" /></div>
                   </th>
-                  <th className="p-3 w-48 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('full_name')}>
-                    <div className="flex items-center gap-1">Participant <ArrowUpDown className="h-3 w-3" /></div>
+                  <th className="p-3 w-40 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('full_name')}>
+                    <div className="flex items-center gap-1">First Name <ArrowUpDown className="h-3 w-3" /></div>
+                  </th>
+                  <th className="p-3 w-36 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('full_name')}>
+                    <div className="flex items-center gap-1">Last Name <ArrowUpDown className="h-3 w-3" /></div>
                   </th>
                   <th className="p-3 w-32 font-bold text-muted-foreground">Category Assigned</th>
                   <th className="p-3 w-28 font-bold text-muted-foreground">Date of Birth</th>
@@ -557,6 +593,7 @@ export default function ParticipantsPage() {
                         </td>
                         <td className="p-3 font-mono font-medium text-foreground">{p.registration_no}</td>
                         <td className="p-3">
+                          {/* First Name cell */}
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/10 text-primary border border-border flex items-center justify-center font-bold uppercase shrink-0 text-[10px]">
                               {p.photo_url ? (
@@ -567,13 +604,17 @@ export default function ParticipantsPage() {
                               )}
                             </div>
                             <div>
-                              <span className="font-bold text-foreground block">{p.full_name}</span>
-                              <span className="text-[10px] text-muted-foreground block font-medium">Gender: {p.gender}</span>
+                              <span className="font-bold text-foreground block">{splitName(p.full_name).firstName || p.full_name}</span>
+                              <span className="text-[10px] text-muted-foreground block font-medium">{p.gender}</span>
                             </div>
                             {p.status === 'Confirmed' || p.status === 'Checked In' ? (
                               <Check className="h-4 w-4 text-emerald-500 bg-emerald-500/10 p-0.5 rounded-full shrink-0" />
                             ) : null}
                           </div>
+                        </td>
+                        <td className="p-3">
+                          {/* Last Name cell */}
+                          <span className="font-semibold text-foreground">{splitName(p.full_name).lastName}</span>
                         </td>
                         <td className="p-3 font-semibold text-primary hover:underline">
                           {cat ? cat.name : 'Unassigned'}
@@ -668,6 +709,60 @@ export default function ParticipantsPage() {
         onClose={() => setSelectedPartId(null)}
       />
 
+      {/* Import CSV Modal */}
+      {isImportOpen && <ImportModal isOpen={isImportOpen} onClose={() => { setIsImportOpen(false); triggerRefresh(); }} />}
+
+      {/* Clear All Participants Confirmation Modal */}
+      {isClearConfirmOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-red-500/40 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-foreground">Clear All Participants?</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">This will permanently delete all participants from the database. This cannot be undone.</p>
+              </div>
+            </div>
+            <div className="bg-red-500/8 border border-red-500/20 rounded-lg px-4 py-3 mb-5 text-xs text-red-400">
+              ⚠️ All participant records, category assignments, and related data will be removed.
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setIsClearConfirmOpen(false)}
+                disabled={isClearing}
+                className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground rounded-lg text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isClearing}
+                onClick={async () => {
+                  setIsClearing(true);
+                  try {
+                    const count = await db.participants.deleteAll('Admin');
+                    setIsClearConfirmOpen(false);
+                    triggerRefresh();
+                    alert(`✅ Successfully cleared ${count} participants.`);
+                  } catch (e: any) {
+                    alert(`❌ Failed to clear participants: ${e.message}`);
+                  } finally {
+                    setIsClearing(false);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-60"
+              >
+                {isClearing ? (
+                  <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Clearing...</>
+                ) : (
+                  <><Trash2 className="h-3.5 w-3.5" /> Yes, Delete All</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

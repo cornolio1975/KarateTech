@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase } from '@/db/dbClient';
 import { Bout, Participant, Category, Club } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2 } from 'lucide-react';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function SpectatorDisplayPage() {
@@ -46,6 +46,37 @@ export default function SpectatorDisplayPage() {
 
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const soundBuzzerRef = useRef<boolean>(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  // Auto-hide controls after 3s idle
+  const resetHideTimer = () => {
+    setShowControls(true);
+    if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
+    hideControlsTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+  };
+
+  useEffect(() => {
+    resetHideTimer();
+    return () => { if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current); };
+  }, []);
 
   // Web Audio buzzer sound
   const playBuzzer = () => {
@@ -227,7 +258,24 @@ export default function SpectatorDisplayPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col justify-between overflow-hidden select-none font-sans p-8">
+    <div
+      className="min-h-screen bg-black text-white flex flex-col justify-between overflow-hidden select-none font-sans p-8 relative"
+      onMouseMove={resetHideTimer}
+    >
+      {/* Floating Fullscreen Button */}
+      <button
+        onClick={toggleFullscreen}
+        className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-sm border ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        } ${
+          isFullscreen
+            ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+            : 'bg-yellow-400/20 border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/30'
+        }`}
+      >
+        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+      </button>
       {/* Top Details bar (Projector optimized size) */}
       <div className="flex justify-between items-center border-b-2 border-white/10 pb-6 mb-6">
         <div>

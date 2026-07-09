@@ -84,6 +84,13 @@ export default function ScoreboardDashboardPage() {
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Sync Matches
           </button>
+          <button
+            onClick={() => window.open('/display', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes')}
+            className="flex items-center gap-2 px-4 py-2 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 hover:border-yellow-400/50 rounded-xl text-xs font-bold transition cursor-pointer"
+          >
+            <Tv className="h-4 w-4" />
+            Open Spectator View
+          </button>
         </div>
       </div>
 

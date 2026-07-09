@@ -40,7 +40,7 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  const isPublicOrAuthRoute = pathname === '/' || pathname === '/login' || pathname?.startsWith('/public') || pathname?.startsWith('/auth');
+  const isPublicOrAuthRoute = pathname === '/' || pathname === '/login' || pathname?.startsWith('/public') || pathname?.startsWith('/auth') || pathname?.startsWith('/display');
 
   // If public or auth route, render directly without admin frame
   if (isPublicOrAuthRoute) {
