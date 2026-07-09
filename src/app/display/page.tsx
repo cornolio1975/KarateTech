@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase } from '@/db/dbClient';
 import { Bout, Participant, Category, Club } from '@/db/types';
 import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
-export default function SpectatorDisplayPage() {
+function SpectatorDisplayContent() {
   const searchParams = useSearchParams();
   const boutId = searchParams.get('boutId');
   const { tournamentName } = useTournament();
@@ -466,3 +466,16 @@ export default function SpectatorDisplayPage() {
     </div>
   );
 }
+
+export default function SpectatorDisplayPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/40 text-xl font-black tracking-widest animate-pulse">LOADING DISPLAY...</div>
+      </div>
+    }>
+      <SpectatorDisplayContent />
+    </Suspense>
+  );
+}
+
