@@ -686,7 +686,7 @@ export default function ScoreboardControlPage() {
           <div>
             {/* Tag / Header */}
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-black uppercase tracking-widest text-red-500">赤 AKA</span>
+              <span className="text-base font-black uppercase tracking-wider text-red-500">AKA - RED</span>
               <button 
                 onClick={() => handleToggleSenshu('aka')}
                 className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border transition cursor-pointer ${
@@ -896,7 +896,7 @@ export default function ScoreboardControlPage() {
               >
                 SENSHU
               </button>
-              <span className="text-xs font-black uppercase tracking-widest text-blue-400">青 AO</span>
+              <span className="text-base font-black uppercase tracking-wider text-blue-400">AO - BLUE</span>
             </div>
             
             {/* Name */}

@@ -336,7 +336,7 @@ function SpectatorDisplayContent() {
         <div className="col-span-5 h-full bg-[#150000] border-4 border-red-600/40 rounded-[40px] p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(239,68,68,0.1)]">
           <div>
             <div className="flex justify-between items-center">
-              <span className="text-2xl font-black uppercase text-red-500 tracking-widest">赤 AKA</span>
+              <span className="text-4xl lg:text-5xl font-black uppercase text-red-500 tracking-wider">AKA - RED</span>
               {senshuAka && (
                 <span className="bg-yellow-400 text-black font-black text-xs uppercase px-4 py-1.5 rounded-full tracking-widest animate-pulse border-2 border-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
                   先取 SENSHU
@@ -430,7 +430,7 @@ function SpectatorDisplayContent() {
         <div className="col-span-5 h-full bg-[#000515] border-4 border-blue-600/40 rounded-[40px] p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(59,130,246,0.1)]">
           <div>
             <div className="flex justify-between items-center flex-row-reverse">
-              <span className="text-2xl font-black uppercase text-blue-400 tracking-widest">青 AO</span>
+              <span className="text-4xl lg:text-5xl font-black uppercase text-blue-400 tracking-wider">AO - BLUE</span>
               {senshuAo && (
                 <span className="bg-yellow-400 text-black font-black text-xs uppercase px-4 py-1.5 rounded-full tracking-widest animate-pulse border-2 border-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
                   先取 SENSHU
