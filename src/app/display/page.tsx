@@ -16,9 +16,9 @@ function SpectatorDisplayContent() {
   const [loading, setLoading] = useState(true);
 
   // Competitor info
-  const [akaName, setAkaName] = useState<string>('AKA');
+  const [akaName, setAkaName] = useState<string>('TBD Red');
   const [akaClub, setAkaClub] = useState<string>('Senshi Karate Academy');
-  const [aoName, setAoName] = useState<string>('AO');
+  const [aoName, setAoName] = useState<string>('TBD Blue');
   const [aoClub, setAoClub] = useState<string>('Goju-Ryu Karate Club');
 
   // Match details
@@ -186,9 +186,9 @@ function SpectatorDisplayContent() {
           const compAo = partsList.find(p => p.id === bout.participant_b_id);
           const cat = categoriesList.find(c => c.id === bout.category_id);
 
-          setAkaName(compAka?.full_name || 'TBD AKA');
+          setAkaName(compAka?.full_name || 'TBD Red');
           setAkaClub(compAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club');
-          setAoName(compAo?.full_name || 'TBD AO');
+          setAoName(compAo?.full_name || 'TBD Blue');
           setAoClub(compAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club');
           
           setCategoryName(cat?.name || 'Kumite Open Division');

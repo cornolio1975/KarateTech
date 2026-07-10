@@ -112,9 +112,9 @@ export default function ScoreboardControlPage() {
     if (!broadcastChannelRef.current) return;
     broadcastChannelRef.current.postMessage({
       boutId,
-      akaName: competitorAka?.full_name || 'TBD AKA',
+      akaName: competitorAka?.full_name || 'TBD Red',
       akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
-      aoName: competitorAo?.full_name || 'TBD AO',
+      aoName: competitorAo?.full_name || 'TBD Blue',
       aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
       scoreAka,
       scoreAo,
@@ -543,9 +543,9 @@ export default function ScoreboardControlPage() {
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.postMessage({
           boutId,
-          akaName: competitorAka?.full_name || 'TBD AKA',
+          akaName: competitorAka?.full_name || 'TBD Red',
           akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
-          aoName: competitorAo?.full_name || 'TBD AO',
+          aoName: competitorAo?.full_name || 'TBD Blue',
           aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
           scoreAka: 0,
           scoreAo: 0,
