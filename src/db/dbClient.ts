@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { mockStore } from './mockStore';
 import { 
   Country, Club, Coach, Category, Team, Participant, 
-  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official
+  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament
 } from './types';
 
 // Read Supabase credentials
@@ -888,6 +888,58 @@ export const db = {
         return;
       }
       return mockStore.officials.delete(id);
+    }
+  },
+
+  // 14. Tournaments
+  tournaments: {
+    list: async (): Promise<Tournament[]> => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('tournaments').select('*');
+          if (error) throw error;
+          return data || [];
+        } catch (e: any) {
+          console.warn('Supabase tournaments table list error, falling back to mockStore:', e.message || e);
+        }
+      }
+      return mockStore.tournaments.list();
+    },
+    add: async (tour: Omit<Tournament, 'id'>): Promise<Tournament> => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('tournaments').insert([tour]).select().single();
+          if (error) throw error;
+          return data;
+        } catch (e: any) {
+          console.warn('Supabase tournaments table add error, falling back to mockStore:', e.message || e);
+        }
+      }
+      return mockStore.tournaments.add(tour);
+    },
+    update: async (id: string, updates: Partial<Tournament>): Promise<Tournament> => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('tournaments').update(updates).eq('id', id).select().single();
+          if (error) throw error;
+          return data;
+        } catch (e: any) {
+          console.warn('Supabase tournaments table update error, falling back to mockStore:', e.message || e);
+        }
+      }
+      return mockStore.tournaments.update(id, updates);
+    },
+    delete: async (id: string): Promise<void> => {
+      if (supabase) {
+        try {
+          const { error } = await supabase.from('tournaments').delete().eq('id', id);
+          if (error) throw error;
+          return;
+        } catch (e: any) {
+          console.warn('Supabase tournaments table delete error, falling back to mockStore:', e.message || e);
+        }
+      }
+      return mockStore.tournaments.delete(id);
     }
   }
 };

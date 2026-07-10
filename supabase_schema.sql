@@ -326,6 +326,40 @@ ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE bouts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE officials DISABLE ROW LEVEL SECURITY;
 
+-- 14. TOURNAMENTS TABLE
+CREATE TABLE IF NOT EXISTS tournaments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    organizer VARCHAR(150) NOT NULL,
+    date VARCHAR(100) NOT NULL,
+    date_iso TIMESTAMPTZ NOT NULL,
+    venue VARCHAR(255) NOT NULL,
+    city VARCHAR(150) NOT NULL,
+    registration_close VARCHAR(100) NOT NULL,
+    registration_close_iso TIMESTAMPTZ NOT NULL,
+    status VARCHAR(50) DEFAULT 'Open',
+    banner_gradient VARCHAR(255),
+    featured BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMPTZ,
+    discipline VARCHAR(255) DEFAULT 'Kata, Kumite',
+    medals_gold INT DEFAULT 0,
+    medals_silver INT DEFAULT 0,
+    medals_bronze INT DEFAULT 0,
+    total_participants INT DEFAULT 0,
+    total_clubs INT DEFAULT 0,
+    poster_emoji VARCHAR(50) DEFAULT '🏆',
+    pdf_url VARCHAR(500),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE tournaments DISABLE ROW LEVEL SECURITY;
+
+-- Seed Initial Tournaments
+INSERT INTO tournaments (id, name, organizer, date, date_iso, venue, city, registration_close, registration_close_iso, status, banner_gradient, featured, discipline, medals_gold, medals_silver, medals_bronze, total_participants, total_clubs, poster_emoji, pdf_url) VALUES
+('aa5e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'Kelab Senshi Goju-Ryu Open Karate Championship 2026', 'Kelab Senshi Goju-Ryu', '15–16 August 2026', '2026-08-15T08:00:00Z', 'Dewan Serbaguna Petaling PJ', 'Petaling Jaya, Selangor', '31 July 2026', '2026-07-31T23:59:59Z', 'Open', 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)', TRUE, 'Kata, Kumite', 0, 0, 0, 0, 0, '🏆', '#'),
+('bb5e8b4e-1a2b-3c4d-5e6f-7a8b9c0d1e2f', 'ITOSU-RYU OPEN KARATE CHAMPIONSHIP 2026', 'Itosu-Ryu Malaysia', '11–12 June 2026', '2026-06-11T08:00:00Z', 'Pusat Komersial Anggun City, Rawang', 'Rawang, Selangor', '31 May 2026', '2026-05-31T23:59:59Z', 'Completed', 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #3b82f6 100%)', FALSE, 'Kata, Kumite', 88, 88, 149, 481, 75, '🥇', '#')
+ON CONFLICT (id) DO NOTHING;
+
 -- Force PostgREST schema cache to reload
 NOTIFY pgrst, 'reload schema';
 

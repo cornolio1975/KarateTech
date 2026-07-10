@@ -170,4 +170,29 @@ export interface Official {
   created_at?: string;
 }
 
+export interface Tournament {
+  id: string;
+  name: string;
+  organizer: string;
+  date: string;
+  date_iso: string;
+  venue: string;
+  city: string;
+  registration_close: string;
+  registration_close_iso: string;
+  status: 'Open' | 'Closing Soon' | 'Full' | 'Completed';
+  banner_gradient?: string;
+  featured?: boolean;
+  deleted_at?: string;
+  discipline?: string;
+  medals_gold?: number;
+  medals_silver?: number;
+  medals_bronze?: number;
+  total_participants?: number;
+  total_clubs?: number;
+  poster_emoji?: string;
+  pdf_url?: string;
+  created_at?: string;
+}
+
 

@@ -5,9 +5,10 @@ import Link from 'next/link';
 import {
   Calendar, MapPin, Clock, Users, ChevronRight,
   ExternalLink, Trophy, Flame, Star, ArrowLeft,
-  Tag, AlarmClock, Info, Home
+  Tag, AlarmClock, Info, Home, RefreshCw
 } from 'lucide-react';
 import { formatLocalDate } from '@/lib/dateUtils';
+import { db } from '@/db/dbClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -296,35 +297,55 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 // ─── Page Component ────────────────────────────────────────────────────────
 
 export default function TournamentsPage() {
-  const [tournamentsList, setTournamentsList] = useState<Tournament[]>(TOURNAMENTS);
+  const [tournamentsList, setTournamentsList] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const customName = localStorage.getItem('ts_upcoming_name');
-      const customDate = localStorage.getItem('ts_upcoming_date');
-      const customTime = localStorage.getItem('ts_upcoming_time');
-      const customRegClose = localStorage.getItem('ts_upcoming_reg_close');
-      const customVenue = localStorage.getItem('ts_upcoming_venue');
-      const customCity = localStorage.getItem('ts_upcoming_city');
-
-      if (customName || customDate || customRegClose || customVenue || customCity) {
-        setTournamentsList(prev => prev.map(t => {
-          if (t.id === 'ksg-open-2026') {
+    const fetchTournaments = async () => {
+      try {
+        setLoading(true);
+        const list = await db.tournaments.list();
+        // Convert to Page's expected Tournament structure
+        const upcoming = list
+          .filter(t => t.status !== 'Completed' && !t.deleted_at)
+          .map(t => {
             return {
-              ...t,
-              name: customName || t.name,
-              date: customDate ? formatLocalDate(customDate, { day: 'numeric', month: 'long', year: 'numeric' }) : t.date,
-              dateIso: customDate ? `${customDate}T${customTime || '09:00'}:00` : t.dateIso,
-              registrationClose: customRegClose ? formatLocalDate(customRegClose, { day: 'numeric', month: 'long', year: 'numeric' }) : t.registrationClose,
-              registrationCloseIso: customRegClose ? `${customRegClose}T23:59:59` : t.registrationCloseIso,
-              venue: customVenue || t.venue,
-              city: customCity || t.city,
+              id: t.id,
+              name: t.name,
+              organizer: t.organizer,
+              date: t.date,
+              dateIso: t.date_iso || '2026-08-15T08:00:00Z',
+              venue: t.venue,
+              city: t.city,
+              registrationClose: t.registration_close,
+              registrationCloseIso: t.registration_close_iso || '2026-07-31T23:59:59Z',
+              categories: [
+                { name: 'Kata', color: '#d97706' },
+                { name: 'Kumite', color: '#dc2626' },
+                { name: 'Team Kata', color: '#7c3aed' },
+                { name: 'Team Kumite', color: '#0369a1' },
+              ],
+              status: (t.status || 'Open') as TournamentStatus,
+              bannerGradient: t.banner_gradient || 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)',
+              featured: !!t.featured
             };
-          }
-          return t;
-        }));
+          });
+
+        // If DB list is empty, seed it with the default static one
+        if (upcoming.length === 0) {
+          setTournamentsList(TOURNAMENTS);
+        } else {
+          setTournamentsList(upcoming);
+        }
+      } catch (e) {
+        console.error('Failed to load upcoming tournaments:', e);
+        setTournamentsList(TOURNAMENTS);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    fetchTournaments();
   }, []);
 
   return (
@@ -365,9 +386,20 @@ export default function TournamentsPage() {
 
       {/* Cards grid */}
       <section className="tournaments-grid" aria-label="Upcoming tournaments">
-        {tournamentsList.map((t) => (
-          <TournamentCard key={t.id} tournament={t} />
-        ))}
+        {loading ? (
+          <div className="col-span-full py-12 text-center text-xs text-gray-400">
+            <RefreshCw className="h-4 w-4 animate-spin text-amber-500 mx-auto mb-2" />
+            <span>Loading upcoming tournaments...</span>
+          </div>
+        ) : tournamentsList.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-xs text-gray-400">
+            No upcoming tournaments scheduled at this time.
+          </div>
+        ) : (
+          tournamentsList.map((t) => (
+            <TournamentCard key={t.id} tournament={t} />
+          ))
+        )}
       </section>
 
       {/* Footer note */}

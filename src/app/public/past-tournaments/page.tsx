@@ -7,6 +7,7 @@ import {
   Download, ChevronDown, ChevronUp, ArrowLeft, ArrowRight,
   Crown, Users, Star, X, Image as ImageIcon, Home
 } from 'lucide-react';
+import { db } from '@/db/dbClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -462,8 +463,49 @@ export default function PastTournamentsPage() {
   const [searchYear, setSearchYear] = useState('');
   const [filterDiscipline, setFilterDiscipline] = useState<Discipline>('All');
   const [customTournaments, setCustomTournaments] = useState<PastTournament[]>([]);
+  const [dbTournaments, setDbTournaments] = useState<PastTournament[]>([]);
 
   useEffect(() => {
+    const fetchTournaments = async () => {
+      try {
+        const list = await db.tournaments.list();
+        const pastList: PastTournament[] = list
+          .filter(t => t.status === 'Completed' && !t.deleted_at)
+          .map(t => {
+            const yearVal = t.date_iso ? new Date(t.date_iso).getFullYear() : 2026;
+            return {
+              id: t.id,
+              name: t.name,
+              year: yearVal,
+              date: t.date_iso ? t.date_iso.split('T')[0] : t.date,
+              venue: t.venue,
+              city: t.city,
+              discipline: (t.discipline ? t.discipline.split(',').map(s => s.trim()) : ['Kata', 'Kumite']) as Discipline[],
+              medals: {
+                gold: t.medals_gold ?? 0,
+                silver: t.medals_silver ?? 0,
+                bronze: t.medals_bronze ?? 0
+              },
+              totalParticipants: t.total_participants ?? 0,
+              totalClubs: t.total_clubs ?? 0,
+              posterGradient: t.banner_gradient || 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #3b82f6 100%)',
+              posterEmoji: t.poster_emoji || '🏆',
+              pdfUrl: t.pdf_url || '#',
+              photos: [
+                { id: `p-${t.id}-1`, caption: 'Opening Ceremony', gradient: 'linear-gradient(135deg,#1e1b4b,#312e81)' },
+                { id: `p-${t.id}-2`, caption: 'Kumite Selections', gradient: 'linear-gradient(135deg,#7f1d1d,#b91c1c)' }
+              ],
+              champions: []
+            };
+          });
+        setDbTournaments(pastList);
+      } catch (e) {
+        console.error('Failed to load past tournaments from db:', e);
+      }
+    };
+
+    fetchTournaments();
+
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('ts_custom_past_tournaments');
       if (stored) {
@@ -475,8 +517,17 @@ export default function PastTournamentsPage() {
   }, []);
 
   const allTournaments = useMemo(() => {
-    return [...customTournaments, ...PAST_TOURNAMENTS];
-  }, [customTournaments]);
+    const combined = [...dbTournaments, ...customTournaments, ...PAST_TOURNAMENTS];
+    const unique: PastTournament[] = [];
+    const seen = new Set<string>();
+    for (const t of combined) {
+      if (!seen.has(t.id)) {
+        seen.add(t.id);
+        unique.push(t);
+      }
+    }
+    return unique;
+  }, [dbTournaments, customTournaments]);
 
   const years = useMemo(
     () => [...new Set(allTournaments.map((t) => t.year))].sort((a, b) => b - a),
@@ -504,6 +555,39 @@ export default function PastTournamentsPage() {
       ),
     [allTournaments]
   );
+
+  // Group tournaments by year
+  const groupedByYear = useMemo(() => {
+    const groups: Record<number, PastTournament[]> = {};
+    filtered.forEach((t) => {
+      if (!groups[t.year]) {
+        groups[t.year] = [];
+      }
+      groups[t.year].push(t);
+    });
+    return groups;
+  }, [filtered]);
+
+  // Keep track of which years are expanded
+  const [expandedYears, setExpandedYears] = useState<Record<number, boolean>>({});
+
+  // By default, expand all years
+  useEffect(() => {
+    if (years.length > 0 && Object.keys(expandedYears).length === 0) {
+      const initial: Record<number, boolean> = {};
+      years.forEach((y) => {
+        initial[y] = true;
+      });
+      setExpandedYears(initial);
+    }
+  }, [years, expandedYears]);
+
+  const toggleYear = (year: number) => {
+    setExpandedYears((prev) => ({
+      ...prev,
+      [year]: !prev[year]
+    }));
+  };
 
   return (
     <div className="pt-page">
@@ -599,15 +683,47 @@ export default function PastTournamentsPage() {
         </div>
       </div>
 
-      {/* Tournament list */}
-      <section className="pt-list" aria-label="Past tournaments">
+      {/* Tournament list grouped by Year Folder */}
+      <section className="max-w-[1100px] mx-auto px-6 space-y-8 pb-12" aria-label="Past tournaments">
         {filtered.length === 0 ? (
           <div className="pt-empty">
             <Star size={40} className="pt-empty__icon" />
             <p>No tournaments found for the selected filters.</p>
           </div>
         ) : (
-          filtered.map((t) => <PastTournamentCard key={t.id} tournament={t} />)
+          years.map((year) => {
+            const tourns = groupedByYear[year] || [];
+            if (tourns.length === 0) return null;
+            const isExpanded = expandedYears[year] !== false;
+
+            return (
+              <div key={year} className="bg-neutral-900/40 border border-gray-800 rounded-2xl overflow-hidden shadow-xs">
+                {/* Year Header Folder bar */}
+                <button
+                  onClick={() => toggleYear(year)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-900/60 hover:bg-gray-900/80 transition font-bold text-sm border-b border-gray-850 text-white cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">📁</span>
+                    <span className="tracking-wider uppercase text-xs font-black text-amber-500">Year {year} Tournaments</span>
+                    <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-0.5 rounded-full font-bold">
+                      {tourns.length} Tournament{tourns.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Tournament list inside the folder */}
+                {isExpanded && (
+                  <div className="p-5 space-y-6 bg-transparent">
+                    {tourns.map((t) => (
+                      <PastTournamentCard key={t.id} tournament={t} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </section>
 

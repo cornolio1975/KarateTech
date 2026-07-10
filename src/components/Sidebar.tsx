@@ -25,6 +25,7 @@ const MENU_ITEMS = [
   { name: 'Public Scoreboard', icon: Tv, path: '/public', badge: 'Live' },
   { name: 'Upcoming Tournaments', icon: CalendarCheck, path: '/public/tournaments', badge: 'New' },
   { name: 'Past Tournaments', icon: History, path: '/public/past-tournaments' },
+  { name: 'Tournaments Admin', icon: Trophy, path: '/admin/tournaments', badge: 'Admin' },
   { name: 'Reports', icon: FileText, path: '/reports' },
   { name: 'Settings', icon: Settings, path: '/settings' },
 ];

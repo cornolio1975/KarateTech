@@ -1,7 +1,7 @@
 import { 
   Country, Club, Coach, Category, Team, Participant, 
   TeamMember, ParticipantCategory, Payment, MedicalRecord, 
-  Document, ActivityLog, AuditLog, Bout, Official
+  Document, ActivityLog, AuditLog, Bout, Official, Tournament
 } from './types';
 
 // Seed data
@@ -1306,6 +1306,38 @@ export const mockStore = {
     }
   },
 
+  // 14. Tournaments
+  tournaments: {
+    list: (): Tournament[] => {
+      return getStoreData<Tournament>('ts_tournaments', SEED_TOURNAMENTS);
+    },
+    add: (tour: Omit<Tournament, 'id'>): Tournament => {
+      const list = getStoreData<Tournament>('ts_tournaments', SEED_TOURNAMENTS);
+      const newTour: Tournament = {
+        ...tour,
+        id: `tournament-${Date.now()}`,
+        created_at: new Date().toISOString()
+      };
+      list.push(newTour);
+      saveStoreData('ts_tournaments', list);
+      return newTour;
+    },
+    update: (id: string, updates: Partial<Tournament>): Tournament => {
+      const list = getStoreData<Tournament>('ts_tournaments', SEED_TOURNAMENTS);
+      const idx = list.findIndex(t => t.id === id);
+      if (idx === -1) throw new Error('Tournament not found');
+      const updated = { ...list[idx], ...updates };
+      list[idx] = updated;
+      saveStoreData('ts_tournaments', list);
+      return updated;
+    },
+    delete: (id: string): void => {
+      const list = getStoreData<Tournament>('ts_tournaments', SEED_TOURNAMENTS);
+      const filtered = list.filter(t => t.id !== id);
+      saveStoreData('ts_tournaments', filtered);
+    }
+  },
+
   // Helper utility functions
   helpers: {
     calculateAge: (dobString: string): number => {
@@ -1320,3 +1352,50 @@ export const mockStore = {
     }
   }
 };
+
+const SEED_TOURNAMENTS: Tournament[] = [
+  {
+    id: 'ksg-open-2026',
+    name: 'Kelab Senshi Goju-Ryu Open Karate Championship 2026',
+    organizer: 'Kelab Senshi Goju-Ryu',
+    date: '15–16 August 2026',
+    date_iso: '2026-08-15T08:00:00Z',
+    venue: 'Dewan Serbaguna Petaling Jaya',
+    city: 'Petaling Jaya, Selangor',
+    registration_close: '31 July 2026',
+    registration_close_iso: '2026-07-31T23:59:59Z',
+    status: 'Open',
+    banner_gradient: 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)',
+    featured: true,
+    discipline: 'Kata, Kumite',
+    medals_gold: 0,
+    medals_silver: 0,
+    medals_bronze: 0,
+    total_participants: 0,
+    total_clubs: 0,
+    poster_emoji: '🏆',
+    pdf_url: '#'
+  },
+  {
+    id: 'itosu-ryu-open-2026',
+    name: 'ITOSU-RYU OPEN KARATE CHAMPIONSHIP 2026',
+    organizer: 'Itosu-Ryu Malaysia',
+    date: '11–12 June 2026',
+    date_iso: '2026-06-11T08:00:00Z',
+    venue: 'Pusat Komersial Anggun City, Rawang',
+    city: 'Rawang, Selangor',
+    registration_close: '31 May 2026',
+    registration_close_iso: '2026-05-31T23:59:59Z',
+    status: 'Completed',
+    banner_gradient: 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #3b82f6 100%)',
+    featured: false,
+    discipline: 'Kata, Kumite',
+    medals_gold: 88,
+    medals_silver: 88,
+    medals_bronze: 149,
+    total_participants: 481,
+    total_clubs: 75,
+    poster_emoji: '🥇',
+    pdf_url: '#'
+  }
+];
