@@ -35,6 +35,14 @@ function SpectatorDisplayContent() {
   const [penaltiesAka, setPenaltiesAka] = useState<string[]>([]);
   const [penaltiesAo, setPenaltiesAo] = useState<string[]>([]);
 
+  // Detailed WKF warnings states
+  const [c1Aka, setC1Aka] = useState<number>(0);
+  const [c2Aka, setC2Aka] = useState<number>(0);
+  const [c3Aka, setC3Aka] = useState<number>(0);
+  const [c1Ao, setC1Ao] = useState<number>(0);
+  const [c2Ao, setC2Ao] = useState<number>(0);
+  const [c3Ao, setC3Ao] = useState<number>(0);
+
   // Timer states
   const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [timerActive, setTimerActive] = useState<boolean>(false);
@@ -153,6 +161,12 @@ function SpectatorDisplayContent() {
           setSenshuAo(data.senshuAo);
           setPenaltiesAka(data.penaltiesAka || []);
           setPenaltiesAo(data.penaltiesAo || []);
+          setC1Aka(data.c1Aka || 0);
+          setC2Aka(data.c2Aka || 0);
+          setC3Aka(data.c3Aka || 0);
+          setC1Ao(data.c1Ao || 0);
+          setC2Ao(data.c2Ao || 0);
+          setC3Ao(data.c3Ao || 0);
           setTimeLeft(data.timeLeft);
           setTimerActive(data.timerActive);
           setGoldenScore(data.goldenScore);
@@ -202,6 +216,14 @@ function SpectatorDisplayContent() {
           setSenshuAo(bout.senshu_b ?? false);
           setPenaltiesAka(bout.penalties_a ? bout.penalties_a.split(',').filter(Boolean) : []);
           setPenaltiesAo(bout.penalties_b ? bout.penalties_b.split(',').filter(Boolean) : []);
+          
+          setC1Aka(bout.penalties_c1_a ? parseInt(bout.penalties_c1_a) || 0 : 0);
+          setC2Aka(bout.penalties_c2_a ? parseInt(bout.penalties_c2_a) || 0 : 0);
+          setC3Aka(bout.penalties_c3_a ? parseInt(bout.penalties_c3_a) || 0 : 0);
+          setC1Ao(bout.penalties_c1_b ? parseInt(bout.penalties_c1_b) || 0 : 0);
+          setC2Ao(bout.penalties_c2_b ? parseInt(bout.penalties_c2_b) || 0 : 0);
+          setC3Ao(bout.penalties_c3_b ? parseInt(bout.penalties_c3_b) || 0 : 0);
+
           setTimeLeft((bout.timer_seconds ?? 180) * 10);
           setTimerActive(bout.timer_active ?? false);
         }
@@ -231,6 +253,14 @@ function SpectatorDisplayContent() {
             setSenshuAo(updated.senshu_b ?? false);
             setPenaltiesAka(updated.penalties_a ? updated.penalties_a.split(',').filter(Boolean) : []);
             setPenaltiesAo(updated.penalties_b ? updated.penalties_b.split(',').filter(Boolean) : []);
+            
+            setC1Aka(updated.penalties_c1_a ? parseInt(updated.penalties_c1_a) || 0 : 0);
+            setC2Aka(updated.penalties_c2_a ? parseInt(updated.penalties_c2_a) || 0 : 0);
+            setC3Aka(updated.penalties_c3_a ? parseInt(updated.penalties_c3_a) || 0 : 0);
+            setC1Ao(updated.penalties_c1_b ? parseInt(updated.penalties_c1_b) || 0 : 0);
+            setC2Ao(updated.penalties_c2_b ? parseInt(updated.penalties_c2_b) || 0 : 0);
+            setC3Ao(updated.penalties_c3_b ? parseInt(updated.penalties_c3_b) || 0 : 0);
+
             setTimeLeft((updated.timer_seconds ?? 180) * 10);
             setTimerActive(updated.timer_active ?? false);
             
@@ -363,25 +393,66 @@ function SpectatorDisplayContent() {
           </div>
 
           {/* AKA Warnings Row */}
-          <div>
-            <div className="border-t-2 border-red-900/30 pt-6">
-              <div className="flex justify-between items-center gap-3">
-                {['C1', 'C2', 'C3', 'HC'].map((key) => {
-                  const isActive = penaltiesAka.includes(key);
-                  return (
-                    <div
-                      key={key}
-                      className={`flex-1 text-center py-3.5 rounded-2xl text-lg font-black transition-all duration-300 border-2 ${
-                        isActive
-                          ? 'bg-red-500 text-black border-red-400 font-black shadow-[0_0_25px_rgba(239,68,68,0.35)]'
-                          : 'bg-transparent text-white/10 border-white/5'
-                      }`}
-                    >
-                      {key}
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="border-t-2 border-red-900/30 pt-4 space-y-2">
+            {/* Category 1 */}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[9px] font-bold text-red-500/70 w-8 text-left">C1</span>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const level = i + 1;
+                const isActive = c1Aka >= level;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all border ${
+                      isActive
+                        ? 'bg-red-500 text-black border-red-400 font-black shadow-[0_0_10px_rgba(239,68,68,0.35)]'
+                        : 'bg-transparent text-white/10 border-white/5'
+                    }`}
+                  >
+                    {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Category 2 */}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[9px] font-bold text-red-500/70 w-8 text-left">C2</span>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const level = i + 1;
+                const isActive = c2Aka >= level;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all border ${
+                      isActive
+                        ? 'bg-red-500 text-black border-red-400 font-black shadow-[0_0_10px_rgba(239,68,68,0.35)]'
+                        : 'bg-transparent text-white/10 border-white/5'
+                    }`}
+                  >
+                    {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Category 3 */}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[9px] font-bold text-red-500/70 w-8 text-left">C3</span>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const level = i + 1;
+                const isActive = c3Aka >= level;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all border ${
+                      isActive
+                        ? 'bg-red-500 text-black border-red-400 font-black shadow-[0_0_10px_rgba(239,68,68,0.35)]'
+                        : 'bg-transparent text-white/10 border-white/5'
+                    }`}
+                  >
+                    {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -457,25 +528,66 @@ function SpectatorDisplayContent() {
           </div>
 
           {/* AO Warnings Row */}
-          <div>
-            <div className="border-t-2 border-blue-900/30 pt-6">
-              <div className="flex justify-between items-center gap-3">
-                {['C1', 'C2', 'C3', 'HC'].map((key) => {
-                  const isActive = penaltiesAo.includes(key);
-                  return (
-                    <div
-                      key={key}
-                      className={`flex-1 text-center py-3.5 rounded-2xl text-lg font-black transition-all duration-300 border-2 ${
-                        isActive
-                          ? 'bg-blue-500 text-black border-blue-400 font-black shadow-[0_0_25px_rgba(59,130,246,0.35)]'
-                          : 'bg-transparent text-white/10 border-white/5'
-                      }`}
-                    >
-                      {key}
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="border-t-2 border-blue-900/30 pt-4 space-y-2">
+            {/* Category 1 */}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[9px] font-bold text-blue-400/70 w-8 text-left">C1</span>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const level = i + 1;
+                const isActive = c1Ao >= level;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all border ${
+                      isActive
+                        ? 'bg-blue-500 text-black border-blue-400 font-black shadow-[0_0_10px_rgba(59,130,246,0.35)]'
+                        : 'bg-transparent text-white/10 border-white/5'
+                    }`}
+                  >
+                    {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Category 2 */}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[9px] font-bold text-blue-400/70 w-8 text-left">C2</span>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const level = i + 1;
+                const isActive = c2Ao >= level;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all border ${
+                      isActive
+                        ? 'bg-blue-500 text-black border-blue-400 font-black shadow-[0_0_10px_rgba(59,130,246,0.35)]'
+                        : 'bg-transparent text-white/10 border-white/5'
+                    }`}
+                  >
+                    {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Category 3 */}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[9px] font-bold text-blue-400/70 w-8 text-left">C3</span>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const level = i + 1;
+                const isActive = c3Ao >= level;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center py-1.5 rounded-lg text-xs font-black transition-all border ${
+                      isActive
+                        ? 'bg-blue-500 text-black border-blue-400 font-black shadow-[0_0_10px_rgba(59,130,246,0.35)]'
+                        : 'bg-transparent text-white/10 border-white/5'
+                    }`}
+                  >
+                    {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

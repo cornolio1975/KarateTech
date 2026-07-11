@@ -1198,7 +1198,13 @@ export const mockStore = {
       };
       list[idx] = updatedBout;
 
-      if (bout.round_no !== 99 && bout.round_no < 5) {
+      if (bout.round_no === 98) {
+        const nextBoutNo = bout.bout_no + 1;
+        const nextBoutIdx = list.findIndex(b => b.category_id === bout.category_id && b.round_no === 98 && b.bout_no === nextBoutNo);
+        if (nextBoutIdx !== -1) {
+          list[nextBoutIdx] = { ...list[nextBoutIdx], participant_a_id: winnerId };
+        }
+      } else if (bout.round_no !== 99 && bout.round_no < 7) {
         const nextRoundNo = bout.round_no + 1;
         const nextBoutNo = Math.ceil(bout.bout_no / 2);
         const nextBoutIdx = list.findIndex(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
@@ -1250,7 +1256,7 @@ export const mockStore = {
       };
       list[idx] = updatedBout;
 
-      if (bout.round_no !== 99 && bout.round_no < 5 && currentWinnerId) {
+      if (bout.round_no !== 99 && bout.round_no < 7 && currentWinnerId) {
         const nextRoundNo = bout.round_no + 1;
         const nextBoutNo = Math.ceil(bout.bout_no / 2);
         const nextBoutIdx = list.findIndex(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
@@ -1271,6 +1277,90 @@ export const mockStore = {
 
       saveStoreData('ts_bouts', list);
       return updatedBout;
+    },
+    generateRepechage: (catId: string): Bout[] => {
+      const list = getStoreData<Bout>('ts_bouts', []);
+      const categoryBouts = list.filter(b => b.category_id === catId);
+      
+      const maxRound = Math.max(...categoryBouts.filter(b => b.round_no !== 99 && b.round_no !== 98).map(b => b.round_no), 1);
+      const finalBout = categoryBouts.find(b => b.round_no === maxRound && b.bout_no === 1);
+      if (!finalBout) throw new Error('Main bracket is not fully generated.');
+
+      const finalistA = finalBout.participant_a_id;
+      const finalistB = finalBout.participant_b_id;
+      if (!finalistA || !finalistB) {
+        throw new Error('Finalists are not fully determined yet. Resolve previous rounds first.');
+      }
+
+      // Remove existing repechage bouts for this category
+      const filteredList = list.filter(b => !(b.category_id === catId && b.round_no === 98));
+
+      // Trace losers who lost to finalists in completed bouts
+      const getLosersForFinalist = (finalistId: string): string[] => {
+        const losers: string[] = [];
+        for (let r = 1; r < maxRound; r++) {
+          const bout = categoryBouts.find(b => 
+            b.round_no === r && 
+            (b.participant_a_id === finalistId || b.participant_b_id === finalistId)
+          );
+          if (bout && bout.status === 'Completed' && bout.winner_id === finalistId) {
+            const loserId = bout.winner_id === bout.participant_a_id ? bout.participant_b_id : bout.participant_a_id;
+            if (loserId) losers.push(loserId);
+          }
+        }
+        return losers;
+      };
+
+      const losersA = getLosersForFinalist(finalistA);
+      const losersB = getLosersForFinalist(finalistB);
+
+      const newBouts: Bout[] = [];
+      
+      const buildRepechagePool = (losers: string[], poolChar: 'A' | 'B') => {
+        if (losers.length < 2) return;
+        let boutIndex = 1;
+
+        // Bout 1: Round 1 loser vs Round 2 loser
+        const b1: Bout = {
+          id: `bout-${catId}-rep-${poolChar}-${boutIndex}-${Date.now()}`,
+          category_id: catId,
+          bout_no: poolChar === 'A' ? 10 : 20,
+          round_no: 98,
+          participant_a_id: losers[0],
+          participant_b_id: losers[1],
+          winner_id: null,
+          score_a: 0,
+          score_b: 0,
+          status: 'Scheduled',
+          tatami: 'Tatami 1'
+        };
+        newBouts.push(b1);
+        
+        // Subsequent bouts
+        for (let i = 2; i < losers.length; i++) {
+          boutIndex++;
+          const bNext: Bout = {
+            id: `bout-${catId}-rep-${poolChar}-${boutIndex}-${Date.now()}`,
+            category_id: catId,
+            bout_no: (poolChar === 'A' ? 10 : 20) + (boutIndex - 1),
+            round_no: 98,
+            participant_a_id: null,
+            participant_b_id: losers[i],
+            winner_id: null,
+            score_a: 0,
+            score_b: 0,
+            status: 'Scheduled',
+            tatami: 'Tatami 1'
+          };
+          newBouts.push(bNext);
+        }
+      };
+
+      buildRepechagePool(losersA, 'A');
+      buildRepechagePool(losersB, 'B');
+
+      saveStoreData('ts_bouts', [...filteredList, ...newBouts]);
+      return newBouts;
     }
   },
 

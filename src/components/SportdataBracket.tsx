@@ -104,7 +104,23 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
       { rank: '2', p: second },
     ];
 
-    if (bronzeBout && bronzeBout.status === 'Completed' && bronzeBout.winner_id) {
+    const repechageBouts = categoryBouts.filter((b) => b.round_no === 98);
+    if (repechageBouts.length > 0) {
+      const poolABouts = repechageBouts.filter((b) => b.bout_no < 20);
+      const finalPoolABout = poolABouts.length > 0 ? poolABouts.reduce((prev, curr) => curr.bout_no > prev.bout_no ? curr : prev) : null;
+      const bronzeA = finalPoolABout && finalPoolABout.status === 'Completed' && finalPoolABout.winner_id
+        ? participants.find((p) => p.id === finalPoolABout.winner_id)
+        : null;
+
+      const poolBBouts = repechageBouts.filter((b) => b.bout_no >= 20);
+      const finalPoolBBout = poolBBouts.length > 0 ? poolBBouts.reduce((prev, curr) => curr.bout_no > prev.bout_no ? curr : prev) : null;
+      const bronzeB = finalPoolBBout && finalPoolBBout.status === 'Completed' && finalPoolBBout.winner_id
+        ? participants.find((p) => p.id === finalPoolBBout.winner_id)
+        : null;
+
+      if (bronzeA) list.push({ rank: '3', p: bronzeA });
+      if (bronzeB) list.push({ rank: '3', p: bronzeB });
+    } else if (bronzeBout && bronzeBout.status === 'Completed' && bronzeBout.winner_id) {
       const third = participants.find((p) => p.id === bronzeBout.winner_id);
       const fourthId =
         bronzeBout.winner_id === bronzeBout.participant_a_id

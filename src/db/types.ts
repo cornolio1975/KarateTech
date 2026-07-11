@@ -154,6 +154,16 @@ export interface Bout {
   senshu_b?: boolean;
   penalties_a?: string;
   penalties_b?: string;
+  penalties_c1_a?: string;
+  penalties_c2_a?: string;
+  penalties_c3_a?: string;
+  penalties_c1_b?: string;
+  penalties_c2_b?: string;
+  penalties_c3_b?: string;
+  victory_method?: string;
+  match_end_time?: string;
+  points_aka_history?: string;
+  points_ao_history?: string;
   timer_seconds?: number;
   timer_active?: boolean;
 }

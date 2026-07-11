@@ -135,6 +135,21 @@ export default function DrawsPage() {
       setLoading(false);
     }
   };
+ 
+  const handleGenerateRepechage = async () => {
+    if (!selectedCatId) return;
+    try {
+      setLoading(true);
+      await (db.bouts as any).generateRepechage(selectedCatId);
+      const updatedBouts = await db.bouts.list();
+      setBouts(updatedBouts);
+      alert('WKF Repechage brackets generated successfully!');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Print handlers ---
   const handlePrint = () => {
@@ -458,6 +473,16 @@ export default function DrawsPage() {
                     <span>{categoryBouts.length > 0 ? 'Regenerate Draw' : 'Generate Draw Sheet'}</span>
                   </button>
                 )}
+                {canModify && categoryBouts.length > 0 && drawType === 'Elimination' && (
+                  <button
+                    onClick={handleGenerateRepechage}
+                    disabled={loading}
+                    className="px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <GitPullRequest className="h-4.5 w-4.5" />
+                    <span>Generate WKF Repechage</span>
+                  </button>
+                )}
                 {categoryBouts.length > 0 && (
                   <button
                     onClick={handlePrintCurrent}
@@ -544,17 +569,87 @@ export default function DrawsPage() {
                 </div>
 
               ) : (
-                <div className="flex-1 overflow-auto p-4 bg-gray-50/20 dark:bg-gray-950/20">
-                  <SportdataBracket
-                    bouts={bouts}
-                    participants={participants}
-                    clubs={clubs}
-                    categories={categories}
-                    selectedCatId={selectedCatId}
-                    canModify={canModify}
-                    onBoutClick={openResolveDialog}
-                    theme="light"
-                  />
+                <div className="flex-1 overflow-auto bg-gray-50/20 dark:bg-gray-950/20 flex flex-col justify-between">
+                  <div className="p-4">
+                    <SportdataBracket
+                      bouts={bouts}
+                      participants={participants}
+                      clubs={clubs}
+                      categories={categories}
+                      selectedCatId={selectedCatId}
+                      canModify={canModify}
+                      onBoutClick={openResolveDialog}
+                      theme="light"
+                    />
+                  </div>
+
+                  {categoryBouts.filter(b => b.round_no === 98).length > 0 && (
+                    <div className="mt-8 border-t border-border pt-6 px-6 pb-8 bg-secondary/20 shrink-0">
+                      <h3 className="text-xs font-black uppercase text-foreground tracking-wider mb-4 flex items-center gap-1.5">
+                        <GitPullRequest className="h-4 w-4 text-yellow-500" />
+                        <span>WKF Repechage Pools (Bronze Medal Bracket)</span>
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Pool A */}
+                        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest">Repechage Pool A (Aka Finalist Pool)</h4>
+                          <div className="space-y-2">
+                            {categoryBouts.filter(b => b.round_no === 98 && b.bout_no < 20).sort((a, b) => a.bout_no - b.bout_no).map(b => {
+                              const competitorA = participants.find(p => p.id === b.participant_a_id);
+                              const competitorB = participants.find(p => p.id === b.participant_b_id);
+                              const winner = participants.find(p => p.id === b.winner_id);
+                              return (
+                                <div key={b.id} className="flex items-center justify-between border border-border/60 bg-secondary/10 p-2.5 rounded-lg text-xs">
+                                  <div className="space-y-1">
+                                    <div className="font-semibold text-foreground">{competitorA?.full_name || 'TBD'} vs {competitorB?.full_name || 'TBD'}</div>
+                                    {b.status === 'Completed' && (
+                                      <div className="text-[10px] text-muted-foreground">Winner: <span className="font-bold text-primary">{winner?.full_name}</span> ({b.score_a} - {b.score_b})</div>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => openResolveDialog(b)}
+                                    disabled={!b.participant_a_id || !b.participant_b_id || !canModify}
+                                    className="px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/95 text-[10px] font-bold rounded-md disabled:opacity-40 cursor-pointer"
+                                  >
+                                    Resolve
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Pool B */}
+                        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                          <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Repechage Pool B (Ao Finalist Pool)</h4>
+                          <div className="space-y-2">
+                            {categoryBouts.filter(b => b.round_no === 98 && b.bout_no >= 20).sort((a, b) => a.bout_no - b.bout_no).map(b => {
+                              const competitorA = participants.find(p => p.id === b.participant_a_id);
+                              const competitorB = participants.find(p => p.id === b.participant_b_id);
+                              const winner = participants.find(p => p.id === b.winner_id);
+                              return (
+                                <div key={b.id} className="flex items-center justify-between border border-border/60 bg-secondary/10 p-2.5 rounded-lg text-xs">
+                                  <div className="space-y-1">
+                                    <div className="font-semibold text-foreground">{competitorA?.full_name || 'TBD'} vs {competitorB?.full_name || 'TBD'}</div>
+                                    {b.status === 'Completed' && (
+                                      <div className="text-[10px] text-muted-foreground">Winner: <span className="font-bold text-primary">{winner?.full_name}</span> ({b.score_a} - {b.score_b})</div>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => openResolveDialog(b)}
+                                    disabled={!b.participant_a_id || !b.participant_b_id || !canModify}
+                                    className="px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/95 text-[10px] font-bold rounded-md disabled:opacity-40 cursor-pointer"
+                                  >
+                                    Resolve
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

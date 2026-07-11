@@ -33,6 +33,18 @@ export default function ScoreboardControlPage() {
   const [penaltiesAka, setPenaltiesAka] = useState<string[]>([]);
   const [penaltiesAo, setPenaltiesAo] = useState<string[]>([]);
 
+  // Detailed C1, C2, C3 Warnings (WKF Rules)
+  const [c1Aka, setC1Aka] = useState<number>(0);
+  const [c2Aka, setC2Aka] = useState<number>(0);
+  const [c3Aka, setC3Aka] = useState<number>(0);
+  const [c1Ao, setC1Ao] = useState<number>(0);
+  const [c2Ao, setC2Ao] = useState<number>(0);
+  const [c3Ao, setC3Ao] = useState<number>(0);
+
+  // Technique log arrays (storing raw point values e.g. 3, 2, 1 for tie breaks)
+  const [pointsAka, setPointsAka] = useState<number[]>([]);
+  const [pointsAo, setPointsAo] = useState<number[]>([]);
+
   // Timer state
   const [timeLeft, setTimeLeft] = useState<number>(1800); // 3 minutes default (1800 deciseconds)
   const [timerActive, setTimerActive] = useState<boolean>(false);
@@ -90,6 +102,17 @@ export default function ScoreboardControlPage() {
         setSenshuAo(currentBout.senshu_b ?? false);
         setPenaltiesAka(currentBout.penalties_a ? currentBout.penalties_a.split(',').filter(Boolean) : []);
         setPenaltiesAo(currentBout.penalties_b ? currentBout.penalties_b.split(',').filter(Boolean) : []);
+        
+        setC1Aka(currentBout.penalties_c1_a ? parseInt(currentBout.penalties_c1_a) || 0 : 0);
+        setC2Aka(currentBout.penalties_c2_a ? parseInt(currentBout.penalties_c2_a) || 0 : 0);
+        setC3Aka(currentBout.penalties_c3_a ? parseInt(currentBout.penalties_c3_a) || 0 : 0);
+        setC1Ao(currentBout.penalties_c1_b ? parseInt(currentBout.penalties_c1_b) || 0 : 0);
+        setC2Ao(currentBout.penalties_c2_b ? parseInt(currentBout.penalties_c2_b) || 0 : 0);
+        setC3Ao(currentBout.penalties_c3_b ? parseInt(currentBout.penalties_c3_b) || 0 : 0);
+        
+        setPointsAka(currentBout.points_aka_history ? currentBout.points_aka_history.split(',').map(Number).filter(Boolean) : []);
+        setPointsAo(currentBout.points_ao_history ? currentBout.points_ao_history.split(',').map(Number).filter(Boolean) : []);
+        
         setTimeLeft((currentBout.timer_seconds ?? 180) * 10);
         setMatchDuration(currentBout.timer_seconds ?? 180);
         setHasTimerRun(false);
@@ -122,6 +145,14 @@ export default function ScoreboardControlPage() {
       senshuAo,
       penaltiesAka,
       penaltiesAo,
+      c1Aka,
+      c2Aka,
+      c3Aka,
+      c1Ao,
+      c2Ao,
+      c3Ao,
+      pointsAka,
+      pointsAo,
       timeLeft,
       timerActive,
       goldenScore,
@@ -131,8 +162,9 @@ export default function ScoreboardControlPage() {
     });
   }, [
     boutId, competitorAka, competitorAo, scoreAka, scoreAo,
-    senshuAka, senshuAo, penaltiesAka, penaltiesAo, timeLeft,
-    timerActive, goldenScore, winnerSide, winMethod, matchDuration
+    senshuAka, senshuAo, penaltiesAka, penaltiesAo,
+    c1Aka, c2Aka, c3Aka, c1Ao, c2Ao, c3Ao, pointsAka, pointsAo,
+    timeLeft, timerActive, goldenScore, winnerSide, winMethod, matchDuration
   ]);
 
   // Broadcast state updates in real-time
@@ -150,6 +182,14 @@ export default function ScoreboardControlPage() {
             senshu_b: senshuAo,
             penalties_a: penaltiesAka.join(','),
             penalties_b: penaltiesAo.join(','),
+            penalties_c1_a: String(c1Aka),
+            penalties_c2_a: String(c2Aka),
+            penalties_c3_a: String(c3Aka),
+            penalties_c1_b: String(c1Ao),
+            penalties_c2_b: String(c2Ao),
+            penalties_c3_b: String(c3Ao),
+            points_aka_history: pointsAka.join(','),
+            points_ao_history: pointsAo.join(','),
             timer_seconds: Math.round(timeLeft / 10),
             timer_active: timerActive
           });
@@ -162,9 +202,9 @@ export default function ScoreboardControlPage() {
       return () => clearTimeout(debounceTimeout);
     }
   }, [
-    scoreAka, scoreAo, senshuAka, senshuAo, penaltiesAka,
-    penaltiesAo, timeLeft, timerActive, goldenScore, winnerSide,
-    winMethod, mounted, bout, broadcastState, boutId
+    scoreAka, scoreAo, senshuAka, senshuAo, penaltiesAka, penaltiesAo,
+    c1Aka, c2Aka, c3Aka, c1Ao, c2Ao, c3Ao, pointsAka, pointsAo,
+    timeLeft, timerActive, goldenScore, winnerSide, winMethod, mounted, bout, broadcastState, boutId
   ]);
 
   // Sound generator
@@ -214,6 +254,57 @@ export default function ScoreboardControlPage() {
     }
   };
 
+  // Helper to determine the winner automatically upon match expiration based on WKF rules
+  const autoDetermineWinner = (): { side: 'aka' | 'ao'; method: string } => {
+    if (scoreAka > scoreAo) {
+      return { side: 'aka', method: 'Points Advantage' };
+    }
+    if (scoreAo > scoreAka) {
+      return { side: 'ao', method: 'Points Advantage' };
+    }
+
+    // Tie score: check Senshu
+    if (senshuAka) {
+      return { side: 'aka', method: 'SENSHU' };
+    }
+    if (senshuAo) {
+      return { side: 'ao', method: 'SENSHU' };
+    }
+
+    // No Senshu: compare highest technique scored
+    const countTech = (arr: number[], tech: number) => arr.filter(x => x === tech).length;
+
+    // Check Ippon (3 points)
+    const ipponAka = countTech(pointsAka, 3);
+    const ipponAo = countTech(pointsAo, 3);
+    if (ipponAka !== ipponAo) {
+      return ipponAka > ipponAo 
+        ? { side: 'aka', method: 'Superior Points' }
+        : { side: 'ao', method: 'Superior Points' };
+    }
+
+    // Check Waza-ari (2 points)
+    const wazaAka = countTech(pointsAka, 2);
+    const wazaAo = countTech(pointsAo, 2);
+    if (wazaAka !== wazaAo) {
+      return wazaAka > wazaAo 
+        ? { side: 'aka', method: 'Superior Points' }
+        : { side: 'ao', method: 'Superior Points' };
+    }
+
+    // Check Yuko (1 point)
+    const yukoAka = countTech(pointsAka, 1);
+    const yukoAo = countTech(pointsAo, 1);
+    if (yukoAka !== yukoAo) {
+      return yukoAka > yukoAo 
+        ? { side: 'aka', method: 'Superior Points' }
+        : { side: 'ao', method: 'Superior Points' };
+    }
+
+    // Complete tie: default suggestion is Hantei (referee decision)
+    return { side: 'aka', method: 'Hantei' };
+  };
+
   // Timer runner loop
   useEffect(() => {
     if (timerActive) {
@@ -222,6 +313,10 @@ export default function ScoreboardControlPage() {
           if (prev <= 1) {
             setTimerActive(false);
             triggerBuzzer();
+            const autoWin = autoDetermineWinner();
+            setWinnerSide(autoWin.side);
+            setWinMethod(autoWin.method);
+            setShowFinishModal(true);
             return 0;
           }
           const nextVal = prev - 1;
@@ -238,11 +333,26 @@ export default function ScoreboardControlPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerActive]);
+  }, [timerActive, autoDetermineWinner]);
 
   // Save current state to history for undo operations
-  // Save current state to history for undo operations
-  const pushHistory = (prevScoreAka = scoreAka, prevScoreAo = scoreAo, prevPenAka = penaltiesAka, prevPenAo = penaltiesAo, prevSenshuAka = senshuAka, prevSenshuAo = senshuAo, prevHasTimerRun = hasTimerRun) => {
+  const pushHistory = (
+    prevScoreAka = scoreAka,
+    prevScoreAo = scoreAo,
+    prevPenAka = penaltiesAka,
+    prevPenAo = penaltiesAo,
+    prevSenshuAka = senshuAka,
+    prevSenshuAo = senshuAo,
+    prevHasTimerRun = hasTimerRun,
+    prevC1Aka = c1Aka,
+    prevC2Aka = c2Aka,
+    prevC3Aka = c3Aka,
+    prevC1Ao = c1Ao,
+    prevC2Ao = c2Ao,
+    prevC3Ao = c3Ao,
+    prevPointsAka = pointsAka,
+    prevPointsAo = pointsAo
+  ) => {
     setHistory((prev) => [
       ...prev,
       {
@@ -252,7 +362,15 @@ export default function ScoreboardControlPage() {
         penaltiesAo: [...prevPenAo],
         senshuAka: prevSenshuAka,
         senshuAo: prevSenshuAo,
-        hasTimerRun: prevHasTimerRun
+        hasTimerRun: prevHasTimerRun,
+        c1Aka: prevC1Aka,
+        c2Aka: prevC2Aka,
+        c3Aka: prevC3Aka,
+        c1Ao: prevC1Ao,
+        c2Ao: prevC2Ao,
+        c3Ao: prevC3Ao,
+        pointsAka: prevPointsAka,
+        pointsAo: prevPointsAo
       }
     ]);
   };
@@ -268,20 +386,39 @@ export default function ScoreboardControlPage() {
     setSenshuAka(lastState.senshuAka);
     setSenshuAo(lastState.senshuAo);
     setHasTimerRun(lastState.hasTimerRun ?? false);
+    setC1Aka(lastState.c1Aka ?? 0);
+    setC2Aka(lastState.c2Aka ?? 0);
+    setC3Aka(lastState.c3Aka ?? 0);
+    setC1Ao(lastState.c1Ao ?? 0);
+    setC2Ao(lastState.c2Ao ?? 0);
+    setC3Ao(lastState.c3Ao ?? 0);
+    setPointsAka(lastState.pointsAka ?? []);
+    setPointsAo(lastState.pointsAo ?? []);
     setHistory((prev) => prev.slice(0, -1));
   }, [history]);
 
   // Adjust scores
   const handleAddScore = useCallback((side: 'aka' | 'ao', points: number) => {
     if (bout?.status === 'Completed') return;
+    if (c1Aka >= 4 || c2Aka >= 4 || c3Aka >= 4 || c1Ao >= 4 || c2Ao >= 4 || c3Ao >= 4) return;
     pushHistory();
     let finalScoreAka = scoreAka;
     let finalScoreAo = scoreAo;
+    let finalPointsAka = [...pointsAka];
+    let finalPointsAo = [...pointsAo];
 
     if (side === 'aka') {
       const newScore = Math.max(0, scoreAka + points);
       setScoreAka(newScore);
       finalScoreAka = newScore;
+      
+      if (points > 0) {
+        finalPointsAka.push(points);
+        setPointsAka(finalPointsAka);
+      } else if (points < 0 && finalPointsAka.length > 0) {
+        finalPointsAka.pop();
+        setPointsAka(finalPointsAka);
+      }
       
       // Senshu rule: First scoring competitor receives Senshu if uncontested
       if (points > 0 && newScore > 0) {
@@ -302,6 +439,14 @@ export default function ScoreboardControlPage() {
       const newScore = Math.max(0, scoreAo + points);
       setScoreAo(newScore);
       finalScoreAo = newScore;
+
+      if (points > 0) {
+        finalPointsAo.push(points);
+        setPointsAo(finalPointsAo);
+      } else if (points < 0 && finalPointsAo.length > 0) {
+        finalPointsAo.pop();
+        setPointsAo(finalPointsAo);
+      }
       
       if (points > 0 && newScore > 0) {
         if (scoreAo === 0) { // AO's first score
@@ -327,36 +472,56 @@ export default function ScoreboardControlPage() {
       setWinMethod('Points'); // Points Advantage (Senshu / Gap)
       setShowFinishModal(true);
     }
-  }, [scoreAka, scoreAo, senshuAka, senshuAo, hasTimerRun, triggerBuzzer]);
+  }, [scoreAka, scoreAo, senshuAka, senshuAo, hasTimerRun, triggerBuzzer, pointsAka, pointsAo, c1Aka, c2Aka, c3Aka, c1Ao, c2Ao, c3Ao]);
 
-  // Manage Penalties WKF System (C1, C2, C3, HC)
+  // Manage Penalties WKF System (C1, C2, C3 warnings: ranges from 0 to 4 where 4 is disqualifying Hansoku)
+  const handleTogglePenaltyC = (side: 'aka' | 'ao', category: 1 | 2 | 3, value: number) => {
+    if (bout?.status === 'Completed') return;
+    if (c1Aka >= 4 || c2Aka >= 4 || c3Aka >= 4 || c1Ao >= 4 || c2Ao >= 4 || c3Ao >= 4) return;
+    pushHistory();
+
+    const isAka = side === 'aka';
+    const currentVal = isAka
+      ? (category === 1 ? c1Aka : (category === 2 ? c2Aka : c3Aka))
+      : (category === 1 ? c1Ao : (category === 2 ? c2Ao : c3Ao));
+
+    const setter = isAka
+      ? (category === 1 ? setC1Aka : (category === 2 ? setC2Aka : setC3Aka))
+      : (category === 1 ? setC1Ao : (category === 2 ? setC2Ao : setC3Ao));
+
+    const nextVal = currentVal === value ? Math.max(0, value - 1) : value;
+    setter(nextVal);
+
+    if (nextVal === 4) {
+      setTimerActive(false);
+      triggerBuzzer();
+      setWinnerSide(isAka ? 'ao' : 'aka');
+      setWinMethod('HANSOKU');
+      setShowFinishModal(true);
+    }
+  };
+
   const handleTogglePenalty = (side: 'aka' | 'ao', penalty: string) => {
+    // Keep standard single toggler wrapper for backward compatibility or simple warnings
     if (bout?.status === 'Completed') return;
     pushHistory();
-    const currentPens = side === 'aka' ? [...penaltiesAka] : [...penaltiesAo];
-    const setPens = side === 'aka' ? setPenaltiesAka : setPenaltiesAo;
-    
+    const isAka = side === 'aka';
+    const setPens = isAka ? setPenaltiesAka : setPenaltiesAo;
+    const currentPens = isAka ? [...penaltiesAka] : [...penaltiesAo];
     let nextPens: string[] = [];
     if (currentPens.includes(penalty)) {
-      // Remove it and subsequent penalties
       const idx = ['C1', 'C2', 'C3', 'HC'].indexOf(penalty);
       nextPens = currentPens.filter(p => ['C1', 'C2', 'C3', 'HC'].indexOf(p) < idx);
     } else {
-      // Add it and all prior warnings
       const idx = ['C1', 'C2', 'C3', 'HC'].indexOf(penalty);
       nextPens = ['C1', 'C2', 'C3', 'HC'].slice(0, idx + 1);
     }
-
     setPens(nextPens);
-
-    // Apply points according to penalty progression rules:
-    // C2 (Keikoku) -> +1 point to opponent
-    // C3 (Hansoku-Chui) -> +2 points to opponent
-    // HC (Hansoku) -> Disqualify competitor, declare other competitor winner!
+    
     if (nextPens.includes('HC')) {
       setTimerActive(false);
-      setWinnerSide(side === 'aka' ? 'ao' : 'aka');
-      setWinMethod('Hansoku');
+      setWinnerSide(isAka ? 'ao' : 'aka');
+      setWinMethod('HANSOKU');
       setShowFinishModal(true);
     }
   };
@@ -473,14 +638,27 @@ export default function ScoreboardControlPage() {
     try {
       setSaving(true);
 
-      // 1. Update bout status, scores and declare winner
+      // Save scoring details and state updates
+      await db.bouts.updateBoutState(boutId, {
+        penalties_c1_a: String(c1Aka),
+        penalties_c2_a: String(c2Aka),
+        penalties_c3_a: String(c3Aka),
+        penalties_c1_b: String(c1Ao),
+        penalties_c2_b: String(c2Ao),
+        penalties_c3_b: String(c3Ao),
+        points_aka_history: pointsAka.join(','),
+        points_ao_history: pointsAo.join(','),
+        victory_method: winMethod,
+        match_end_time: new Date().toISOString()
+      });
+
+      // Update bout status, scores and declare winner
       await db.bouts.updateBoutResult(boutId, winnerId, scoreAka, scoreAo);
       
-      // 2. Clear state variables
       setTimerActive(false);
       setShowFinishModal(false);
 
-      // 3. Notify display of completed match
+      // Notify display of completed match
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.postMessage({
           type: 'MATCH_FINISHED',
@@ -489,7 +667,6 @@ export default function ScoreboardControlPage() {
         });
       }
 
-      // 4. Return to scoreboard selector
       router.push('/dashboard/scoreboard');
     } catch (err: any) {
       alert('Failed to save tournament result: ' + err.message);
@@ -510,6 +687,18 @@ export default function ScoreboardControlPage() {
 
       // Reset in DB (including advancing bracket removal)
       await db.bouts.resetBoutResult(boutId, matchDuration);
+      await db.bouts.updateBoutState(boutId, {
+        penalties_c1_a: '0',
+        penalties_c2_a: '0',
+        penalties_c3_a: '0',
+        penalties_c1_b: '0',
+        penalties_c2_b: '0',
+        penalties_c3_b: '0',
+        points_aka_history: '',
+        points_ao_history: '',
+        victory_method: '',
+        match_end_time: ''
+      });
 
       // Reset local states
       setScoreAka(0);
@@ -518,6 +707,14 @@ export default function ScoreboardControlPage() {
       setSenshuAo(false);
       setPenaltiesAka([]);
       setPenaltiesAo([]);
+      setC1Aka(0);
+      setC2Aka(0);
+      setC3Aka(0);
+      setC1Ao(0);
+      setC2Ao(0);
+      setC3Ao(0);
+      setPointsAka([]);
+      setPointsAo([]);
       setTimeLeft(matchDuration * 10);
       setTimerActive(false);
       setWinnerSide(null);
@@ -533,6 +730,16 @@ export default function ScoreboardControlPage() {
         senshu_b: false,
         penalties_a: '',
         penalties_b: '',
+        penalties_c1_a: '0',
+        penalties_c2_a: '0',
+        penalties_c3_a: '0',
+        penalties_c1_b: '0',
+        penalties_c2_b: '0',
+        penalties_c3_b: '0',
+        points_aka_history: '',
+        points_ao_history: '',
+        victory_method: '',
+        match_end_time: '',
         timer_seconds: matchDuration,
         timer_active: false,
         winner_id: null,
@@ -553,6 +760,14 @@ export default function ScoreboardControlPage() {
           senshuAo: false,
           penaltiesAka: [],
           penaltiesAo: [],
+          c1Aka: 0,
+          c2Aka: 0,
+          c3Aka: 0,
+          c1Ao: 0,
+          c2Ao: 0,
+          c3Ao: 0,
+          pointsAka: [],
+          pointsAo: [],
           timeLeft: matchDuration * 10,
           timerActive: false,
           goldenScore: false,
@@ -679,6 +894,36 @@ export default function ScoreboardControlPage() {
         </div>
       )}
 
+      {(c1Aka >= 4 || c2Aka >= 4 || c3Aka >= 4 || c1Ao >= 4 || c2Ao >= 4 || c3Ao >= 4) && (
+        <div className="bg-red-950/60 border-y border-red-900/50 px-6 py-3 flex items-center justify-between text-sm font-semibold shrink-0 animate-pulse">
+          <span className="text-red-500 font-bold flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+            HANSOKU DISQUALIFICATION – {c1Aka >= 4 || c2Aka >= 4 || c3Aka >= 4 ? 'AKA (RED)' : 'AO (BLUE)'}
+          </span>
+          <button
+            onClick={() => setShowFinishModal(true)}
+            className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer border border-red-500/20"
+          >
+            Confirm Winner by HANSOKU
+          </button>
+        </div>
+      )}
+
+      {winMethod === 'Superior Points' && winnerSide && bout.status !== 'Completed' && (
+        <div className="bg-green-950/60 border-y border-green-900/50 px-6 py-3 flex items-center justify-between text-sm font-semibold shrink-0">
+          <span className="text-green-400 font-bold flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            WINNER BY SUPERIOR POINTS – {winnerSide === 'aka' ? 'AKA (RED)' : 'AO (BLUE)'}
+          </span>
+          <button
+            onClick={() => setShowFinishModal(true)}
+            className="px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer border border-green-500/20"
+          >
+            Confirm Winner
+          </button>
+        </div>
+      )}
+
       {/* Main Scoreboard Workspace */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-y-auto">
         {/* Left: AKA Red Side */}
@@ -742,28 +987,76 @@ export default function ScoreboardControlPage() {
               </button>
             </div>
 
-            {/* Warnings WKF row */}
-            <div className="border-t border-red-900/20 pt-4">
-              <p className="text-[10px] uppercase font-black tracking-widest text-red-400/60 mb-2.5">
-                Warnings / Penalties
-              </p>
-              <div className="grid grid-cols-4 gap-2">
-                {['C1', 'C2', 'C3', 'HC'].map((key) => {
-                  const isActive = penaltiesAka.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => handleTogglePenalty('aka', key)}
-                      className={`py-2 rounded-xl text-xs font-black transition cursor-pointer border ${
-                        isActive 
-                          ? 'bg-red-500 text-black border-red-400 font-black shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                          : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
-                      }`}
-                    >
-                      {key}
-                    </button>
-                  );
-                })}
+            {/* Warnings WKF C1/C2/C3 rows */}
+            <div className="border-t border-red-900/20 pt-4 space-y-3">
+              <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/60 mb-1">
+                  Category 1 Warnings (Contact/Exit)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((level) => {
+                    const isActive = c1Aka >= level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenaltyC('aka', 1, level)}
+                        className={`py-1 rounded text-xs font-black transition cursor-pointer border ${
+                          isActive 
+                            ? 'bg-red-500 text-black border-red-455 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        }`}
+                      >
+                        {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/60 mb-1">
+                  Category 2 Warnings (Exits/Feigning)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((level) => {
+                    const isActive = c2Aka >= level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenaltyC('aka', 2, level)}
+                        className={`py-1 rounded text-xs font-black transition cursor-pointer border ${
+                          isActive 
+                            ? 'bg-red-500 text-black border-red-455 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        }`}
+                      >
+                        {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/60 mb-1">
+                  Category 3 Warnings (Other Violations)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((level) => {
+                    const isActive = c3Aka >= level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenaltyC('aka', 3, level)}
+                        className={`py-1 rounded text-xs font-black transition cursor-pointer border ${
+                          isActive 
+                            ? 'bg-red-500 text-black border-red-455 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        }`}
+                      >
+                        {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -942,28 +1235,76 @@ export default function ScoreboardControlPage() {
               </button>
             </div>
 
-            {/* Warnings WKF row */}
-            <div className="border-t border-blue-900/20 pt-4">
-              <p className="text-[10px] uppercase font-black tracking-widest text-blue-400/60 mb-2.5 text-right">
-                Warnings / Penalties
-              </p>
-              <div className="grid grid-cols-4 gap-2">
-                {['C1', 'C2', 'C3', 'HC'].map((key) => {
-                  const isActive = penaltiesAo.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => handleTogglePenalty('ao', key)}
-                      className={`py-2 rounded-xl text-xs font-black transition cursor-pointer border ${
-                        isActive 
-                          ? 'bg-blue-500 text-black border-blue-400 font-black shadow-[0_0_10px_rgba(59,130,246,0.2)]'
-                          : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
-                      }`}
-                    >
-                      {key}
-                    </button>
-                  );
-                })}
+            {/* Warnings WKF C1/C2/C3 rows */}
+            <div className="border-t border-blue-900/20 pt-4 space-y-3">
+              <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-blue-400/60 mb-1 text-right">
+                  Category 1 Warnings (Contact/Exit)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((level) => {
+                    const isActive = c1Ao >= level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenaltyC('ao', 1, level)}
+                        className={`py-1 rounded text-xs font-black transition cursor-pointer border ${
+                          isActive 
+                            ? 'bg-blue-500 text-black border-blue-455 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        }`}
+                      >
+                        {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-blue-400/60 mb-1 text-right">
+                  Category 2 Warnings (Exits/Feigning)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((level) => {
+                    const isActive = c2Ao >= level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenaltyC('ao', 2, level)}
+                        className={`py-1 rounded text-xs font-black transition cursor-pointer border ${
+                          isActive 
+                            ? 'bg-blue-500 text-black border-blue-455 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        }`}
+                      >
+                        {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-blue-400/60 mb-1 text-right">
+                  Category 3 Warnings (Other Violations)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 3, 4].map((level) => {
+                    const isActive = c3Ao >= level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenaltyC('ao', 3, level)}
+                        className={`py-1 rounded text-xs font-black transition cursor-pointer border ${
+                          isActive 
+                            ? 'bg-blue-500 text-black border-blue-455 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        }`}
+                      >
+                        {level === 1 ? 'C' : level === 2 ? 'K' : level === 3 ? 'HC' : 'H'}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

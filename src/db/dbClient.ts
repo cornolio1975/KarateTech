@@ -757,6 +757,26 @@ export const db = {
       }
       return mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace);
     },
+    generateRepechage: async (catId: string): Promise<Bout[]> => {
+      if (supabase) {
+        try {
+          const generated = mockStore.bouts.generateRepechage(catId);
+          await supabase.from('bouts').delete().eq('category_id', catId).eq('round_no', 98);
+          const generatedWithoutId = generated.map(({ id, ...rest }) => rest);
+          const { data, error } = await supabase.from('bouts').insert(generatedWithoutId).select();
+          if (error) throw error;
+          const saved = data || [];
+          const { data: allDbBouts } = await supabase.from('bouts').select('*');
+          if (allDbBouts) {
+            localStorage.setItem('ts_bouts', JSON.stringify(allDbBouts));
+          }
+          return saved;
+        } catch (e: any) {
+          console.warn('Supabase repechage error:', e.message || e);
+        }
+      }
+      return mockStore.bouts.generateRepechage(catId);
+    },
     updateBoutResult: async (boutId: string, winnerId: string, scoreA: number, scoreB: number): Promise<Bout> => {
       if (supabase) {
         try {
@@ -776,17 +796,25 @@ export const db = {
         const { data: dbBouts, error: boutsErr } = await supabase.from('bouts').select('*');
         if (!boutsErr && dbBouts) {
           const bout = dbBouts.find(b => b.id === boutId);
-          if (bout && bout.round_no !== 99 && bout.round_no < 5) {
-            const nextRoundNo = bout.round_no + 1;
-            const nextBoutNo = Math.ceil(bout.bout_no / 2);
-            const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
-            if (nextBout) {
-              const isSlotA = bout.bout_no % 2 !== 0;
-              const updateData = isSlotA 
-                ? { participant_a_id: winnerId } 
-                : { participant_b_id: winnerId };
+          if (bout) {
+            if (bout.round_no === 98) {
+              const nextBoutNo = bout.bout_no + 1;
+              const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === 98 && b.bout_no === nextBoutNo);
+              if (nextBout) {
+                await supabase.from('bouts').update({ participant_a_id: winnerId }).eq('id', nextBout.id);
+              }
+            } else if (bout.round_no !== 99 && bout.round_no < 7) {
+              const nextRoundNo = bout.round_no + 1;
+              const nextBoutNo = Math.ceil(bout.bout_no / 2);
+              const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
+              if (nextBout) {
+                const isSlotA = bout.bout_no % 2 !== 0;
+                const updateData = isSlotA 
+                  ? { participant_a_id: winnerId } 
+                  : { participant_b_id: winnerId };
 
-              await supabase.from('bouts').update(updateData).eq('id', nextBout.id);
+                await supabase.from('bouts').update(updateData).eq('id', nextBout.id);
+              }
             }
           }
         }
@@ -815,7 +843,7 @@ export const db = {
         const { data: dbBouts, error: boutsErr } = await supabase.from('bouts').select('*');
         if (!boutsErr && dbBouts) {
           const bout = dbBouts.find(b => b.id === boutId);
-          if (bout && bout.round_no !== 99 && bout.round_no < 5) {
+          if (bout && bout.round_no !== 99 && bout.round_no < 7) {
             const nextRoundNo = bout.round_no + 1;
             const nextBoutNo = Math.ceil(bout.bout_no / 2);
             const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
