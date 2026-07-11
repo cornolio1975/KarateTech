@@ -109,8 +109,8 @@ export default function LandingPage() {
             <img src={`${basePath}/logo.jpg`} alt="Kelab Senshi Logo" className="h-full w-full object-cover" />
           </div>
           <div>
-            <h1 className="text-sm font-black tracking-wider uppercase text-white leading-none">KELAB KARATE DO</h1>
-            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">SENSHI GOJU-RYU</span>
+            <h1 className="text-sm font-black tracking-wider uppercase text-white leading-none">KARATE TECH</h1>
+            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">SP SPORT DATA SOLUTION</span>
           </div>
         </div>
 

@@ -3,8 +3,8 @@ import "./globals.css";
 import LayoutShell from "@/components/LayoutShell";
 
 export const metadata: Metadata = {
-  title: "Kelab Karate Do Senshi Goju-Ryu",
-  description: "Tournament Participant Management System - KarateTech Style",
+  title: "Karate Tech",
+  description: "SP Sport Data Solution - Professional Karate Tournament Management System",
 };
 
 export default function RootLayout({
