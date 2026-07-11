@@ -365,7 +365,7 @@ export default function DrawsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <div>
             <h2 className="text-xl font-extrabold tracking-tight">Generate Draws</h2>
-            <p className="text-xs text-muted-foreground">Configure knockout brackets or round-robin tables for categories.</p>
+            <p className="text-xs text-muted-foreground">Configure WKF standard brackets (Elimination + Repechage) for categories.</p>
           </div>
           {/* Print button — always visible when any category has bouts */}
           {bouts.length > 0 && (
@@ -383,7 +383,7 @@ export default function DrawsPage() {
         {currentCategory ? (
           <>
             {/* Draw Parameters configuration card (KumiteTechnology style) */}
-            <div className="bg-card border border-border p-5 rounded-xl shadow-xs shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="bg-card border border-border p-5 rounded-xl shadow-xs flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4">
               <div className="space-y-3">
                 <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wider">
                   Active Bracket: <span className="text-primary normal-case">{currentCategory.name}</span>
@@ -394,42 +394,42 @@ export default function DrawsPage() {
               </div>
 
               {/* Draw generation + print buttons */}
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 {canModify && categoryBouts.length > 0 && (
                   <button
                     onClick={handleClearDraw}
                     disabled={loading}
-                    className="px-4 py-2 border border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-3 py-2 border border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <Trash2 className="h-4 w-4" />
-                    <span>Clear Draw</span>
+                    <span>Clear</span>
                   </button>
                 )}
                 {canModify && (
                   <button
                     onClick={handleGenerateDraw}
                     disabled={loading}
-                    className="px-5 py-2.5 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    <Sparkles className="h-4.5 w-4.5 text-white" />
-                    <span>{categoryBouts.length > 0 ? 'Regenerate Draw' : 'Generate Draw Sheet'}</span>
+                    <Sparkles className="h-4 w-4 text-white" />
+                    <span>{categoryBouts.length > 0 ? 'Regenerate Bracket' : 'Generate Bracket'}</span>
                   </button>
                 )}
                 {canModify && categoryBouts.length > 0 && (
                   <button
                     onClick={handleGenerateRepechage}
                     disabled={loading}
-                    className="px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    <GitPullRequest className="h-4.5 w-4.5" />
-                    <span>Generate WKF Repechage</span>
+                    <GitPullRequest className="h-4 w-4" />
+                    <span>WKF Repechage</span>
                   </button>
                 )}
                 {categoryBouts.length > 0 && (
                   <button
                     onClick={handlePrintCurrent}
                     disabled={loading}
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50 no-print"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50 no-print"
                     title="Print this bracket"
                   >
                     <Printer className="h-4 w-4" />
