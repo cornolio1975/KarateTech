@@ -161,46 +161,54 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
   ) => {
     const comp = partId ? participants.find((p) => p.id === partId) : null;
     const club = comp ? clubs.find((c) => c.id === comp.club_id) : null;
-    const flag = comp ? flagMap[comp.nationality_code || 'MAS'] || '🇲🇾' : '';
+    const flag = comp ? flagMap[comp.nationality_code || 'MAS'] || '' : '';
 
-    const accentColor = isAka
-      ? theme === 'dark' ? 'border-red-500/80 bg-red-950/20' : 'border-red-600 bg-red-50/70'
-      : theme === 'dark' ? 'border-blue-500/80 bg-blue-950/20' : 'border-blue-600 bg-blue-50/70';
-
-    const textPrimary = theme === 'dark' ? 'text-white' : 'text-gray-900';
-    const textSecondary = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+    const blockColor = isAka ? 'bg-[#ff0000]' : 'bg-[#0000ff]';
+    const textPrimary = theme === 'dark' ? 'text-white' : 'text-black';
+    const textSecondary = theme === 'dark' ? 'text-gray-400' : 'text-gray-600';
+    const bgBox = theme === 'dark' ? 'bg-[#1a1a1a] border-[#333]' : 'bg-white border-black';
 
     if (!comp) {
       // Empty slot placeholder
       return (
-        <div
-          className={`h-[30px] w-full border-l-4 rounded-r border-y border-r border-dashed flex items-center px-2 select-none ${
-            theme === 'dark' ? 'border-gray-800 bg-gray-900/10' : 'border-gray-300 bg-gray-50/30'
-          }`}
-        >
-          <span className={`text-[9px] font-bold tracking-wider uppercase ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
-            {isAka ? 'AKA (RED SIDE)' : 'AO (BLUE SIDE)'}
-          </span>
+        <div className={`h-[28px] w-full border border-dashed flex items-stretch select-none ${bgBox}`} style={{ borderWidth: '1px' }}>
+          <div className={`w-[6px] shrink-0 ${blockColor} opacity-50`} />
+          <div className="flex-1 flex items-center px-1.5">
+            <span className={`text-[9px] font-bold tracking-wider uppercase ${textSecondary}`}>
+              {isAka ? 'AKA' : 'AO'}
+            </span>
+          </div>
         </div>
       );
     }
 
     return (
-      <div
-        className={`h-[30px] w-full border-l-4 border-y border-r rounded-r flex items-center px-2 justify-between gap-1 shadow-xs overflow-hidden transition-colors ${accentColor}`}
-      >
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {flag && <span className="text-[11px] shrink-0">{flag}</span>}
-          <div className="min-w-0 flex-1 leading-tight">
-            <span className={`block truncate text-[10px] font-black uppercase tracking-wide ${isWinner ? 'underline decoration-2' : ''} ${textPrimary}`}>
+      <div className={`h-[28px] w-full border flex items-stretch select-none overflow-hidden ${bgBox}`} style={{ borderWidth: '1px' }}>
+        {/* Red / Blue Block */}
+        <div className={`w-[6px] shrink-0 ${blockColor}`} />
+        
+        {/* Competitor Details */}
+        <div className="flex items-center gap-1 min-w-0 flex-1 px-1.5 bg-transparent">
+          {flag && <span className="text-[10px] shrink-0">{flag}</span>}
+          <div className="min-w-0 flex-1 leading-[1.1]">
+            <span className={`block truncate text-[10px] font-bold uppercase tracking-tight ${isWinner ? 'underline' : ''} ${textPrimary}`} style={{ fontFamily: 'Arial, sans-serif' }}>
               {comp.full_name}
             </span>
             {club && (
-              <span className={`block truncate text-[8px] font-bold uppercase ${textSecondary}`}>
-                ({club.name})
+              <span className={`block truncate text-[8px] uppercase ${textSecondary}`} style={{ fontFamily: 'Arial, sans-serif' }}>
+                {club.name}
               </span>
             )}
           </div>
+        </div>
+
+        {/* Score Box */}
+        <div className={`w-[20px] shrink-0 border-l flex items-center justify-center font-bold text-[10px] ${
+          isWinner 
+            ? (theme === 'dark' ? 'bg-white text-black border-white' : 'bg-black text-white border-black')
+            : (theme === 'dark' ? 'border-[#333] text-gray-300' : 'border-black text-black')
+        }`}>
+          {score}
         </div>
       </div>
     );
@@ -293,18 +301,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
 
       {/* 2. SVG Connections Canvas */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ top: '50px', height: 'calc(100% - 50px)' }}>
-        {theme === 'dark' ? (
-          <defs>
-            <linearGradient id="aka-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.4" />
-            </linearGradient>
-            <linearGradient id="ao-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.4" />
-            </linearGradient>
-          </defs>
-        ) : null}
+        {/* Removed gradients for strict Sportdata style */}
 
         {/* Bracket connections loop */}
         {Array.from({ length: R }).map((_, rIdx) => {
@@ -321,7 +318,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             const xEnd = r === R ? X_champion : getX(r + 1);
             const xVertical = xStart + (xEnd - xStart) * 0.7;
 
-            const strokeColor = theme === 'dark' ? '#374151' : '#cbd5e1';
+            const strokeColor = theme === 'dark' ? '#555555' : '#000000';
 
             return (
               <g key={`lines-${r}-${b}`}>
@@ -331,8 +328,8 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                   y1={`${yA}%`}
                   x2={`${xVertical}%`}
                   y2={`${yA}%`}
-                  stroke={theme === 'dark' ? 'url(#aka-grad)' : '#f87171'}
-                  strokeWidth="2"
+                  stroke={strokeColor}
+                  strokeWidth="1"
                 />
 
                 {/* Horizontal extension from Ao */}
@@ -341,8 +338,8 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                   y1={`${yB}%`}
                   x2={`${xVertical}%`}
                   y2={`${yB}%`}
-                  stroke={theme === 'dark' ? 'url(#ao-grad)' : '#60a5fa'}
-                  strokeWidth="2"
+                  stroke={strokeColor}
+                  strokeWidth="1"
                 />
 
                 {/* Vertical connector line */}
@@ -352,7 +349,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                   x2={`${xVertical}%`}
                   y2={`${yB}%`}
                   stroke={strokeColor}
-                  strokeWidth="2.5"
+                  strokeWidth="1"
                 />
 
                 {/* Horizontal winner line going to the next round */}
@@ -362,7 +359,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                   x2={`${xEnd}%`}
                   y2={`${yMid}%`}
                   stroke={strokeColor}
-                  strokeWidth="2.5"
+                  strokeWidth="1"
                 />
               </g>
             );
@@ -417,22 +414,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                       )}
                     </div>
 
-                    {/* Competitor A Score Text */}
-                    {bout && bout.participant_a_id && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: `${xVertical - 0.5}%`,
-                          top: `${yA}%`,
-                          transform: 'translate(-100%, 2px)',
-                        }}
-                        className={`text-[9px] font-black font-mono leading-none ${
-                          theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                        }`}
-                      >
-                        {bout.score_a}
-                      </div>
-                    )}
+                    {/* Competitor A Score Text Removed - now inside the card */}
 
                     {/* Competitor B Card (Ao) */}
                     <div
@@ -456,22 +438,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                       )}
                     </div>
 
-                    {/* Competitor B Score Text */}
-                    {bout && bout.participant_b_id && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: `${xVertical - 0.5}%`,
-                          top: `${yB}%`,
-                          transform: 'translate(-100%, 2px)',
-                        }}
-                        className={`text-[9px] font-black font-mono leading-none ${
-                          theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                        }`}
-                      >
-                        {bout.score_b}
-                      </div>
-                    )}
+                    {/* Competitor B Score Text Removed - now inside the card */}
 
                     {/* Bout No indicator near connector */}
                     {bout && (
