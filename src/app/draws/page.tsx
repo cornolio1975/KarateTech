@@ -26,11 +26,7 @@ export default function DrawsPage() {
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [activeCategoryTab, setActiveCategoryTab] = useState<'ALL' | 'CONFIRMED'>('ALL');
   
-  // Generation Form configurations
-  const [drawType, setDrawType] = useState<'Elimination' | 'Round-robin'>('Elimination');
-  const [hasThirdPlace, setHasThirdPlace] = useState<boolean>(true);
-  // Track whether the CURRENTLY DISPLAYED draw is round-robin or elimination
-  const [isRoundRobinDraw, setIsRoundRobinDraw] = useState<boolean>(false);
+  // Generation Form configurations (WKF Repechage only)
 
   // Result dialog state
   const [selectedBoutToResolve, setSelectedBoutToResolve] = useState<Bout | null>(null);
@@ -90,18 +86,6 @@ export default function DrawsPage() {
     }
   }, [mounted]);
 
-  // Sync isRoundRobinDraw when changing category (detect from existing bouts)
-  useEffect(() => {
-    const catBouts = bouts.filter(b => b.category_id === selectedCatId);
-    if (catBouts.length > 0) {
-      // Round-robin: all bouts in round 1, more than 1 bout usually
-      const allRound1 = catBouts.every(b => b.round_no === 1);
-      const hasMultiRound = catBouts.some(b => b.round_no > 1);
-      setIsRoundRobinDraw(allRound1 && !hasMultiRound && catBouts.length > 1);
-    } else {
-      setIsRoundRobinDraw(false);
-    }
-  }, [selectedCatId, bouts]);
 
   if (!mounted) return null;
 
@@ -124,11 +108,10 @@ export default function DrawsPage() {
     if (!selectedCatId) return;
     try {
       setLoading(true);
-      await db.bouts.generateDraw(selectedCatId, drawType, hasThirdPlace);
+      await db.bouts.generateDraw(selectedCatId, 'Elimination', false);
       // Reload lists
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
-      setIsRoundRobinDraw(drawType === 'Round-robin');
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -174,13 +157,6 @@ export default function DrawsPage() {
     return rounds;
   };
 
-  // Helper: detect round-robin for a category
-  const isRoundRobinForCat = (catBouts: Bout[]) => {
-    if (catBouts.length === 0) return false;
-    const allRound1 = catBouts.every(b => b.round_no === 1);
-    const hasMultiRound = catBouts.some(b => b.round_no > 1);
-    return allRound1 && !hasMultiRound && catBouts.length > 1;
-  };
 
   // Render a print competitor row
   const renderPrintCompetitor = (partId: string | null, score: number, isWinner: boolean, dotClass: string) => {
@@ -412,43 +388,9 @@ export default function DrawsPage() {
                 <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wider">
                   Active Bracket: <span className="text-primary normal-case">{currentCategory.name}</span>
                 </h3>
-                
-                {/* Radio selection draws */}
-                <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="drawType"
-                      checked={drawType === 'Elimination'}
-                      onChange={() => setDrawType('Elimination')}
-                      className="text-primary focus:ring-primary"
-                    />
-                    <span>Single Elimination Bracket</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="drawType"
-                      checked={drawType === 'Round-robin'}
-                      onChange={() => setDrawType('Round-robin')}
-                      className="text-primary focus:ring-primary"
-                    />
-                    <span>Round-robin Grid</span>
-                  </label>
-                </div>
-
-                {/* Draw options checkboxes */}
-                {drawType === 'Elimination' && (
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={hasThirdPlace}
-                      onChange={(e) => setHasThirdPlace(e.target.checked)}
-                      className="rounded text-primary border-border focus:ring-primary"
-                    />
-                    <span>Has bout for third place (Bronze medal match)</span>
-                  </label>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  WKF Standard Draw System (Elimination + Repechage)
+                </p>
               </div>
 
               {/* Draw generation + print buttons */}
@@ -473,7 +415,7 @@ export default function DrawsPage() {
                     <span>{categoryBouts.length > 0 ? 'Regenerate Draw' : 'Generate Draw Sheet'}</span>
                   </button>
                 )}
-                {canModify && categoryBouts.length > 0 && drawType === 'Elimination' && (
+                {canModify && categoryBouts.length > 0 && (
                   <button
                     onClick={handleGenerateRepechage}
                     disabled={loading}
@@ -512,62 +454,6 @@ export default function DrawsPage() {
                     </p>
                   </div>
                 </div>
-              ) : isRoundRobinDraw ? (
-                
-                // ROUND ROBIN OR BOUT INDEX GRID
-                <div className="flex-1 overflow-auto p-6 space-y-6">
-                  <div className="border border-border rounded-lg overflow-hidden">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-secondary/40 font-bold border-b border-border">
-                        <tr>
-                          <th className="p-3 w-16 text-center">Bout No</th>
-                          <th className="p-3">Aka (Red Side)</th>
-                          <th className="p-3 w-16 text-center">Score</th>
-                          <th className="p-3">Ao (Blue Side)</th>
-                          <th className="p-3 w-28 text-center">Status</th>
-                          <th className="p-3 w-32 text-center">Winner</th>
-                          <th className="p-3 w-24 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {categoryBouts.map((b) => {
-                          const competitorA = participants.find(p => p.id === b.participant_a_id);
-                          const competitorB = participants.find(p => p.id === b.participant_b_id);
-                          const winner = participants.find(p => p.id === b.winner_id);
-
-                          return (
-                            <tr key={b.id} className="hover:bg-secondary/20 transition-colors">
-                              <td className="p-3 text-center font-mono font-semibold text-muted-foreground">{b.bout_no}</td>
-                              <td className="p-3 font-semibold text-foreground">{competitorA?.full_name || 'TBD'}</td>
-                              <td className="p-3 text-center font-mono font-bold text-sm bg-secondary/10">{b.score_a} - {b.score_b}</td>
-                              <td className="p-3 font-semibold text-foreground">{competitorB?.full_name || 'TBD'}</td>
-                              <td className="p-3 text-center">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  b.status === 'Completed'
-                                    ? 'bg-emerald-500/10 text-emerald-500'
-                                    : 'bg-amber-500/10 text-amber-500'
-                                }`}>
-                                  {b.status}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center font-bold text-primary">{winner?.full_name || '-'}</td>
-                              <td className="p-3 text-center">
-                                <button
-                                  onClick={() => openResolveDialog(b)}
-                                  disabled={!b.participant_a_id || !b.participant_b_id || !canModify}
-                                  className="px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/95 text-[10px] font-bold rounded-md disabled:opacity-40 cursor-pointer"
-                                >
-                                  Resolve
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
               ) : (
                 <div className="flex-1 overflow-auto bg-gray-50/20 dark:bg-gray-950/20 flex flex-col justify-between">
                   <div className="p-4">
@@ -789,7 +675,6 @@ export default function DrawsPage() {
         const catBouts = bouts.filter(b => b.category_id === cat.id);
         if (catBouts.length === 0) return null;
 
-        const isRR = isRoundRobinForCat(catBouts);
         const roundsMap = getBoutsByRoundsForCat(catBouts);
         const bronze = catBouts.find(b => b.round_no === 99);
         const totalAthletes = participantCategories.filter(m => m.category_id === cat.id).length;
@@ -798,56 +683,23 @@ export default function DrawsPage() {
           <div key={cat.id} className="print-category-block">
             <div className="print-category-title">{cat.name}</div>
             <div className="print-category-meta">
-              {cat.gender} · {isRR ? 'Round-Robin' : 'Single Elimination'} · {totalAthletes} Athletes
+              {cat.gender} · Single Elimination · {totalAthletes} Athletes
               {bronze ? ' · Bronze Medal Match included' : ''}
             </div>
 
-            {isRR ? (
-              /* Round-Robin Table */
-              <table className="print-rr-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '40pt' }}>Bout</th>
-                    <th>Aka (Red)</th>
-                    <th style={{ width: '40pt', textAlign: 'center' }}>Score</th>
-                    <th>Ao (Blue)</th>
-                    <th style={{ width: '60pt', textAlign: 'center' }}>Status</th>
-                    <th style={{ width: '80pt' }}>Winner</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catBouts.sort((a, b) => a.bout_no - b.bout_no).map(bout => {
-                    const compA = participants.find(p => p.id === bout.participant_a_id);
-                    const compB = participants.find(p => p.id === bout.participant_b_id);
-                    const winner = participants.find(p => p.id === bout.winner_id);
-                    return (
-                      <tr key={bout.id}>
-                        <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{bout.bout_no}</td>
-                        <td style={{ fontWeight: 600 }}>{compA?.full_name || 'TBD'}</td>
-                        <td style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'center' }}>{bout.score_a} – {bout.score_b}</td>
-                        <td style={{ fontWeight: 600 }}>{compB?.full_name || 'TBD'}</td>
-                        <td style={{ textAlign: 'center' }}>{bout.status}</td>
-                        <td style={{ fontWeight: 700 }}>{winner?.full_name || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              /* Elimination Bracket */
-              <div className="print-bracket-wrapper" style={{ width: '1120px', height: '600px', marginTop: '10px', position: 'relative' }}>
-                <SportdataBracket
-                  bouts={catBouts}
-                  participants={participants}
-                  clubs={clubs}
-                  categories={categories}
-                  selectedCatId={cat.id}
-                  canModify={false}
-                  theme="light"
-                  height="520px"
-                />
-              </div>
-            )}
+            {/* Elimination Bracket */}
+            <div className="print-bracket-wrapper" style={{ width: '1120px', height: '600px', marginTop: '10px', position: 'relative' }}>
+              <SportdataBracket
+                bouts={catBouts}
+                participants={participants}
+                clubs={clubs}
+                categories={categories}
+                selectedCatId={cat.id}
+                canModify={false}
+                theme="light"
+                height="520px"
+              />
+            </div>
 
             {/* Signature block */}
             <div className="print-signatures">
