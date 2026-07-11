@@ -250,8 +250,9 @@ html.text-scale-xl {
   html, body, 
   #__next,
   main,
-  div.flex.h-screen.w-screen,
-  div.flex-1.flex.flex-col.min-w-0 {
+  #admin-layout-wrapper,
+  #admin-layout-shell,
+  #admin-layout-main {
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -266,8 +267,8 @@ html.text-scale-xl {
   #draw-print-area {
     display: block !important;
     position: relative !important;
-    width: 1120px !important;
-    height: 600px !important;
+    width: 100% !important;
+    height: auto !important;
     background: #fff !important;
     color: #000 !important;
     font-family: Arial, sans-serif !important;

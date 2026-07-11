@@ -60,7 +60,7 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
 
   // Standard Admin layout for logged in Admin/Co-Admin
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <div id="admin-layout-wrapper" className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       {/* Mobile backdrop overlay */}
       {isSidebarOpen && (
         <div
@@ -77,7 +77,7 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
       />
 
       {/* Content Shell */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div id="admin-layout-shell" className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
         <TopBar
           onImportClick={() => setIsImportOpen(true)}
@@ -85,7 +85,7 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
         />
 
         {/* Page Body */}
-        <main className="flex-1 overflow-y-auto bg-background focus:outline-none relative">
+        <main id="admin-layout-main" className="flex-1 overflow-y-auto bg-background focus:outline-none relative">
           {children}
         </main>
       </div>

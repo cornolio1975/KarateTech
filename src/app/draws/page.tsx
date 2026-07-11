@@ -688,7 +688,7 @@ export default function DrawsPage() {
             </div>
 
             {/* Elimination Bracket */}
-            <div className="print-bracket-wrapper" style={{ width: '1120px', height: '600px', marginTop: '10px', position: 'relative' }}>
+            <div className="print-bracket-wrapper" style={{ width: '100%', height: '520px', marginTop: '10px', position: 'relative' }}>
               <SportdataBracket
                 bouts={catBouts}
                 participants={participants}
