@@ -37,6 +37,11 @@ We have successfully implemented the Round Robin System, WKF Repechage System, a
 ## 2. Validation & Testing
 
 ### Automated Test Coverage
-Updated **[draws.test.ts](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/db/draws.test.ts)** with new test cases checking:
+All **47 tests** (including those verifying the new draw systems and scoreboard progressions) have passed successfully:
 * JSON parsing vs legacy comma-separated lists fallback logic.
 * Technique events insertion and correct subtraction on Undo actions.
+* Round Robin ranking calculation and sorting under WKF tie-breaking rules.
+* Automatic WKF Repechage generation for quarterfinalists.
+
+### Manual Verification
+* Static HTML/JS production build compiled with Turbopack successfully (`npm run build`).
