@@ -490,7 +490,7 @@ export default function CategoriesPage() {
       {/* MATCH CONSOLE — Bout Picker Modal */}
       {consoleCat && (() => {
         const catBouts = bouts
-          .filter(b => b.category_id === consoleCat.id && b.round_no !== 99)
+          .filter(b => b.category_id === consoleCat.id && b.round_no !== 99 && b.status !== 'Walkover')
           .sort((a, b) => a.round_no !== b.round_no ? a.round_no - b.round_no : a.bout_no - b.bout_no);
 
         const getRoundLabel = (roundNo: number) => {

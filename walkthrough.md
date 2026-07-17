@@ -1,6 +1,6 @@
 # Walkthrough: Tournament Brackets, Scoreboard Point History, Category Editing & Auto-Walkovers
 
-We have successfully implemented the Round Robin System, WKF Repechage System, the Technique Point History Display optional feature, the ability to edit and modify categories directly within Category Management, and automatic walkover/bye propagation for single elimination brackets. All features are fully verified, unit-tested, built, and ready for deployment.
+We have successfully implemented the Round Robin System, WKF Repechage System, the Technique Point History Display optional feature, the ability to edit and modify categories directly within Category Management, automatic walkover/bye propagation for single elimination brackets, and the exclusion of walkover bouts from all scoring control lists. All features are fully verified, unit-tested, built, and ready for deployment.
 
 ## 1. Summary of Changes
 
@@ -40,7 +40,7 @@ We have successfully implemented the Round Robin System, WKF Repechage System, t
   * Implemented `handleEditSubmit` form handler connecting to `db.categories.update`.
   * Added the fully-featured Edit Category Dialog modal containing all editable category parameters (Name, Gender, Status, Age/Weight limits, Capacity, and Format).
 
-### D. Auto-Walkovers & Bye Propagation
+### D. Auto-Walkovers, Bye Propagation & Scoring List Exclusion
 
 * **[mockStore.ts](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/db/mockStore.ts)**:
   * Embedded a recursive walkover resolution loop in `generateDraw`. If any fighter has no opponent (a bye), they win by walkover, and their name is automatically pushed to the next round bout.
@@ -49,6 +49,10 @@ We have successfully implemented the Round Robin System, WKF Repechage System, t
   * Implemented the identical walkover propagation loop inside `updateBoutResult` (Supabase branch) to dynamically update match statuses in database tables.
 * **[draws.test.ts](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/db/draws.test.ts)**:
   * Added a dedicated unit test case validating cascading walkover resolution for 5 participants (slots = 8).
+* **[categories/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/app/categories/page.tsx)**:
+  * Excluded bouts with `status === 'Walkover'` from the Match Console Hub picker to prevent them from showing up for scoring.
+* **[bouts/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/app/bouts/page.tsx)**:
+  * Excluded bouts with `status === 'Walkover'` from the main Scoring Management control lists.
 
 ---
 

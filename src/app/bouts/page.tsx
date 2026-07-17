@@ -232,8 +232,8 @@ export default function BoutsAdminPage() {
 
   if (!mounted) return null;
 
-  // Filtered Bouts List
   const filteredBouts = bouts.filter((b) => {
+    if (b.status === 'Walkover') return false;
     if (selectedCatId !== 'ALL' && b.category_id !== selectedCatId) return false;
     if (selectedStatus !== 'ALL' && b.status !== selectedStatus) return false;
     if (selectedTatami !== 'ALL' && b.tatami !== selectedTatami) return false;
