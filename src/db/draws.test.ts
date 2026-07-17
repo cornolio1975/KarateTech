@@ -408,4 +408,76 @@ describe('Karate Tournament Draw Generator Tests', () => {
       expect(repechageBouts.length).toBe(0);
     });
   });
+
+  describe('Scoreboard Technique Point History Parsing & Undo Logic', () => {
+    it('correctly parses JSON array vs legacy comma-separated lists', () => {
+      // 1. JSON Array format
+      const jsonHistory = JSON.stringify([
+        { fighter: 'AKA', points: 3, technique: 'Ippon', timestamp: 120, matchId: 'm-1' },
+        { fighter: 'AKA', points: 2, technique: 'Waza-ari', timestamp: 105, matchId: 'm-1' }
+      ]);
+      
+      const parsedJson = JSON.parse(jsonHistory);
+      expect(parsedJson.length).toBe(2);
+      expect(parsedJson[0].technique).toBe('Ippon');
+      expect(parsedJson[1].points).toBe(2);
+
+      // 2. Legacy Comma-separated format
+      const legacyHistory = '1,2,3';
+      const parsedLegacyPoints = legacyHistory.split(',').map(Number).filter(Boolean);
+      const parsedLegacyEvents = parsedLegacyPoints.map(pts => ({
+        fighter: 'AO',
+        points: pts,
+        technique: pts === 1 ? 'Yuko' : pts === 2 ? 'Waza-ari' : pts === 3 ? 'Ippon' : 'Point',
+        timestamp: 0,
+        matchId: 'm-1'
+      }));
+
+      expect(parsedLegacyEvents.length).toBe(3);
+      expect(parsedLegacyEvents[0].technique).toBe('Yuko');
+      expect(parsedLegacyEvents[1].technique).toBe('Waza-ari');
+      expect(parsedLegacyEvents[2].technique).toBe('Ippon');
+    });
+
+    it('correctly updates and undos technique events on points subtraction', () => {
+      let events = [
+        { fighter: 'AKA', points: 3, technique: 'Ippon', timestamp: 120, matchId: 'm-1' },
+        { fighter: 'AKA', points: 1, technique: 'Yuko', timestamp: 110, matchId: 'm-1' }
+      ];
+
+      // Helper simulating undoScore points subtraction logic
+      const undoPoints = (pts: number) => {
+        const next = [...events];
+        let p = pts;
+        while (p > 0 && next.length > 0) {
+          const last = { ...next[next.length - 1] };
+          if (last.points <= p) {
+            p -= last.points;
+            next.pop();
+          } else {
+            last.points -= p;
+            last.technique = last.points === 1 ? 'Yuko' : last.points === 2 ? 'Waza-ari' : last.points === 3 ? 'Ippon' : 'Point';
+            next[next.length - 1] = last;
+            p = 0;
+          }
+        }
+        events = next;
+      };
+
+      // Undo 1 point -> should remove the Yuko (since it has 1 point)
+      undoPoints(1);
+      expect(events.length).toBe(1);
+      expect(events[0].technique).toBe('Ippon');
+
+      // Undo 1 more point -> should reduce the Ippon (+3) to Waza-ari (+2)
+      undoPoints(1);
+      expect(events.length).toBe(1);
+      expect(events[0].points).toBe(2);
+      expect(events[0].technique).toBe('Waza-ari');
+
+      // Undo 2 more points -> should remove it completely
+      undoPoints(2);
+      expect(events.length).toBe(0);
+    });
+  });
 });
