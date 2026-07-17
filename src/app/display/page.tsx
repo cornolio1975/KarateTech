@@ -216,7 +216,7 @@ function SpectatorDisplayContent() {
 
       const isStream = searchParams.get('stream') === 'true' || searchParams.get('overlay') === 'true';
       const key = isStream ? 'ts_show_point_history_stream' : 'ts_show_point_history_public';
-      setShowPointHistory(localStorage.getItem(key) === 'true');
+      setShowPointHistory(searchParams.get('history') === 'true' || localStorage.getItem(key) === 'true');
 
       channel.onmessage = (event) => {
         const data = event.data;
@@ -245,6 +245,9 @@ function SpectatorDisplayContent() {
           setTimeLeft(data.timeLeft);
           setTimerActive(data.timerActive);
           setGoldenScore(data.goldenScore);
+          if (data.showPointHistory !== undefined) {
+            setShowPointHistory(data.showPointHistory || searchParams.get('history') === 'true');
+          }
           setWinnerSide(data.winner);
           setWinMethod(data.winMethod);
         }

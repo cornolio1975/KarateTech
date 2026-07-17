@@ -1,6 +1,6 @@
 # Walkthrough: Tournament Brackets, Scoreboard Point History, Category Editing & Auto-Walkovers
 
-We have successfully implemented the Round Robin System, WKF Repechage System, the Technique Point History Display optional feature, the ability to edit and modify categories directly within Category Management, automatic walkover/bye propagation for single elimination brackets, the exclusion of walkover bouts from all scoring control lists, fixed the 404 routing error on saving bouts, and resolved the category completion state calculation bug. All features are fully verified, unit-tested, built, and ready for deployment.
+We have successfully implemented the Round Robin System, WKF Repechage System, the Technique Point History Display optional feature, the ability to edit and modify categories directly within Category Management, automatic walkover/bye propagation for single elimination brackets, the exclusion of walkover bouts from all scoring control lists, fixed the 404 routing error on saving bouts, resolved the category completion state calculation bug, and enhanced Point History visibility across all screens. All features are fully verified, unit-tested, built, and ready for deployment.
 
 ## 1. Summary of Changes
 
@@ -15,7 +15,7 @@ We have successfully implemented the Round Robin System, WKF Repechage System, t
 * **[draws/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/app/draws/page.tsx)**: Added active format badges and auto-lock state checks.
 * **[SportdataBracket.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/components/SportdataBracket.tsx)**: Added standings rendering and SVG pan/zoom controls.
 
-### B. Technique Point History Display
+### B. Technique Point History Display & Visibility Fixes
 
 * **[settings/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/app/settings/page.tsx)**: Added "Scoreboard Settings" section with tick boxes for Referee, Public, and Streaming layouts (`ts_show_point_history_referee`, `ts_show_point_history_public`, `ts_show_point_history_stream`) saved to local storage.
 * **[scoring/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/app/scoring/page.tsx)**:
@@ -23,14 +23,18 @@ We have successfully implemented the Round Robin System, WKF Repechage System, t
   * Handles JSON history parsing on load with legacy comma-separated string fallback.
   * Adjusts history correctly on Undo actions.
   * Renders small, clean WKF-style technique badges below the main scores.
+  * Added url parameter override `?history=true` to force history rendering.
 * **[control/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%20Karate/src/app/dashboard/control/page.tsx)**:
   * Tracks points history arrays and syncs them over the BroadcastChannel (`wkf-scoreboard-sync`).
   * Serializes events as JSON strings on match finish and clears history on rematch resets.
   * Pushes history to the undo stack.
+  * Rendered technique badges below AKA/AO score counters on the controller page.
+  * Added url parameter override `?history=true` and broadcast `showPointHistory` payload syncing.
 * **[display/page.tsx](file:///c:/Users/svana/Kelab%20Senshi%20Goju-Ryu%252520Karate/src/app/display/page.tsx)**:
   * Receives broadcast event payloads and reads settings dynamically.
   * Renders badges underneath the total score.
   * Supports real-time fallback updates via Supabase.
+  * Listens for `showPointHistory` from broadcast channel events and supports `?history=true` override.
 
 ### C. Category Editing Capability
 

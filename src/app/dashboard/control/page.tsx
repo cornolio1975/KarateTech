@@ -73,7 +73,8 @@ export default function ScoreboardControlPage() {
     setMounted(true);
     if (typeof window !== 'undefined') {
       broadcastChannelRef.current = new BroadcastChannel('wkf-scoreboard-sync');
-      setShowPointHistory(localStorage.getItem('ts_show_point_history_referee') === 'true');
+      const urlHistory = new URLSearchParams(window.location.search).get('history') === 'true';
+      setShowPointHistory(urlHistory || localStorage.getItem('ts_show_point_history_referee') === 'true');
     }
     return () => {
       broadcastChannelRef.current?.close();
@@ -235,6 +236,7 @@ export default function ScoreboardControlPage() {
       pointsAo,
       eventsAka,
       eventsAo,
+      showPointHistory,
       timeLeft,
       timerActive,
       goldenScore,
@@ -246,7 +248,7 @@ export default function ScoreboardControlPage() {
     boutId, competitorAka, competitorAo, scoreAka, scoreAo,
     senshuAka, senshuAo, firstScorer,
     c1Aka, c1Ao,
-    pointsAka, pointsAo, eventsAka, eventsAo,
+    pointsAka, pointsAo, eventsAka, eventsAo, showPointHistory,
     timeLeft, timerActive, goldenScore, winnerSide, winMethod, matchDuration
   ]);
 
@@ -1064,7 +1066,7 @@ export default function ScoreboardControlPage() {
               {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
             </p>
 
-            <div className="my-8 flex items-center justify-center">
+            <div className="my-8 flex flex-col items-center justify-center">
               <span className={`text-9xl font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
                 winnerSide === 'aka' && winMethod === 'Superior Points'
                   ? 'text-green-400 animate-pulse drop-shadow-[0_0_45px_rgba(34,197,94,0.7)]'
@@ -1074,6 +1076,18 @@ export default function ScoreboardControlPage() {
               }`}>
                 {scoreAka}
               </span>
+              {showPointHistory && eventsAka.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-3 justify-center max-w-[200px]">
+                  {eventsAka.map((ev, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded-sm bg-red-950/80 border border-red-500/30 text-[9px] font-black text-red-400 whitespace-nowrap"
+                    >
+                      +{ev.points} {ev.technique}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1270,7 +1284,7 @@ export default function ScoreboardControlPage() {
               {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
             </p>
 
-            <div className="my-8 flex items-center justify-center">
+            <div className="my-8 flex flex-col items-center justify-center">
               <span className={`text-9xl font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
                 winnerSide === 'ao' && winMethod === 'Superior Points'
                   ? 'text-green-400 animate-pulse drop-shadow-[0_0_45px_rgba(34,197,94,0.7)]'
@@ -1280,6 +1294,18 @@ export default function ScoreboardControlPage() {
               }`}>
                 {scoreAo}
               </span>
+              {showPointHistory && eventsAo.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-3 justify-center max-w-[200px]">
+                  {eventsAo.map((ev, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded-sm bg-blue-950/80 border border-blue-500/30 text-[9px] font-black text-blue-400 whitespace-nowrap"
+                    >
+                      +{ev.points} {ev.technique}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

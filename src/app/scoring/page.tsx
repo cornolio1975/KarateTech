@@ -79,7 +79,8 @@ export default function ScoringPage() {
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
-      setShowPointHistory(localStorage.getItem('ts_show_point_history_referee') === 'true');
+      const urlHistory = new URLSearchParams(window.location.search).get('history') === 'true';
+      setShowPointHistory(urlHistory || localStorage.getItem('ts_show_point_history_referee') === 'true');
     }
   }, []);
 
