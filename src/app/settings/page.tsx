@@ -159,8 +159,8 @@ export default function SettingsPage() {
         localStorage.setItem('ts_show_point_history_stream', String(showPointHistoryStream));
       }
 
-      // Sync active tournament name to Supabase
-      if (supabase) {
+      // Sync active tournament name to Supabase (admin/co-admin only)
+      if (supabase && canModify) {
         const { data: tList } = await supabase.from('tournaments').select('*');
         const featured = tList?.find((t: any) => t.featured && !t.deleted_at) || tList?.find((t: any) => !t.deleted_at);
         if (featured) {
@@ -694,7 +694,6 @@ export default function SettingsPage() {
                 id="showPointHistoryReferee"
                 checked={showPointHistoryReferee}
                 onChange={(e) => setShowPointHistoryReferee(e.target.checked)}
-                disabled={!canModify}
                 className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
               />
               <div>
@@ -713,7 +712,6 @@ export default function SettingsPage() {
                 id="showPointHistoryPublic"
                 checked={showPointHistoryPublic}
                 onChange={(e) => setShowPointHistoryPublic(e.target.checked)}
-                disabled={!canModify}
                 className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
               />
               <div>
@@ -732,7 +730,6 @@ export default function SettingsPage() {
                 id="showPointHistoryStream"
                 checked={showPointHistoryStream}
                 onChange={(e) => setShowPointHistoryStream(e.target.checked)}
-                disabled={!canModify}
                 className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
               />
               <div>
@@ -866,7 +863,7 @@ export default function SettingsPage() {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={saving || !canModify}
+            disabled={saving}
             className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 disabled:opacity-50 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
           >
             <Save className="h-4 w-4 text-white" />
