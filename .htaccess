@@ -12,45 +12,26 @@
   RewriteRule ^.*$ /index.html [L]
 </IfModule>
 
-# ─── Force Correct MIME Types (Critical for Hostinger) ─────────────────────────
+# ─── Correct MIME Types ───────────────────────────────────────────────────────
 <IfModule mod_mime.c>
-  # JavaScript - MUST be application/javascript not text/javascript
-  AddType application/javascript .js
-  AddEncoding gzip .js.gz
-  
-  # CSS - MUST be text/css
+  AddType application/javascript .js .mjs
   AddType text/css .css
-  AddEncoding gzip .css.gz
-  
-  # JSON
   AddType application/json .json
-  
-  # Set UTF-8 charset
-  AddCharset UTF-8 .js .css .html .json .svg .txt
+  AddType image/svg+xml .svg
+  AddCharset UTF-8 .js .mjs .css .html .json .svg .txt
 </IfModule>
 
-# ─── Force MIME types even if mod_mime not working ─────────────────────────────
-# For NextJS chunks and static assets
-<FilesMatch "\.(js)$">
-  <IfModule mod_headers.c>
-    Header set Content-Type "application/javascript; charset=UTF-8"
-  </IfModule>
-</FilesMatch>
+# ─── Fix ERR_CONTENT_DECODING_FAILED on Hostinger CDN ────────────────────────
+# Disable origin compression so CDN doesn't double-encode
+<IfModule mod_deflate.c>
+  SetEnvIfNoCase Request_URI "\.(js|mjs|css|json|svg)$" no-gzip
+</IfModule>
 
-<FilesMatch "\.(css)$">
+# Strip any server-side Content-Encoding so CDN receives raw files
+# Then tell CDN not to re-encode (no-transform prevents brotli double-encode)
+<FilesMatch "\.(js|mjs|css|json|svg)$">
   <IfModule mod_headers.c>
-    Header set Content-Type "text/css; charset=UTF-8"
-  </IfModule>
-</FilesMatch>
-
-<FilesMatch "\.(json)$">
-  <IfModule mod_headers.c>
-    Header set Content-Type "application/json; charset=UTF-8"
-  </IfModule>
-</FilesMatch>
-
-<FilesMatch "\.(svg)$">
-  <IfModule mod_headers.c>
-    Header set Content-Type "image/svg+xml; charset=UTF-8"
+    Header always unset Content-Encoding
+    Header always append Cache-Control "no-transform"
   </IfModule>
 </FilesMatch>
