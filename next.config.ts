@@ -1,15 +1,20 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === 'development';
-// For Hostinger: use NEXT_PUBLIC_BASE_PATH if set (even if empty string), only default for GitHub Pages
-const basePath = isDev ? '' : (process.env.NEXT_PUBLIC_BASE_PATH !== undefined ? process.env.NEXT_PUBLIC_BASE_PATH : '/KarateTech-');
+// Default to root deployment so Hostinger works without a special fallback.
+// Explicit builds can still set NEXT_PUBLIC_BASE_PATH (for example, GitHub Pages).
+const basePath = isDev ? '' : (process.env.NEXT_PUBLIC_BASE_PATH ?? '');
+const rawAssetPrefix = process.env.NEXT_PUBLIC_ASSET_PREFIX?.trim();
+const assetPrefixOverride = rawAssetPrefix
+  ? `/${rawAssetPrefix.replace(/^\/+|\/+$/g, '')}`
+  : undefined;
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.56.1'],
   output: 'export',
   trailingSlash: true,
   basePath: basePath,
-  assetPrefix: basePath ? `${basePath}/` : undefined,
+  assetPrefix: assetPrefixOverride ?? (basePath ? `${basePath}/` : undefined),
   images: {
     unoptimized: true,
   },

@@ -33,7 +33,7 @@ if (isSupabaseConfigured) {
 }
 
 const isDev = process.env.NODE_ENV === 'development';
-export const basePath = isDev ? '' : (process.env.NEXT_PUBLIC_BASE_PATH ?? '/KarateTech-');
+export const basePath = isDev ? '' : (process.env.NEXT_PUBLIC_BASE_PATH ?? '');
 
 // Global DB client interface
 export const db = {

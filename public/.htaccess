@@ -27,11 +27,12 @@
   SetEnvIfNoCase Request_URI "\.(js|mjs|css|json|svg)$" no-gzip
 </IfModule>
 
-# Strip any server-side Content-Encoding so CDN receives raw files
-# Then tell CDN not to re-encode (no-transform prevents brotli double-encode)
+# Keep Content-Encoding headers intact so browsers can decode compressed assets.
+# Only signal no-transform to reduce CDN re-encoding issues.
 <FilesMatch "\.(js|mjs|css|json|svg)$">
   <IfModule mod_headers.c>
-    Header always unset Content-Encoding
-    Header always append Cache-Control "no-transform"
+    Header always set Cache-Control "no-cache, no-store, must-revalidate, max-age=0, no-transform"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
   </IfModule>
 </FilesMatch>
