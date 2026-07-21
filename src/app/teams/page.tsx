@@ -5,8 +5,9 @@ import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
 import { Team, Participant, Club, Coach } from '@/db/types';
 import { 
-  Plus, UsersRound, Trophy, User, Trash2, X, Check, AlertTriangle, ShieldCheck, RefreshCw, Edit 
+  Plus, UsersRound, Trophy, User, Trash2, X, Check, AlertTriangle, ShieldCheck, RefreshCw, Edit, Upload 
 } from 'lucide-react';
+import ImportTeamModal from '@/components/ImportTeamModal';
 
 export default function TeamsPage() {
   const { refreshKey, triggerRefresh, canModify } = useTournament();
@@ -24,6 +25,7 @@ export default function TeamsPage() {
 
   // Dialog open triggers
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
 
@@ -273,13 +275,22 @@ export default function TeamsPage() {
           <p className="text-sm text-muted-foreground">Form club squads, define team captains, check validation rules, and track rankings.</p>
         </div>
         {canModify && (
-          <button
-            onClick={handleOpenCreateModal}
-            className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Create New Team</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsImportOpen(true)}
+              className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import CSV</span>
+            </button>
+            <button
+              onClick={handleOpenCreateModal}
+              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create New Team</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -535,6 +546,12 @@ export default function TeamsPage() {
           </form>
         </div>
       )}
+
+      {/* Import CSV Modal */}
+      <ImportTeamModal 
+        isOpen={isImportOpen} 
+        onClose={() => setIsImportOpen(false)} 
+      />
 
     </div>
   );

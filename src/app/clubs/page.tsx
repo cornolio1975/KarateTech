@@ -6,8 +6,9 @@ import { Club, Participant, Coach, Team } from '@/db/types';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Award, Plus, Search, Edit2, Trash2, X, Check, 
-  RefreshCw, MapPin, Building, ShieldCheck, Users, Trophy 
+  RefreshCw, MapPin, Building, ShieldCheck, Users, Trophy, Upload
 } from 'lucide-react';
+import ImportClubModal from '@/components/ImportClubModal';
 
 export default function ClubsPage() {
   const { refreshKey, triggerRefresh, canModify } = useTournament();
@@ -23,6 +24,7 @@ export default function ClubsPage() {
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
@@ -140,13 +142,22 @@ export default function ClubsPage() {
         </div>
 
         {canModify && (
-          <button
-            onClick={handleOpenAddModal}
-            className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
-          >
-            <Plus className="h-4 w-4 text-white" />
-            <span>Add Club Dojo</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsImportOpen(true)}
+              className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import CSV</span>
+            </button>
+            <button
+              onClick={handleOpenAddModal}
+              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="h-4 w-4 text-white" />
+              <span>Add Club Dojo</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -349,6 +360,12 @@ export default function ClubsPage() {
           </div>
         </div>
       )}
+
+      {/* Import CSV Modal */}
+      <ImportClubModal 
+        isOpen={isImportOpen} 
+        onClose={() => setIsImportOpen(false)} 
+      />
 
     </div>
   );

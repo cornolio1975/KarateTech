@@ -7,8 +7,9 @@ import { db } from '@/db/dbClient';
 import { Category, Participant, Club, Bout } from '@/db/types';
 import { basePath } from '@/db/dbClient';
 import { 
-  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight
+  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload
 } from 'lucide-react';
+import ImportCategoryModal from '@/components/ImportCategoryModal';
 
 export default function CategoriesPage() {
   const { refreshKey, triggerRefresh, canModify } = useTournament();
@@ -28,6 +29,7 @@ export default function CategoriesPage() {
   const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [isSplitOpen, setIsSplitOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [consoleCat, setConsoleCat] = useState<Category | null>(null); // for bout-picker modal
 
   // Merge state
@@ -304,6 +306,28 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleDeleteAllCategories = async () => {
+    if (categories.length === 0) {
+      alert('There are no categories to delete.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete ALL ${categories.length} categories? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      for (const cat of categories) {
+        await db.categories.delete(cat.id);
+      }
+      alert('All categories deleted successfully.');
+      triggerRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete categories.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 text-foreground w-full h-full overflow-y-auto">
       {/* Title Header */}
@@ -313,24 +337,38 @@ export default function CategoriesPage() {
           <p className="text-sm text-muted-foreground">Manage athlete weight brackets, trigger merges, splits, and custom overrides.</p>
         </div>
         {canModify && (
-          <div className="flex items-center gap-2 self-start">
+          <div className="flex items-center gap-2 self-start flex-wrap">
+            <button
+              onClick={() => setIsImportOpen(true)}
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
+            >
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span>Import CSV</span>
+            </button>
+            <button
+              onClick={handleDeleteAllCategories}
+              className="px-3.5 py-2 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+              <span>Delete All</span>
+            </button>
             <button
               onClick={() => setIsAddOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
             >
               <Plus className="h-4 w-4 text-muted-foreground" />
               <span>Add Category</span>
             </button>
             <button
               onClick={() => setIsMergeOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
             >
               <Merge className="h-4 w-4 text-muted-foreground" />
               <span>Merge Categories</span>
             </button>
             <button
               onClick={() => setIsSplitOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
             >
               <Split className="h-4 w-4 text-muted-foreground" />
               <span>Split Brackets</span>
@@ -1192,6 +1230,12 @@ export default function CategoriesPage() {
           </form>
         </div>
       )}
+
+      {/* Import CSV Modal */}
+      <ImportCategoryModal 
+        isOpen={isImportOpen} 
+        onClose={() => setIsImportOpen(false)} 
+      />
 
     </div>
   );
