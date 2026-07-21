@@ -1,2 +1,2 @@
-:HL["/Kelab-Senshi-Goju-Ryu-Karate-/_next/static/chunks/04cpjejfwkyiz.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"auth","param":null,"prefetchHints":0,"slots":{"children":{"name":"reset-password","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}},"staleTime":300,"buildId":"bBqyI1E_o7cu9IzGO132z"}
+:HL["/Kelab-Senshi-Goju-Ryu-Karate-/_next/static/chunks/2_85ihxt4jex6.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"auth","param":null,"prefetchHints":0,"slots":{"children":{"name":"reset-password","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}},"staleTime":300,"buildId":"XSSXYSff5z5x038yEj-48"}
