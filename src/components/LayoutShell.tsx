@@ -14,13 +14,23 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isLoggedIn, userRole } = useTournament();
 
-  // Auto-minimize sidebar on mobile: start closed on small screens
+  // Auto-minimize sidebar on mobile or on control page: start closed on small screens
   useEffect(() => {
+    const isControlPage = window.location.pathname.includes('/control');
     const mq = window.matchMedia('(min-width: 768px)');
-    setIsSidebarOpen(mq.matches);
+    
+    // Default open on desktop, unless it's the control dashboard
+    if (isControlPage) {
+      setIsSidebarOpen(false);
+    } else {
+      setIsSidebarOpen(mq.matches);
+    }
 
     const handler = (e: MediaQueryListEvent) => {
-      setIsSidebarOpen(e.matches);
+      // Don't auto-open if we are on the control page
+      if (!window.location.pathname.includes('/control')) {
+        setIsSidebarOpen(e.matches);
+      }
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -32,10 +42,11 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('open-import-modal', handleOpenImport);
   }, []);
 
-  // Auto-close sidebar when navigating on mobile
+  // Auto-close sidebar when navigating on mobile, or when going to Scoreboard Control
   useEffect(() => {
     const isMobile = !window.matchMedia('(min-width: 768px)').matches;
-    if (isMobile) {
+    const isControlPage = pathname?.includes('/control');
+    if (isMobile || isControlPage) {
       setIsSidebarOpen(false);
     }
   }, [pathname]);

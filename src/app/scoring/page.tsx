@@ -284,6 +284,10 @@ export default function ScoringPage() {
     setTimerRunning(false);
   };
 
+  const adjustTimer = (delta: number) => {
+    setTimeLeft(t => Math.max(0, t + delta));
+  };
+
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   /* Format time */
@@ -675,27 +679,44 @@ export default function ScoringPage() {
         </div>
 
         {/* Timer Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={startTimer}
             disabled={timerRunning || timeLeft === 0 || !!winner}
-            className="flex items-center gap-1 px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white rounded-lg font-black text-[10px] tracking-wider transition cursor-pointer"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white rounded-lg font-black text-xs tracking-wider transition cursor-pointer"
           >
-            <Play className="h-3 w-3 fill-white" /> START
+            <Play className="h-4 w-4 fill-white" /> START
           </button>
           <button
             onClick={stopTimer}
             disabled={!timerRunning}
-            className="flex items-center gap-1 px-3 py-1.5 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white rounded-lg font-black text-[10px] tracking-wider transition cursor-pointer"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white rounded-lg font-black text-xs tracking-wider transition cursor-pointer"
           >
-            <Square className="h-3 w-3 fill-white" /> STOP
+            <Square className="h-4 w-4 fill-white" /> STOP
           </button>
           <button
             onClick={resetTimer}
             disabled={timerRunning}
-            className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white rounded-lg font-black text-[10px] tracking-wider transition cursor-pointer"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white rounded-lg font-black text-xs tracking-wider transition cursor-pointer"
           >
-            <RotateCcw className="h-3 w-3" /> RESET
+            <RotateCcw className="h-4 w-4" /> RESET
+          </button>
+
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+
+          <button
+            onClick={() => adjustTimer(-10)}
+            disabled={timerRunning || timeLeft < 10}
+            className="flex items-center justify-center px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white rounded-lg font-bold text-xs transition cursor-pointer border border-white/5"
+          >
+            -10s
+          </button>
+          <button
+            onClick={() => adjustTimer(10)}
+            disabled={timerRunning}
+            className="flex items-center justify-center px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white rounded-lg font-bold text-xs transition cursor-pointer border border-white/5"
+          >
+            +10s
           </button>
         </div>
 
@@ -708,194 +729,253 @@ export default function ScoringPage() {
         </button>
       </div>
 
-      {/* ══ MAIN SCOREBOARD — WKF SET POINT PANEL STYLE ══ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* ── AKA SIDE (TOP / RED) ── */}
+      <div className="flex-1 grid grid-cols-12 gap-4 lg:gap-6 p-4 lg:p-6 overflow-hidden">
+        
+        {/* ── AKA SIDE (LEFT / RED) ── */}
         <div 
-          className={`flex-1 flex flex-col transition-all duration-300 ${
+          className={`col-span-3 flex flex-col justify-between transition-all duration-300 rounded-[32px] p-6 shadow-2xl relative ${
             blinkWinner === 'aka' ? 'animate-score-blink' : ''
           } ${
-            superiorWinner === 'aka' ? 'border-4 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : ''
+            superiorWinner === 'aka' ? 'border-4 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : 'border border-red-900/50'
           }`} 
           style={{ 
             background: superiorWinner === 'aka' 
               ? 'linear-gradient(180deg, #022c22 0%, #064e3b 100%)' 
-              : 'linear-gradient(180deg, #1a0000 0%, #0d0000 100%)' 
+              : 'linear-gradient(180deg, #1a0505 0%, #0a0000 100%)' 
           }}
         >
-          {/* Name + Score Row */}
-          <div className="flex-1 flex items-center justify-between px-8 py-3 relative">
-            {/* AKA label + name */}
-            <div className="flex flex-col">
-              <span
-                className="font-black leading-none"
-                style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', color: '#ff1a1a', textShadow: '0 0 40px rgba(255,0,0,0.4)', letterSpacing: '-0.01em' }}
-              >
-                AKA
+          {/* Header */}
+          <div className="flex flex-col items-center text-center">
+            <span className="font-black text-2xl lg:text-4xl text-red-500 uppercase tracking-wider mb-1">
+              AKA - RED
+            </span>
+            <span className="text-white/60 text-sm lg:text-base font-semibold tracking-wide truncate w-full">
+              {akaComp?.full_name || '— Competitor —'}
+            </span>
+            {senshuAka && (
+              <span className="mt-3 bg-blue-600 text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest animate-pulse border border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.5)] flex items-center gap-1.5">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                先取 SENSHU
               </span>
-              <span className="text-white/60 text-sm font-semibold mt-1 tracking-wide truncate max-w-xs">
-                {akaComp?.full_name || '— Competitor —'}
-              </span>
-              {senshuAka && (
-                <span className="mt-1 bg-blue-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest animate-pulse w-fit border border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)] flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                  先取 SENSHU
-                </span>
-              )}
-            </div>
-
-            {/* AKA Score */}
-            <div className="flex flex-col items-end gap-3">
-              <div className="flex flex-col items-end">
-                <span
-                  className="font-black tabular-nums leading-none"
-                  style={{ fontSize: 'clamp(5rem, 14vw, 11rem)', color: '#ff1a1a', textShadow: '0 0 60px rgba(255,0,0,0.5)' }}
-                >
-                  {scoreAka}
-                </span>
-                {showPointHistory && eventsAka.length > 0 && (
-                  <div className="flex items-center flex-wrap gap-y-1 mt-1 justify-end overflow-x-auto max-w-[340px]">
-                    {eventsAka.map((ev, idx) => (
-                      <div key={idx} className="flex items-center">
-                        {idx > 0 && (
-                          <span className="text-white/25 text-[9px] font-bold mx-1 select-none">→</span>
-                        )}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
-                          <span className="text-[9px] font-black text-red-400">{ev.technique}</span>
-                          <span className="text-[7px] font-bold text-red-600/70">({idx + 1})</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Scoring buttons */}
-              <div className="flex gap-1.5">
-                {[
-                  { label: 'IPPON +3', pts: 3, color: 'bg-red-700 hover:bg-red-600' },
-                  { label: 'WAZA +2', pts: 2, color: 'bg-red-800 hover:bg-red-700' },
-                  { label: 'YUKO +1', pts: 1, color: 'bg-red-900 hover:bg-red-800' },
-                ].map(btn => (
-                  <button
-                    key={btn.label}
-                    onMouseDown={() => addScore('aka', btn.pts)}
-                    disabled={!!winner}
-                    className={`${btn.color} text-white px-2.5 py-1 rounded font-black text-[10px] tracking-wider transition active:scale-95 cursor-pointer disabled:opacity-40 border border-white/10`}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-                <button
-                  onMouseDown={() => undoScore('aka', 1)}
-                  disabled={!!winner || scoreAka === 0}
-                  className="bg-gray-800 hover:bg-gray-700 text-white px-2.5 py-1 rounded font-bold text-[10px] transition active:scale-95 cursor-pointer disabled:opacity-30 border border-white/10"
-                >
-                  ↩ UNDO
-                </button>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* AKA Penalty row */}
-          <PenaltyRow side="aka" val={c1Aka} color="aka" />
+          {/* Huge Score */}
+          <div className="flex flex-col items-center justify-center flex-1 my-4">
+            <span
+              className="font-black tabular-nums leading-none text-red-500 drop-shadow-[0_0_50px_rgba(239,68,68,0.5)]"
+              style={{ fontSize: 'clamp(6rem, 12vw, 12rem)' }}
+            >
+              {scoreAka}
+            </span>
+            
+            {showPointHistory && eventsAka.length > 0 && (
+              <div className="flex items-center flex-wrap gap-y-1.5 mt-2 justify-center overflow-x-auto w-full">
+                {eventsAka.map((ev, idx) => (
+                  <div key={idx} className="flex items-center">
+                    {idx > 0 && (
+                      <span className="text-white/25 text-[10px] font-bold mx-1 select-none">→</span>
+                    )}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
+                      <span className="text-[10px] font-black text-red-400">{ev.technique}</span>
+                      <span className="text-[8px] font-bold text-red-600/70">({idx + 1})</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Scoring buttons */}
+          <div className="flex flex-col gap-2 w-full mb-6">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'IPPON +3', pts: 3, color: 'bg-red-700 hover:bg-red-600' },
+                { label: 'WAZA +2', pts: 2, color: 'bg-red-800 hover:bg-red-700' },
+                { label: 'YUKO +1', pts: 1, color: 'bg-red-900 hover:bg-red-800' },
+              ].map(btn => (
+                <button
+                  key={btn.label}
+                  onMouseDown={() => addScore('aka', btn.pts)}
+                  disabled={!!winner}
+                  className={`${btn.color} text-white py-3 rounded-xl font-black text-xs lg:text-sm tracking-wider transition active:scale-95 cursor-pointer disabled:opacity-40 border border-white/10`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onMouseDown={() => undoScore('aka', 1)}
+              disabled={!!winner || scoreAka === 0}
+              className="w-full bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl font-bold text-xs transition active:scale-95 cursor-pointer disabled:opacity-30 border border-white/10"
+            >
+              ↩ UNDO LAST SCORE
+            </button>
+          </div>
+
+          {/* Penalties */}
+          <div className="w-full bg-black/40 rounded-xl p-3 border border-red-900/30">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-black uppercase text-red-500/70 tracking-widest">PENALTIES</span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {[1, 2, 3, 4, 5].map((level) => {
+                const label = ['C1', 'C2', 'C3', 'HC', 'H'][level - 1];
+                const filled = c1Aka >= level;
+                return (
+                  <button
+                    key={level}
+                    onClick={() => addPenalty('aka', level)}
+                    disabled={!!winner}
+                    className={`flex flex-col items-center justify-center py-2 rounded-lg border transition cursor-pointer disabled:opacity-50 ${
+                      filled ? 'bg-red-500 border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'bg-red-950/30 border-red-900/30 hover:bg-red-900/40'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-black mb-1 ${filled ? 'text-black' : 'text-red-400'}`}>{label}</span>
+                    <PenDot filled={filled} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* ── DIVIDER LINE ── */}
-        <div className="h-px bg-white/10 shrink-0" />
+        {/* ── CENTRAL TIMER ── */}
+        <div className="col-span-6 flex flex-col justify-center items-center h-full text-center px-2">
+          <div className="bg-[#050508]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[40px] w-full flex flex-col items-center justify-center relative overflow-hidden h-full">
+            <span className="text-sm lg:text-base uppercase font-black text-white/40 tracking-[0.3em] mb-4">
+              MATCH TIME
+            </span>
+            <div
+              className={`font-black font-mono leading-none tracking-tighter transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
+                timeLeft <= 30 && timerRunning ? 'text-red-400 animate-pulse drop-shadow-[0_0_30px_rgba(239,68,68,0.7)]' :
+                timeLeft === 0 ? 'text-red-500' : 'text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.2)]'
+              }`}
+              style={{ fontSize: 'clamp(6rem, 14vw, 16rem)' }}
+            >
+              <span>{fmtTimeFull(timeLeft)}</span>
+              <span className="text-[clamp(3.5rem,7vw,8rem)] font-bold text-white/40 ml-1 lg:ml-2">.0</span>
+            </div>
+            <div className="flex items-center gap-2 mt-6">
+              <span className={`w-3 h-3 rounded-full ${timerRunning ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
+              <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                {timerRunning ? 'RUNNING' : 'PAUSED'}
+              </span>
+            </div>
+          </div>
+        </div>
 
-        {/* ── AO SIDE (BOTTOM / BLUE) ── */}
+        {/* ── AO SIDE (RIGHT / BLUE) ── */}
         <div 
-          className={`flex-1 flex flex-col transition-all duration-300 ${
+          className={`col-span-3 flex flex-col justify-between transition-all duration-300 rounded-[32px] p-6 shadow-2xl relative ${
             blinkWinner === 'ao' ? 'animate-score-blink' : ''
           } ${
-            superiorWinner === 'ao' ? 'border-4 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : ''
+            superiorWinner === 'ao' ? 'border-4 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : 'border border-blue-900/50'
           }`} 
           style={{ 
             background: superiorWinner === 'ao' 
               ? 'linear-gradient(180deg, #022c22 0%, #064e3b 100%)' 
-              : 'linear-gradient(180deg, #00001a 0%, #000d1a 100%)' 
+              : 'linear-gradient(180deg, #00051a 0%, #00020a 100%)' 
           }}
         >
-          {/* AO Penalty row (at top of AO section) */}
-          <PenaltyRow side="ao" val={c1Ao} color="ao" />
-
-          {/* Name + Score Row */}
-          <div className="flex-1 flex items-center justify-between px-8 py-3 relative">
-            {/* AO label + name */}
-            <div className="flex flex-col">
-              <span
-                className="font-black leading-none"
-                style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', color: '#00d4ff', textShadow: '0 0 40px rgba(0,180,255,0.4)', letterSpacing: '-0.01em' }}
-              >
-                AO
+          {/* Header */}
+          <div className="flex flex-col items-center text-center">
+            <span className="font-black text-2xl lg:text-4xl text-blue-500 uppercase tracking-wider mb-1">
+              AO - BLUE
+            </span>
+            <span className="text-white/60 text-sm lg:text-base font-semibold tracking-wide truncate w-full">
+              {aoComp?.full_name || '— Competitor —'}
+            </span>
+            {senshuAo && (
+              <span className="mt-3 bg-blue-600 text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest animate-pulse border border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.5)] flex items-center gap-1.5">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                先取 SENSHU
               </span>
-              <span className="text-white/60 text-sm font-semibold mt-1 tracking-wide truncate max-w-xs">
-                {aoComp?.full_name || '— Competitor —'}
-              </span>
-              {senshuAo && (
-                <span className="mt-1 bg-blue-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest animate-pulse w-fit border border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)] flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                  先取 SENSHU
-                </span>
-              )}
-            </div>
+            )}
+          </div>
 
-            {/* AO Score */}
-            <div className="flex flex-col items-end gap-3">
-              <div className="flex flex-col items-end">
-                <span
-                  className="font-black tabular-nums leading-none"
-                  style={{ fontSize: 'clamp(5rem, 14vw, 11rem)', color: '#00d4ff', textShadow: '0 0 60px rgba(0,200,255,0.5)' }}
-                >
-                  {scoreAo}
-                </span>
-                {showPointHistory && eventsAo.length > 0 && (
-                  <div className="flex items-center flex-wrap gap-y-1 mt-1 justify-end overflow-x-auto max-w-[340px]">
-                    {eventsAo.map((ev, idx) => (
-                      <div key={idx} className="flex items-center">
-                        {idx > 0 && (
-                          <span className="text-white/25 text-[9px] font-bold mx-1 select-none">→</span>
-                        )}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
-                          <span className="text-[9px] font-black text-blue-400">{ev.technique}</span>
-                          <span className="text-[7px] font-bold text-blue-600/70">({idx + 1})</span>
-                        </span>
-                      </div>
-                    ))}
+          {/* Huge Score */}
+          <div className="flex flex-col items-center justify-center flex-1 my-4">
+            <span
+              className="font-black tabular-nums leading-none text-blue-500 drop-shadow-[0_0_50px_rgba(59,130,246,0.5)]"
+              style={{ fontSize: 'clamp(6rem, 12vw, 12rem)' }}
+            >
+              {scoreAo}
+            </span>
+            
+            {showPointHistory && eventsAo.length > 0 && (
+              <div className="flex items-center flex-wrap gap-y-1.5 mt-2 justify-center overflow-x-auto w-full">
+                {eventsAo.map((ev, idx) => (
+                  <div key={idx} className="flex items-center">
+                    {idx > 0 && (
+                      <span className="text-white/25 text-[10px] font-bold mx-1 select-none">→</span>
+                    )}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
+                      <span className="text-[10px] font-black text-blue-400">{ev.technique}</span>
+                      <span className="text-[8px] font-bold text-blue-600/70">({idx + 1})</span>
+                    </span>
                   </div>
-                )}
-              </div>
-              {/* Scoring buttons */}
-              <div className="flex gap-1.5">
-                {[
-                  { label: 'IPPON +3', pts: 3, color: 'bg-blue-700 hover:bg-blue-600' },
-                  { label: 'WAZA +2', pts: 2, color: 'bg-blue-800 hover:bg-blue-700' },
-                  { label: 'YUKO +1', pts: 1, color: 'bg-blue-900 hover:bg-blue-800' },
-                ].map(btn => (
-                  <button
-                    key={btn.label}
-                    onMouseDown={() => addScore('ao', btn.pts)}
-                    disabled={!!winner}
-                    className={`${btn.color} text-white px-2.5 py-1 rounded font-black text-[10px] tracking-wider transition active:scale-95 cursor-pointer disabled:opacity-40 border border-white/10`}
-                  >
-                    {btn.label}
-                  </button>
                 ))}
-                <button
-                  onMouseDown={() => undoScore('ao', 1)}
-                  disabled={!!winner || scoreAo === 0}
-                  className="bg-gray-800 hover:bg-gray-700 text-white px-2.5 py-1 rounded font-bold text-[10px] transition active:scale-95 cursor-pointer disabled:opacity-30 border border-white/10"
-                >
-                  ↩ UNDO
-                </button>
               </div>
+            )}
+          </div>
+
+          {/* Scoring buttons */}
+          <div className="flex flex-col gap-2 w-full mb-6">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'IPPON +3', pts: 3, color: 'bg-blue-700 hover:bg-blue-600' },
+                { label: 'WAZA +2', pts: 2, color: 'bg-blue-800 hover:bg-blue-700' },
+                { label: 'YUKO +1', pts: 1, color: 'bg-blue-900 hover:bg-blue-800' },
+              ].map(btn => (
+                <button
+                  key={btn.label}
+                  onMouseDown={() => addScore('ao', btn.pts)}
+                  disabled={!!winner}
+                  className={`${btn.color} text-white py-3 rounded-xl font-black text-xs lg:text-sm tracking-wider transition active:scale-95 cursor-pointer disabled:opacity-40 border border-white/10`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onMouseDown={() => undoScore('ao', 1)}
+              disabled={!!winner || scoreAo === 0}
+              className="w-full bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl font-bold text-xs transition active:scale-95 cursor-pointer disabled:opacity-30 border border-white/10"
+            >
+              ↩ UNDO LAST SCORE
+            </button>
+          </div>
+
+          {/* Penalties */}
+          <div className="w-full bg-black/40 rounded-xl p-3 border border-blue-900/30">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-black uppercase text-blue-500/70 tracking-widest">PENALTIES</span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {[1, 2, 3, 4, 5].map((level) => {
+                const label = ['C1', 'C2', 'C3', 'HC', 'H'][level - 1];
+                const filled = c1Ao >= level;
+                return (
+                  <button
+                    key={level}
+                    onClick={() => addPenalty('ao', level)}
+                    disabled={!!winner}
+                    className={`flex flex-col items-center justify-center py-2 rounded-lg border transition cursor-pointer disabled:opacity-50 ${
+                      filled ? 'bg-blue-500 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'bg-blue-950/30 border-blue-900/30 hover:bg-blue-900/40'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-black mb-1 ${filled ? 'text-black' : 'text-blue-400'}`}>{label}</span>
+                    <PenDot filled={filled} />
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* ── BOTTOM BAR — KARATE TECH TIMER ── */}
-        <div className="shrink-0 flex items-center bg-black border-t border-white/10" style={{ height: '90px' }}>
+        {/* ── BOTTOM BAR — KARATE TECH LOGO & ACTIONS ── */}
+        <div className="shrink-0 flex items-center justify-between bg-black border-t border-white/10" style={{ height: '75px' }}>
           {/* KARATE TECH Logo area */}
           <div className="flex flex-col items-center justify-center px-6 border-r border-white/10 h-full" style={{ minWidth: '200px' }}>
             <div className="flex items-center gap-3">
@@ -925,23 +1005,7 @@ export default function ScoringPage() {
             </div>
           </div>
 
-          {/* Timer */}
-          <div className="flex-1 flex items-center justify-center">
-            <span
-              className={`font-black tabular-nums ${
-                timeLeft <= 30 && timerRunning ? 'text-red-400 animate-pulse' :
-                timeLeft === 0 ? 'text-red-500' : 'text-white'
-              }`}
-              style={{
-                fontSize: 'clamp(3rem, 7vw, 5.5rem)',
-                textShadow: timeLeft <= 30 && timerRunning ? '0 0 30px rgba(239,68,68,0.7)' : '0 0 20px rgba(255,255,255,0.2)',
-                letterSpacing: '-0.02em'
-              }}
-            >
-              {fmtTimeFull(timeLeft)}
-              <span className="text-2xl text-white/50">.0</span>
-            </span>
-          </div>
+          <div className="flex-1" />
 
           {/* Win declaration + save */}
           <div className="flex flex-col gap-1 px-4 border-l border-white/10 h-full justify-center">

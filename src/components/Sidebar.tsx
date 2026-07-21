@@ -50,11 +50,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <aside
       className={`
         no-print
-        w-64 bg-card border-r border-border h-screen flex flex-col shrink-0
-        transition-transform duration-300 ease-in-out
+        bg-card border-r border-border h-screen flex flex-col shrink-0
+        transition-all duration-300 ease-in-out overflow-hidden
         fixed top-0 left-0 z-40
-        md:static md:z-auto md:translate-x-0
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:static md:z-auto
+        ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full border-none px-0'}
       `}
     >
       <div className="h-16 flex items-center gap-3 px-6 border-b border-border">

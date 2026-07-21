@@ -77,10 +77,10 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
     <header className="h-16 px-6 glass-header flex items-center justify-between sticky top-0 z-10 w-full">
       {/* Left: Hamburger (mobile) + Tournament Identifier */}
       <div className="flex items-center gap-2">
-        {/* Hamburger menu — visible only on mobile */}
+        {/* Hamburger menu */}
         <button
           onClick={onMenuToggle}
-          className="md:hidden p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           aria-label="Toggle sidebar"
         >
           <Menu className="h-5 w-5" />

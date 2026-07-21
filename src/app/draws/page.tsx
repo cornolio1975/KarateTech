@@ -782,18 +782,67 @@ export default function DrawsPage() {
               {bronze ? ' · Bronze Medal Match included' : ''}
             </div>
 
-            {/* Elimination Bracket */}
-            <div className="print-bracket-wrapper" style={{ width: '100%', height: '520px', marginTop: '10px', position: 'relative' }}>
-              <SportdataBracket
-                bouts={catBouts}
-                participants={participants}
-                clubs={clubs}
-                categories={categories}
-                selectedCatId={cat.id}
-                canModify={false}
-                theme="light"
-                height="520px"
-              />
+            <div className="print-bracket" style={{ marginTop: '10px' }}>
+              {cat.format === 'round_robin' ? (
+                <table className="print-rr-table">
+                  <thead>
+                    <tr>
+                      <th>Bout</th>
+                      <th>AKA (Red)</th>
+                      <th>Score</th>
+                      <th>AO (Blue)</th>
+                      <th>Winner</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catBouts.map(b => (
+                      <tr key={b.id}>
+                        <td>{b.bout_no}</td>
+                        <td style={{ color: '#dc2626' }}>{participants.find(p => p.id === b.participant_a_id)?.full_name || 'TBD'}</td>
+                        <td style={{ textAlign: 'center' }}>{b.score_a} - {b.score_b}</td>
+                        <td style={{ color: '#2563eb' }}>{participants.find(p => p.id === b.participant_b_id)?.full_name || 'TBD'}</td>
+                        <td style={{ fontWeight: 'bold' }}>{participants.find(p => p.id === b.winner_id)?.full_name || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <>
+                  {Object.keys(roundsMap).map(roundKey => {
+                    const rBouts = roundsMap[Number(roundKey)];
+                    return (
+                      <div key={roundKey} className="print-round">
+                        <div className="print-round-title">Round {roundKey}</div>
+                        {rBouts.map(b => (
+                          <div key={b.id} className="print-bout-card">
+                            <div className="print-bout-header">
+                              <span>Match {b.bout_no}</span>
+                              <span>{b.tatami || 'TBA'}</span>
+                            </div>
+                            {renderPrintCompetitor(b.participant_a_id, b.score_a, b.winner_id === b.participant_a_id && !!b.winner_id, 'print-dot-red')}
+                            {renderPrintCompetitor(b.participant_b_id, b.score_b, b.winner_id === b.participant_b_id && !!b.winner_id, 'print-dot-blue')}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Third place match if exists */}
+                  {bronze && (
+                    <div className="print-round">
+                      <div className="print-round-title">3rd Place Match</div>
+                      <div className="print-bout-card">
+                        <div className="print-bout-header">
+                          <span>Match {bronze.bout_no}</span>
+                          <span>{bronze.tatami || 'TBA'}</span>
+                        </div>
+                        {renderPrintCompetitor(bronze.participant_a_id, bronze.score_a, bronze.winner_id === bronze.participant_a_id && !!bronze.winner_id, 'print-dot-red')}
+                        {renderPrintCompetitor(bronze.participant_b_id, bronze.score_b, bronze.winner_id === bronze.participant_b_id && !!bronze.winner_id, 'print-dot-blue')}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Signature block */}

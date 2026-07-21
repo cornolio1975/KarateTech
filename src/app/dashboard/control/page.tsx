@@ -7,7 +7,7 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant } from '@/db/types';
 import {
   Zap, Play, Square, RotateCcw, X, Award, Timer,
-  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv
+  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
@@ -51,7 +51,7 @@ export default function ScoreboardControlPage() {
   const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [matchDuration, setMatchDuration] = useState<number>(180);
-  const [goldenScore, setGoldenScore] = useState<boolean>(false);
+
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [hasTimerRun, setHasTimerRun] = useState<boolean>(false);
 
@@ -68,8 +68,29 @@ export default function ScoreboardControlPage() {
   const [spectatorConnected, setSpectatorConnected] = useState<boolean>(false);
   const [popupBlocked, setPopupBlocked] = useState<boolean>(false);
   const [isSpectatorModalOpen, setIsSpectatorModalOpen] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const lastSpectatorHeartbeat = useRef<number>(0);
   const spectatorWindowRef = useRef<Window | null>(null);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
@@ -314,7 +335,6 @@ export default function ScoreboardControlPage() {
       showPointHistory,
       timeLeft,
       timerActive,
-      goldenScore,
       winner: winnerSide,
       winMethod,
       matchDuration
@@ -324,7 +344,7 @@ export default function ScoreboardControlPage() {
     senshuAka, senshuAo, firstScorer,
     c1Aka, c1Ao,
     pointsAka, pointsAo, eventsAka, eventsAo, showPointHistory,
-    timeLeft, timerActive, goldenScore, winnerSide, winMethod, matchDuration
+    timeLeft, timerActive, winnerSide, winMethod, matchDuration
   ]);
 
   // Broadcast state updates in real-time
@@ -362,7 +382,7 @@ export default function ScoreboardControlPage() {
     scoreAka, scoreAo, senshuAka, senshuAo,
     c1Aka, c1Ao,
     pointsAka, pointsAo, eventsAka, eventsAo,
-    timeLeft, timerActive, goldenScore, winnerSide, winMethod, mounted, bout, broadcastState, boutId
+    timeLeft, timerActive, winnerSide, winMethod, mounted, bout, broadcastState, boutId
   ]);
 
   // Sound generator
@@ -520,8 +540,22 @@ export default function ScoreboardControlPage() {
     }
 
     // Complete tie: default suggestion is Hantei (referee decision)
-    return { side: 'aka', method: 'Hantei' };
+    return null;
   };
+
+  // Derive projected winner dynamically when time ends (before saving)
+  useEffect(() => {
+    if (timeLeft === 0 && !timerActive && bout?.status !== 'Completed') {
+      const result = autoDetermineWinner();
+      if (result) {
+        setWinnerSide(result.side);
+        setWinMethod(result.method);
+      } else {
+        setWinnerSide(null);
+        setWinMethod('Hantei');
+      }
+    }
+  }, [timeLeft, timerActive, scoreAka, scoreAo, senshuAka, senshuAo, c1Aka, c1Ao, bout?.status]);
 
   // Timer runner loop
   useEffect(() => {
@@ -531,16 +565,6 @@ export default function ScoreboardControlPage() {
           if (prev <= 1) {
             setTimerActive(false);
             triggerBuzzer();
-            const autoWin = autoDetermineWinner();
-            setWinnerSide(autoWin.side);
-            setWinMethod(autoWin.method);
-            const winnerId = autoWin.side === 'aka' ? bout?.participant_a_id : bout?.participant_b_id;
-            setBout(prev => prev ? { 
-              ...prev, 
-              status: 'Completed', 
-              winner_id: winnerId || null, 
-              victory_method: autoWin.method 
-            } : null);
             return 0;
           }
           const nextVal = prev - 1;
@@ -824,7 +848,7 @@ export default function ScoreboardControlPage() {
 
   // Manage Senshu - manual toggle (referee override only)
   const handleToggleSenshu = (side: 'aka' | 'ao') => {
-    if (bout?.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5 || winnerSide) return;
+    if (bout?.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5) return;
     pushHistory();
     if (side === 'aka') {
       if (firstScorer === 'aka') {
@@ -973,12 +997,7 @@ export default function ScoreboardControlPage() {
       });
 
       setShowFinishModal(false);
-      // Navigate back to Match Console Hub for the same category, or fall back to bouts
-      if (catId) {
-        router.push(`/categories?console=${catId}`);
-      } else {
-        router.push(`/bouts`);
-      }
+      // Removed automatic navigation so the operator stays on the completed scoreboard
     } catch (err) {
       console.error('Error saving bout result:', err);
       alert('Failed to save result. Please try again.');
@@ -1020,7 +1039,6 @@ export default function ScoreboardControlPage() {
       setWinMethod('');
       setTimeLeft(matchDuration * 10);
       setTimerActive(false);
-      setGoldenScore(false);
       setHistory([]);
 
       alert('Rematch initialized! Scoreboard and timer options are now unlocked to start a new match.');
@@ -1066,7 +1084,7 @@ export default function ScoreboardControlPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0b10] text-white flex flex-col">
+    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#0b0b10] text-white flex flex-col">
       {/* Header */}
       <header className="bg-[#0b0b10] border-b border-white/5 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
@@ -1102,6 +1120,19 @@ export default function ScoreboardControlPage() {
             <span>Spectator View</span>
           </button>
 
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              isFullscreen
+                ? 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
+            }`}
+          >
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+          </button>
+
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="p-2 hover:bg-white/5 rounded-lg transition"
@@ -1134,216 +1165,285 @@ export default function ScoreboardControlPage() {
         </div>
       )}
 
-      {/* Winning Decision Banner */}
-      {winnerSide && (
-        <div className={`text-white font-black text-center py-4 text-xl sm:text-2xl animate-pulse tracking-widest uppercase border-b z-20 ${
-          winMethod === 'HANSOKU' 
-            ? 'bg-red-600 border-red-500 shadow-[0_0_40px_rgba(220,38,38,0.5)]' 
-            : 'bg-green-600 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.5)]'
-        }`}>
-          {winMethod === 'HANSOKU' ? '🚨' : '🏆'} WINNER BY {
-            winMethod === 'Points' ? 'POINTS ADVANTAGE' :
-            winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' :
-            winMethod === 'Superior Points' ? 'SUPERIOR POINTS' :
-            winMethod === 'Hantei' ? 'HANTEI DECISION' :
-            winMethod === 'HANSOKU' ? 'HANSOKU DISQUALIFICATION' :
-            winMethod === 'Kiken' ? 'KIKEN (WITHDRAWAL)' :
-            winMethod || 'POINTS ADVANTAGE'
-          }: {winnerSide === 'aka' ? competitorAka?.full_name : competitorAo?.full_name} {winMethod === 'HANSOKU' ? '🚨' : '🏆'}
-        </div>
-      )}
 
-      {/* Main Scoreboard */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-auto">
-        {/* Left: AKA Red Side */}
-        <section className={`lg:col-span-5 border rounded-3xl p-6 flex flex-col justify-between min-h-[400px] transition-all duration-500 ${
-          winnerSide === 'aka' && winMethod === 'Superior Points'
-            ? 'bg-[#051a05] border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.35)]'
-            : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
-        }`}>
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-black uppercase tracking-wider text-red-400">AKA - RED</span>
-                {senshuAka && (
-                  <div className="flex items-center gap-1 bg-blue-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)]">
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                    SENSHU
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => handleToggleSenshu('aka')}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border transition cursor-pointer ${senshuAka
-                    ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.3)]'
-                    : 'bg-transparent text-white/40 border-white/15 hover:border-white/30'
-                  } disabled:opacity-25 disabled:cursor-not-allowed`}
-                title="Manual Senshu override (referee only)"
-              >
-                {senshuAka ? 'ON' : 'OFF'}
-              </button>
-            </div>
-
-            <h2 className="text-2xl font-black truncate mb-1">
-              {competitorAka?.full_name || 'TBD Red'}
-            </h2>
-            <p className="text-red-400/60 text-xs font-bold">
-              {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
-            </p>
-
-            <div className="my-8 flex flex-col items-center justify-center">
-              <span className={`text-9xl font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
-                winnerSide === 'aka' && winMethod === 'Superior Points'
-                  ? 'text-green-400 animate-pulse drop-shadow-[0_0_45px_rgba(34,197,94,0.7)]'
-                  : scoreAka - scoreAo >= 8
-                    ? 'text-red-400 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(220,38,38,0.65)]'
-                    : 'text-red-400 drop-shadow-[0_0_35px_rgba(220,38,38,0.25)]'
-              }`}>
-                {scoreAka}
-              </span>
-              {showPointHistory && eventsAka.length > 0 && (
-                <div className="flex items-center flex-wrap gap-y-1 mt-3 justify-center overflow-x-auto max-w-[220px]">
-                  {eventsAka.map((ev, idx) => (
-                    <div key={idx} className="flex items-center">
-                      {idx > 0 && (
-                        <span className="text-white/20 text-[9px] font-bold mx-1 select-none">→</span>
-                      )}
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-sm bg-red-950/80 border border-red-500/30 whitespace-nowrap">
-                        <span className="text-[9px] font-black text-red-400">{ev.technique}</span>
-                        <span className="text-[7px] font-bold text-red-600/70">({idx + 1})</span>
-                      </span>
-                    </div>
-                  ))}
+      {/* Main Scoreboard - No Scroll Layout */}
+      <main className="flex-1 flex flex-col gap-2 p-2 lg:p-4 overflow-hidden min-h-0">
+        {/* ROW 1: Visual Displays (AKA | TIMER | AO) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-4 flex-1 min-h-0">
+          
+          {/* AKA Display Panel */}
+          <section className={`lg:col-span-3 border rounded-3xl p-4 flex flex-col justify-center items-center transition-all duration-500 ${
+            winnerSide === 'aka'
+              ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)] animate-blink'
+              : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
+          }`}>
+            <div className="flex items-center justify-between w-full mb-2">
+              <span className="text-base font-black uppercase tracking-wider text-red-400">AKA - RED</span>
+              {senshuAka && (
+                <div className="flex items-center gap-1 bg-yellow-500 text-black text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
+                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                  SENSHU
                 </div>
               )}
             </div>
-          </div>
 
-          <div>
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              <button
-                onClick={() => handleAddScore('aka', 1)}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className="py-3 bg-red-900/40 hover:bg-red-900/60 border border-red-800/30 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-              >
-                +1 Yuko
-              </button>
-              <button
-                onClick={() => handleAddScore('aka', 2)}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className="py-3 bg-red-800/40 hover:bg-red-800/60 border border-red-700/30 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-              >
-                +2 Waza
-              </button>
-              <button
-                onClick={() => handleAddScore('aka', 3)}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className="py-3 bg-red-700/40 hover:bg-red-700/60 border border-red-600/30 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-              >
-                +3 Ippon
-              </button>
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-1">
+              <span className={`text-[clamp(3rem,6vw,6rem)] font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
+                winnerSide === 'aka'
+                  ? 'text-red-500 animate-blink drop-shadow-[0_0_45px_rgba(239,68,68,0.7)] scale-110'
+                  : scoreAka - scoreAo >= 8
+                    ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(239,68,68,0.65)]'
+                    : 'text-red-500 drop-shadow-[0_0_35px_rgba(220,38,38,0.25)]'
+              }`}>
+                {scoreAka}
+              </span>
             </div>
 
-            <div className="border-t border-red-900/20 pt-4">
-              <div>
-                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/60 mb-2">
-                  Penalties (C1, C2, C3, HC, H)
-                </p>
-                <div className="grid grid-cols-5 gap-1">
-                  {[1, 2, 3, 4, 5].map((level) => {
-                    const isActive = c1Aka >= level;
-                    const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => handleTogglePenalty('aka', level)}
-                        disabled={!!winnerSide || bout.status === 'Completed' || (c1Aka >= 5 && level !== c1Aka) || c1Ao >= 5}
-                        className={`py-2 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
-                            ? 'bg-red-500 text-black border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.3)]'
-                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
-                          }`}
-                      >
-                        {labels[level]}
-                      </button>
-                    );
-                  })}
-                </div>
+            <h2 className="text-xl font-black truncate text-center mb-0.5 mt-auto">
+              {competitorAka?.full_name || 'TBD Red'}
+            </h2>
+            <p className="text-red-400/60 text-[10px] font-bold text-center">
+              {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
+            </p>
+
+            {showPointHistory && eventsAka.length > 0 && (
+              <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1">
+                {eventsAka.map((ev, idx) => (
+                  <div key={idx} className="flex items-center shrink-0">
+                    {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-1 select-none">→</span>}
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
+                      <span className="text-[8px] font-black text-red-400 uppercase">+{ev.points}({ev.technique})</span>
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
-        </section>
+            )}
+          </section>
 
-        {/* Center: Timer & Controls */}
-        <section className="lg:col-span-2 flex flex-col gap-4">
-          <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 text-center flex-1 flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">Countdown</span>
-
-              <div className={`text-5xl font-black font-mono leading-none my-6 select-none flex items-baseline justify-center ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-yellow-400'
-                }`}>
+          {/* TIMER Display Panel */}
+          <section className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-3xl p-4 flex flex-col justify-center items-center text-center min-h-0">
+            <span className="text-[10px] uppercase font-black text-white/40 tracking-wider mb-2">Match Timer</span>
+            <div className="flex-1 flex items-center justify-center w-full min-h-0">
+              <div className={`text-[clamp(4rem,8vw,8rem)] font-black font-mono leading-none select-none flex items-baseline justify-center ${
+                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.2)]'
+              }`}>
                 <span>{formatMainTime(timeLeft)}</span>
-                <span className={`text-2xl font-bold ml-0.5 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/50'
-                  }`}>{formatDecsTime(timeLeft)}</span>
-              </div>
-
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <span className={`w-2 h-2 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
-                <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
-                  {timerActive ? 'ACTIVE RUNNING' : 'PAUSED'}
-                </span>
+                <span className={`text-[clamp(2rem,4vw,4rem)] font-bold ml-1 lg:ml-2 ${
+                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/50'
+                }`}>{formatDecsTime(timeLeft)}</span>
               </div>
             </div>
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              <span className={`w-2 h-2 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
+              <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
+                {timerActive ? 'ACTIVE RUNNING' : 'PAUSED'}
+              </span>
+            </div>
+          </section>
 
-            <div className="space-y-2">
+          {/* AO Display Panel */}
+          <section className={`lg:col-span-3 border rounded-3xl p-4 flex flex-col justify-center items-center transition-all duration-500 ${
+            winnerSide === 'ao'
+              ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)] animate-blink'
+              : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
+          }`}>
+            <div className="flex items-center justify-between w-full mb-2">
+              {senshuAo && (
+                <div className="flex items-center gap-1 bg-yellow-500 text-black text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
+                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                  SENSHU
+                </div>
+              )}
+              <span className="text-base font-black uppercase tracking-wider text-blue-400 ml-auto">AO - BLUE</span>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-1">
+              <span className={`text-[clamp(3rem,6vw,6rem)] font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
+                winnerSide === 'ao'
+                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_45px_rgba(59,130,246,0.7)] scale-110'
+                  : scoreAo - scoreAka >= 8
+                    ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(59,130,246,0.65)]'
+                    : 'text-blue-400 drop-shadow-[0_0_35px_rgba(59,130,246,0.3)]'
+              }`}>
+                {scoreAo}
+              </span>
+            </div>
+
+            <h2 className="text-xl font-black truncate text-center mb-0.5 mt-auto">
+              {competitorAo?.full_name || 'TBD Blue'}
+            </h2>
+            <p className="text-blue-400/60 text-[10px] font-bold text-center">
+              {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
+            </p>
+
+            {showPointHistory && eventsAo.length > 0 && (
+              <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1">
+                {eventsAo.map((ev, idx) => (
+                  <div key={idx} className="flex items-center shrink-0">
+                    {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-1 select-none">→</span>}
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
+                      <span className="text-[8px] font-black text-blue-400 uppercase">+{ev.points}({ev.technique})</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+        </div>
+
+        {/* ROW 2: Control Interfaces (AKA CONTROLS | REFEREE OPTIONS | AO CONTROLS) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-4 shrink-0 mt-auto">
+          
+          {/* AKA Score Buttons */}
+          <div className="lg:col-span-3 grid grid-cols-3 gap-2">
+            <button
+              onClick={() => handleAddScore('aka', 1)}
+              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+              className="py-2.5 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+1</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Yuko</span>
+            </button>
+            <button
+              onClick={() => handleAddScore('aka', 2)}
+              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+              className="py-2.5 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+2</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Waza-ari</span>
+            </button>
+            <button
+              onClick={() => handleAddScore('aka', 3)}
+              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+              className="py-2.5 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+3</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Ippon</span>
+            </button>
+          </div>
+
+          {/* Timer Controls */}
+          <div className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-xl p-3 grid grid-cols-4 gap-2">
+            <div className="col-span-2">
               {timerActive ? (
                 <button
                   onClick={handleStopTimer}
                   disabled={bout.status === 'Completed'}
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-red-950/20"
+                  className="w-full h-full bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-lg font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-red-950/40"
                 >
-                  <Square className="h-4 w-4 fill-white" /> Stop Timer
+                  <Square className="h-5 w-5 fill-white" /> Stop Timer
                 </button>
               ) : (
                 <button
                   onClick={handleStartTimer}
                   disabled={timeLeft === 0 || bout.status === 'Completed'}
-                  className="w-full py-3.5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-green-950/20"
+                  className="w-full h-full bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-green-950/40"
                 >
-                  <Play className="h-4 w-4 fill-white" /> Start Timer
+                  <Play className="h-5 w-5 fill-white" /> Start Timer
                 </button>
               )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleAdjustTime(-10)}
-                  disabled={timerActive || bout.status === 'Completed'}
-                  className="py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
-                >
-                  -10s
-                </button>
-                <button
-                  onClick={() => handleAdjustTime(10)}
-                  disabled={timerActive || bout.status === 'Completed'}
-                  className="py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
-                >
-                  +10s
-                </button>
-              </div>
-
+            </div>
+            
+            <button
+              onClick={handleResetTimer}
+              disabled={timerActive || bout.status === 'Completed'}
+              className="h-full bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-white/10"
+            >
+              <RotateCcw className="h-4 w-4" /> Reset
+            </button>
+            
+            <div className="grid grid-rows-2 gap-1.5">
               <button
-                onClick={handleResetTimer}
+                onClick={() => handleAdjustTime(1)}
                 disabled={timerActive || bout.status === 'Completed'}
-                className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-white/10"
+                className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs uppercase transition cursor-pointer border border-white/20"
               >
-                <RotateCcw className="h-3.5 w-3.5" /> Reset Clock
+                +1s
+              </button>
+              <button
+                onClick={() => handleAdjustTime(-1)}
+                disabled={timerActive || bout.status === 'Completed'}
+                className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs uppercase transition cursor-pointer border border-white/20"
+              >
+                -1s
               </button>
             </div>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-5 space-y-4">
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Match Time</label>
+          {/* AO Score Buttons */}
+          <div className="lg:col-span-3 grid grid-cols-3 gap-2">
+            <button
+              onClick={() => handleAddScore('ao', 1)}
+              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+              className="py-2.5 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+1</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Yuko</span>
+            </button>
+            <button
+              onClick={() => handleAddScore('ao', 2)}
+              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+              className="py-2.5 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+2</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Waza-ari</span>
+            </button>
+            <button
+              onClick={() => handleAddScore('ao', 3)}
+              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+              className="py-2.5 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+3</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Ippon</span>
+            </button>
+          </div>
+
+        </div>
+
+        {/* ROW 3: Secondary Controls (Penalties & Settings) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 shrink-0">
+          
+          {/* AKA Penalties */}
+          <div className="lg:col-span-3 bg-red-950/10 border border-red-900/20 rounded-xl p-3 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] uppercase font-black tracking-widest text-red-400/60">AKA Penalties</span>
+              <button
+                onClick={() => handleToggleSenshu('aka')}
+                disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAka
+                    ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
+                    : 'bg-transparent text-white/40 border-white/15'
+                  } disabled:opacity-25 disabled:cursor-not-allowed`}
+              >
+                SENSHU {senshuAka ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {[1, 2, 3, 4, 5].map((level) => {
+                const isActive = c1Aka >= level;
+                const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
+                return (
+                  <button
+                    key={level}
+                    onClick={() => handleTogglePenalty('aka', level)}
+                    disabled={bout.status === 'Completed' || (c1Aka >= 5 && level !== c1Aka) || c1Ao >= 5}
+                    className={`py-2 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                        ? 'bg-red-500 text-black border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.3)]'
+                        : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                      }`}
+                  >
+                    {labels[level]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Match Settings / Timer Length */}
+          <div className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-xl p-3 flex items-center justify-center gap-4">
+            <div className="flex-1">
+              <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Match Duration</label>
               <select
                 value={matchDuration}
                 onChange={e => {
@@ -1352,7 +1452,7 @@ export default function ScoreboardControlPage() {
                   setTimeLeft(val * 10);
                 }}
                 disabled={timerActive || bout.status === 'Completed'}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
+                className="w-full bg-[#101015] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value={60}>1:00 Minute</option>
                 <option value={90}>1:30 Minutes</option>
@@ -1360,140 +1460,53 @@ export default function ScoreboardControlPage() {
                 <option value={180}>3:00 Minutes</option>
               </select>
             </div>
-
-            <div className="flex items-center justify-between border-t border-white/5 pt-3.5">
-              <span className="text-[10px] uppercase font-bold text-gray-400">Golden Score</span>
-              <button
-                onClick={() => setGoldenScore(!goldenScore)}
-                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase transition cursor-pointer border ${goldenScore
-                    ? 'bg-yellow-400 text-black border-yellow-300'
-                    : 'bg-transparent text-white/30 border-white/5 hover:border-white/10'
-                  }`}
-              >
-                {goldenScore ? 'ACTIVE' : 'OFF'}
-              </button>
-            </div>
+            <div className="w-px h-8 bg-white/10"></div>
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0 || bout.status === 'Completed'}
+              className="flex-1 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-xs uppercase transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw className="h-3 w-3" /> Undo Last Action
+            </button>
           </div>
-        </section>
 
-        {/* Right: AO Blue Side */}
-        <section className={`lg:col-span-5 border rounded-3xl p-6 flex flex-col justify-between min-h-[400px] transition-all duration-500 ${
-          winnerSide === 'ao' && winMethod === 'Superior Points'
-            ? 'bg-[#051a05] border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.35)]'
-            : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
-        }`}>
-          <div>
-            <div className="flex items-center justify-between mb-4">
+          {/* AO Penalties */}
+          <div className="lg:col-span-3 bg-blue-950/10 border border-blue-900/20 rounded-xl p-3 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-1.5">
               <button
                 onClick={() => handleToggleSenshu('ao')}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border transition cursor-pointer ${senshuAo
-                    ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.3)]'
-                    : 'bg-transparent text-white/40 border-white/15 hover:border-white/30'
+                disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
+                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAo
+                    ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
+                    : 'bg-transparent text-white/40 border-white/15'
                   } disabled:opacity-25 disabled:cursor-not-allowed`}
-                title="Manual Senshu override (referee only)"
               >
-                {senshuAo ? 'ON' : 'OFF'}
+                SENSHU {senshuAo ? 'ON' : 'OFF'}
               </button>
-              <div className="flex items-center gap-2">
-                {senshuAo && (
-                  <div className="flex items-center gap-1 bg-blue-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)]">
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                    SENSHU
-                  </div>
-                )}
-                <span className="text-base font-black uppercase tracking-wider text-blue-400">AO - BLUE</span>
-              </div>
+              <span className="text-[10px] uppercase font-black tracking-widest text-blue-400/60">AO Penalties</span>
             </div>
-
-            <h2 className="text-2xl font-black truncate text-right mb-1">
-              {competitorAo?.full_name || 'TBD Blue'}
-            </h2>
-            <p className="text-blue-400/60 text-xs font-bold text-right">
-              {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
-            </p>
-
-            <div className="my-8 flex flex-col items-center justify-center">
-              <span className={`text-9xl font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
-                winnerSide === 'ao' && winMethod === 'Superior Points'
-                  ? 'text-green-400 animate-pulse drop-shadow-[0_0_45px_rgba(34,197,94,0.7)]'
-                  : scoreAo - scoreAka >= 8
-                    ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(59,130,246,0.65)]'
-                    : 'text-blue-400 drop-shadow-[0_0_35px_rgba(59,130,246,0.25)]'
-              }`}>
-                {scoreAo}
-              </span>
-              {showPointHistory && eventsAo.length > 0 && (
-                <div className="flex items-center flex-wrap gap-y-1 mt-3 justify-center overflow-x-auto max-w-[220px]">
-                  {eventsAo.map((ev, idx) => (
-                    <div key={idx} className="flex items-center">
-                      {idx > 0 && (
-                        <span className="text-white/20 text-[9px] font-bold mx-1 select-none">→</span>
-                      )}
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-sm bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
-                        <span className="text-[9px] font-black text-blue-400">{ev.technique}</span>
-                        <span className="text-[7px] font-bold text-blue-600/70">({idx + 1})</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="grid grid-cols-5 gap-1.5">
+              {[1, 2, 3, 4, 5].map((level) => {
+                const isActive = c1Ao >= level;
+                const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
+                return (
+                  <button
+                    key={level}
+                    onClick={() => handleTogglePenalty('ao', level)}
+                    disabled={bout.status === 'Completed' || c1Aka >= 5 || (c1Ao >= 5 && level !== c1Ao)}
+                    className={`py-2 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                        ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                        : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                      }`}
+                  >
+                    {labels[level]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div>
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              <button
-                onClick={() => handleAddScore('ao', 1)}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className="py-3 bg-blue-900/40 hover:bg-blue-900/60 border border-blue-800/30 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-              >
-                +1 Yuko
-              </button>
-              <button
-                onClick={() => handleAddScore('ao', 2)}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className="py-3 bg-blue-800/40 hover:bg-blue-800/60 border border-blue-700/30 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-              >
-                +2 Waza
-              </button>
-              <button
-                onClick={() => handleAddScore('ao', 3)}
-                disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className="py-3 bg-blue-700/40 hover:bg-blue-700/60 border border-blue-600/30 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-              >
-                +3 Ippon
-              </button>
-            </div>
-
-            <div className="border-t border-blue-900/20 pt-4">
-              <div>
-                <p className="text-[9px] uppercase font-black tracking-widest text-blue-400/60 mb-2 text-right">
-                  Penalties (C1, C2, C3, HC, H)
-                </p>
-                <div className="grid grid-cols-5 gap-1">
-                  {[1, 2, 3, 4, 5].map((level) => {
-                    const isActive = c1Ao >= level;
-                    const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => handleTogglePenalty('ao', level)}
-                        disabled={!!winnerSide || bout.status === 'Completed' || c1Aka >= 5 || (c1Ao >= 5 && level !== c1Ao)}
-                        className={`py-2 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
-                            ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
-                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
-                          }`}
-                      >
-                        {labels[level]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        </div>
       </main>
 
       {/* Keyboard guide footer */}
