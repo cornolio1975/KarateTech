@@ -43,8 +43,8 @@ export default function PublicRegistrationPage() {
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
-      const isProd = window.location.hostname.includes('github.io') || window.location.pathname.includes('/Kelab-Senshi-Goju-Ryu-Karate-');
-      setBasePath(isProd ? '/Kelab-Senshi-Goju-Ryu-Karate-' : '');
+      const isProd = window.location.hostname.includes('github.io') || window.location.pathname.includes('/KarateTech-') || window.location.pathname.includes('/Kelab-Senshi-Goju-Ryu-Karate-');
+      setBasePath(isProd ? (window.location.pathname.includes('/KarateTech-') ? '/KarateTech-' : '/Kelab-Senshi-Goju-Ryu-Karate-') : '');
       
       const customName = localStorage.getItem('ts_upcoming_name');
       if (customName !== null) setTournamentName(customName);

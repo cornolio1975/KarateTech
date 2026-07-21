@@ -62,7 +62,7 @@ const TOURNAMENTS: Tournament[] = [
 
 // ─── Registration URL ──────────────────────────────────────────────────────
 const REGISTRATION_URL =
-  'https://cornolio1975.github.io/Kelab-Senshi-Goju-Ryu-Karate-/login/';
+  'https://cornolio1975.github.io/KarateTech-/login/';
 
 // ─── Countdown Hook ────────────────────────────────────────────────────────
 
