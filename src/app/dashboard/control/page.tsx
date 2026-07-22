@@ -1089,81 +1089,81 @@ export default function ScoreboardControlPage() {
   }
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#0b0b10] text-white flex flex-col">
+    <div className="h-full w-full overflow-hidden bg-[#0b0b10] text-white flex flex-col min-h-0">
       {/* Header */}
-      <header className="bg-[#0b0b10] border-b border-white/5 px-6 py-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/bouts" className="p-2 hover:bg-white/5 rounded-lg transition">
-            <ChevronLeft className="h-5 w-5" />
+      <header className="bg-[#0b0b10] border-b border-white/5 px-4 py-1.5 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Link href="/bouts" className="p-1 hover:bg-white/5 rounded-lg transition">
+            <ChevronLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-sm font-black uppercase tracking-wider">Scoreboard Control</h1>
-            <p className="text-xs text-gray-500">{tournamentName || 'Tournament'}</p>
+            <h1 className="text-xs font-black uppercase tracking-wider">Scoreboard Control</h1>
+            <p className="text-[9px] text-gray-500">{tournamentName || 'Tournament'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {/* Status Indicator */}
           <button
             onClick={handleSpectatorIndicatorClick}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border cursor-pointer ${
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition border cursor-pointer ${
               spectatorConnected 
                 ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20' 
                 : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20'
             }`}
             title={spectatorConnected ? "Focus existing spectator view" : "Launch spectator view"}
           >
-            <span className={`w-2 h-2 rounded-full ${spectatorConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${spectatorConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
             <span>{spectatorConnected ? 'Spectator Connected' : 'Spectator Closed'}</span>
           </button>
 
           {/* Spectator View button */}
           <button
             onClick={handleSpectatorButtonClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-xs font-bold transition cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-[10px] font-bold transition cursor-pointer"
           >
-            <Tv className="h-3.5 w-3.5" />
+            <Tv className="h-3 w-3" />
             <span>Spectator View</span>
           </button>
 
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
               isFullscreen
                 ? 'bg-white/10 text-white border-white/20 hover:bg-white/20'
                 : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
             }`}
           >
-            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
             <span className="hidden sm:inline">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
           </button>
 
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-2 hover:bg-white/5 rounded-lg transition"
+            className="p-1 hover:bg-white/5 rounded-lg transition"
           >
-            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
           </button>
           <button
             onClick={handleUndo}
             disabled={history.length === 0}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-lg text-xs font-bold transition"
+            className="flex items-center gap-1 px-2 py-0.5 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-lg text-[10px] font-bold transition"
           >
-            <Undo className="h-3.5 w-3.5" /> Undo
+            <Undo className="h-3 w-3" /> Undo
           </button>
         </div>
       </header>
 
       {/* Popup Blocked Warning */}
       {popupBlocked && (
-        <div className="bg-amber-500 text-black px-6 py-2.5 flex items-center justify-between text-xs font-bold shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">⚠️</span>
+        <div className="bg-amber-500 text-black px-3 py-1 flex items-center justify-between text-[11px] font-bold shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs">⚠️</span>
             <span>Please allow pop-ups to automatically open the Spectator View on this device.</span>
           </div>
           <button
             onClick={() => openSpectatorWindow('default')}
-            className="px-3 py-1 bg-black text-white hover:bg-black/90 rounded-md text-[10px] uppercase tracking-wider font-black transition cursor-pointer"
+            className="px-2 py-0.5 bg-black text-white hover:bg-black/90 rounded text-[9px] uppercase tracking-wider font-black transition cursor-pointer"
           >
             Open Spectator View
           </button>
@@ -1171,21 +1171,21 @@ export default function ScoreboardControlPage() {
       )}
 
 
-      {/* Main Scoreboard - No Scroll Layout */}
-      <main className="flex-1 flex flex-col gap-2 p-2 lg:p-4 overflow-hidden min-h-0">
+      {/* Main Scoreboard - Single Viewport Layout (No Scroll) */}
+      <main className="flex-1 flex flex-col gap-1 p-2 overflow-hidden min-h-0">
         {/* Hansoku Disqualification Blinking Banner */}
         {(c1Aka >= 5 || c1Ao >= 5) && !winnerSide && (
-          <div className="bg-red-600 text-white font-black text-center py-2 text-xl lg:text-2xl rounded-2xl mb-1 animate-pulse tracking-widest uppercase border-2 border-red-500 shadow-[0_0_30px_rgba(220,38,38,0.6)] z-20 shrink-0">
+          <div className="bg-red-600 text-white font-black text-center py-0.5 text-xs lg:text-sm rounded-lg mb-0.5 animate-pulse tracking-widest uppercase border border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.6)] z-20 shrink-0">
             🚨 HANSOKU DISQUALIFICATION – {c1Aka >= 5 ? 'AKA (RED)' : 'AO (BLUE)'} 🚨
           </div>
         )}
 
         {/* Dynamic Winner Alert Header */}
         {winnerSide && (
-          <div className={`p-2 lg:p-3 mb-1 shrink-0 rounded-2xl flex items-center justify-center font-black text-base lg:text-xl tracking-widest uppercase border-2 shadow-xl animate-pulse z-20 ${
+          <div className={`p-1 mb-0.5 shrink-0 rounded-lg flex items-center justify-center font-black text-xs lg:text-sm tracking-widest uppercase border shadow-lg animate-pulse z-20 ${
             winnerSide === 'aka'
-              ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.5)]'
-              : 'bg-blue-950/90 text-blue-400 border-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.5)]'
+              ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)]'
+              : 'bg-blue-950/90 text-blue-400 border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)]'
           }`}>
             {winMethod === 'HANSOKU' ? '🚨' : '🏆'} WINNER BY {
               winMethod === 'Points' ? 'POINTS ADVANTAGE' :
@@ -1200,10 +1200,10 @@ export default function ScoreboardControlPage() {
         )}
 
         {/* ROW 1: Visual Displays & Controls (3-Column Layout: AKA | TIMER | AO) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-3 flex-1 min-h-0 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-1.5 lg:gap-2 flex-1 min-h-0 overflow-hidden">
           
           {/* AKA Display & Control Panel */}
-          <section className={`lg:col-span-4 border rounded-3xl p-3 lg:p-4 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
+          <section className={`lg:col-span-4 border rounded-xl p-2.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
             winnerSide === 'aka'
               ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_80px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)]'
               : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
@@ -1211,44 +1211,44 @@ export default function ScoreboardControlPage() {
             {/* Header & Fighter Name */}
             <div className="w-full flex flex-col items-center shrink-0">
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs lg:text-sm font-black uppercase tracking-wider text-red-400">AKA - RED</span>
+                <span className="text-lg lg:text-2xl font-black uppercase tracking-widest text-red-400">AKA - RED</span>
                 {senshuAka && (
-                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
-                    <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-xs font-black uppercase px-3 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)]">
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
                     SENSHU
                   </div>
                 )}
               </div>
 
               <div className="w-full text-center mt-0.5">
-                <h2 className="font-competitor text-[clamp(16px,1.8vw,22px)] font-extrabold truncate max-w-full text-center uppercase leading-tight" title={competitorAka?.full_name || 'TBD Red'}>
+                <h2 className="font-competitor text-base md:text-lg lg:text-xl font-bold truncate max-w-full text-center uppercase leading-tight text-white tracking-tight" title={competitorAka?.full_name || 'TBD Red'}>
                   {competitorAka?.full_name || 'TBD Red'}
                 </h2>
-                <p className="text-red-400/60 text-[10px] font-bold text-center truncate max-w-full">
+                <p className="text-xs md:text-sm font-semibold text-red-400/80 text-center truncate max-w-full mt-0.5">
                   {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
                 </p>
               </div>
             </div>
 
             {/* Score & Point History */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-1">
-              <span className={`font-din text-[clamp(65px,10vh,120px)] font-bold leading-none tracking-tight select-none transition-all duration-300 ${
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-0.5">
+              <span className={`font-din text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
                 winnerSide === 'aka'
-                  ? 'text-red-500 animate-blink drop-shadow-[0_0_45px_rgba(239,68,68,0.7)] scale-105'
+                  ? 'text-red-500 animate-blink drop-shadow-[0_0_50px_rgba(239,68,68,0.95)] scale-105'
                   : scoreAka - scoreAo >= 8
-                    ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(239,68,68,0.65)]'
-                    : 'text-red-500 drop-shadow-[0_0_35px_rgba(220,38,38,0.25)]'
+                    ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_50px_rgba(239,68,68,0.85)]'
+                    : 'text-red-500 drop-shadow-[0_0_40px_rgba(220,38,38,0.5)]'
               }`}>
                 {scoreAka}
               </span>
 
               {showPointHistory && eventsAka.length > 0 && (
-                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1 px-1">
+                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-0.5 px-1">
                   {eventsAka.map((ev, idx) => (
                     <div key={idx} className="flex items-center shrink-0">
-                      {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-0.5 select-none">→</span>}
+                      {idx > 0 && <span className="text-white/20 text-[9px] font-bold mx-0.5 select-none">→</span>}
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
-                        <span className="text-[8px] font-black text-red-400 uppercase">+{ev.points}({ev.technique})</span>
+                        <span className="text-[9px] md:text-[10px] font-black text-red-400 uppercase">+{ev.points}({ev.technique})</span>
                       </span>
                     </div>
                   ))}
@@ -1257,51 +1257,51 @@ export default function ScoreboardControlPage() {
             </div>
 
             {/* AKA Controls: Score Buttons + Penalties */}
-            <div className="w-full flex flex-col gap-2 pt-2 border-t border-red-900/30 shrink-0">
+            <div className="w-full flex flex-col gap-1.5 pt-1.5 border-t border-red-900/30 shrink-0 pb-1">
               {/* Score Buttons */}
-              <div className="grid grid-cols-3 gap-1.5 w-full">
+              <div className="grid grid-cols-3 gap-1 w-full">
                 <button
                   onClick={() => handleAddScore('aka', 1)}
                   disabled={bout.status === 'Completed'}
-                  className="py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                  className="py-1.5 lg:py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-lg flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
                 >
-                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+1</span>
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Yuko</span>
+                  <span className="text-sm md:text-base lg:text-lg font-black uppercase tracking-wider leading-none">+1</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight mt-0.5">Yuko</span>
                 </button>
                 <button
                   onClick={() => handleAddScore('aka', 2)}
                   disabled={bout.status === 'Completed'}
-                  className="py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                  className="py-1.5 lg:py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-lg flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
                 >
-                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+2</span>
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Waza-ari</span>
+                  <span className="text-sm md:text-base lg:text-lg font-black uppercase tracking-wider leading-none">+2</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight mt-0.5">Waza-ari</span>
                 </button>
                 <button
                   onClick={() => handleAddScore('aka', 3)}
                   disabled={bout.status === 'Completed'}
-                  className="py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                  className="py-1.5 lg:py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-lg flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
                 >
-                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+3</span>
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Ippon</span>
+                  <span className="text-sm md:text-base lg:text-lg font-black uppercase tracking-wider leading-none">+3</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight mt-0.5">Ippon</span>
                 </button>
               </div>
 
               {/* Penalties Row */}
               <div className="w-full">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] uppercase font-black tracking-widest text-red-400/60">AKA Penalties</span>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[8px] uppercase font-black tracking-widest text-red-400/60">AKA Penalties</span>
                   <button
                     onClick={() => handleToggleSenshu('aka')}
                     disabled={bout.status === 'Completed'}
-                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAka
-                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
+                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border transition cursor-pointer ${senshuAka
+                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
                         : 'bg-transparent text-white/40 border-white/15'
                       } disabled:opacity-25 disabled:cursor-not-allowed`}
                   >
                     SENSHU {senshuAka ? 'ON' : 'OFF'}
                   </button>
                 </div>
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-5 gap-0.5">
                   {[1, 2, 3, 4, 5].map((level) => {
                     const isActive = c1Aka >= level;
                     const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
@@ -1310,8 +1310,8 @@ export default function ScoreboardControlPage() {
                         key={level}
                         onClick={() => handleTogglePenalty('aka', level)}
                         disabled={bout.status === 'Completed'}
-                        className={`py-1.5 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
-                            ? 'bg-red-500 text-black border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.3)]'
+                        className={`py-1 rounded text-[10px] md:text-[11px] font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                            ? 'bg-red-500 text-black border-red-400 shadow-[0_0_8px_rgba(220,38,38,0.3)]'
                             : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
                           }`}
                       >
@@ -1325,47 +1325,47 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* TIMER Display & Control Panel (Middle Column) */}
-          <section className="lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-3xl p-3 lg:p-4 flex flex-col justify-between items-center text-center overflow-hidden">
-            <span className="text-xs uppercase font-black text-white/50 tracking-widest shrink-0">Match Timer</span>
+          <section className="lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-xl p-2.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden">
+            <span className="text-base lg:text-xl uppercase font-black text-white/80 tracking-[0.3em] shrink-0">MATCH TIMER</span>
             
             {/* Giant Timer */}
-            <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-1">
-              <div className={`font-din text-[clamp(80px,13vh,140px)] font-bold leading-none select-none flex items-baseline justify-center tracking-tight ${
-                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : 'text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]'
+            <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-0.5">
+              <div className={`font-din text-[clamp(80px,12vh,155px)] font-black leading-none select-none flex items-baseline justify-center tracking-tight ${
+                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_35px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]'
               }`}>
                 <span>{formatMainTime(timeLeft)}</span>
-                <span className={`font-din text-[clamp(40px,6vh,70px)] font-bold ml-1 lg:ml-2 ${
-                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/70'
+                <span className={`font-din text-[clamp(36px,5.5vh,64px)] font-black ml-1 ${
+                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'
                 }`}>{formatDecsTime(timeLeft)}</span>
               </div>
-              <div className="flex items-center justify-center gap-1.5 mt-1">
-                <span className={`w-2 h-2 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
-                <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <span className={`w-3 h-3 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
+                <span className="text-xs md:text-sm font-black uppercase text-white/70 tracking-wider">
                   {timerActive ? 'ACTIVE RUNNING' : 'PAUSED'}
                 </span>
               </div>
             </div>
 
             {/* Integrated Controls */}
-            <div className="w-full flex flex-col gap-2 pt-2 border-t border-white/10 shrink-0">
+            <div className="w-full flex flex-col gap-1.5 pt-1.5 border-t border-white/10 shrink-0 pb-1">
               {/* Primary Controls */}
-              <div className="grid grid-cols-4 gap-1.5 w-full">
+              <div className="grid grid-cols-4 gap-1 w-full">
                 <div className="col-span-2">
                   {timerActive ? (
                     <button
                       onClick={handleStopTimer}
                       disabled={bout.status === 'Completed'}
-                      className="w-full h-full py-2 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-red-950/40"
+                      className="w-full h-full py-1.5 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1 transition cursor-pointer shadow-md shadow-red-950/40"
                     >
-                      <Square className="h-4 w-4 fill-white" /> Stop Timer
+                      <Square className="h-3 w-3 fill-white" /> Stop Timer
                     </button>
                   ) : (
                     <button
                       onClick={handleStartTimer}
                       disabled={timeLeft === 0 || bout.status === 'Completed'}
-                      className="w-full h-full py-2 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-green-950/40"
+                      className="w-full h-full py-1.5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1 transition cursor-pointer shadow-md shadow-green-950/40"
                     >
-                      <Play className="h-4 w-4 fill-white" /> Start Timer
+                      <Play className="h-3 w-3 fill-white" /> Start Timer
                     </button>
                   )}
                 </div>
@@ -1373,23 +1373,23 @@ export default function ScoreboardControlPage() {
                 <button
                   onClick={handleResetTimer}
                   disabled={timerActive || bout.status === 'Completed'}
-                  className="py-2 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
+                  className="py-1.5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-0.5 transition cursor-pointer border border-white/10"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" /> Reset
+                  <RotateCcw className="h-3 w-3" /> Reset
                 </button>
                 
-                <div className="grid grid-rows-2 gap-1">
+                <div className="grid grid-rows-2 gap-0.5">
                   <button
                     onClick={() => handleAdjustTime(1)}
                     disabled={timerActive || bout.status === 'Completed'}
-                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[10px] uppercase transition cursor-pointer border border-white/20"
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[8px] uppercase transition cursor-pointer border border-white/20 py-0.5"
                   >
                     +1s
                   </button>
                   <button
                     onClick={() => handleAdjustTime(-1)}
                     disabled={timerActive || bout.status === 'Completed'}
-                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[10px] uppercase transition cursor-pointer border border-white/20"
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[8px] uppercase transition cursor-pointer border border-white/20 py-0.5"
                   >
                     -1s
                   </button>
@@ -1397,9 +1397,9 @@ export default function ScoreboardControlPage() {
               </div>
 
               {/* Secondary Match Actions */}
-              <div className="grid grid-cols-2 gap-1.5 w-full">
+              <div className="grid grid-cols-2 gap-1 w-full">
                 <div>
-                  <label className="block text-[8px] uppercase font-bold text-gray-400 mb-0.5 text-left">Match Duration</label>
+                  <label className="block text-[7px] uppercase font-bold text-gray-400 mb-0.5 text-left">Match Duration</label>
                   <select
                     value={matchDuration}
                     onChange={e => {
@@ -1408,7 +1408,7 @@ export default function ScoreboardControlPage() {
                       setTimeLeft(val * 10);
                     }}
                     disabled={timerActive || bout.status === 'Completed'}
-                    className="w-full bg-[#101015] border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
+                    className="w-full bg-[#101015] border border-white/10 rounded-md px-1.5 py-0.5 text-[9px] text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
                   >
                     <option value={60}>1:00 Minute</option>
                     <option value={90}>1:30 Minutes</option>
@@ -1420,9 +1420,9 @@ export default function ScoreboardControlPage() {
                   <button
                     onClick={handleUndo}
                     disabled={history.length === 0}
-                    className="w-full py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-[11px] uppercase transition cursor-pointer flex items-center justify-center gap-1"
+                    className="w-full py-0.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-md font-black text-[9px] uppercase transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <RotateCcw className="h-3 w-3" /> Undo Action
+                    <RotateCcw className="h-2.5 w-2.5" /> Undo Action
                   </button>
                 </div>
               </div>
@@ -1430,7 +1430,7 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* AO Display & Control Panel */}
-          <section className={`lg:col-span-4 border rounded-3xl p-3 lg:p-4 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
+          <section className={`lg:col-span-4 border rounded-xl p-2.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
             winnerSide === 'ao'
               ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_80px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)]'
               : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
@@ -1439,43 +1439,43 @@ export default function ScoreboardControlPage() {
             <div className="w-full flex flex-col items-center shrink-0">
               <div className="flex items-center justify-between w-full mb-1">
                 {senshuAo && (
-                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
-                    <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-xs font-black uppercase px-3 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)]">
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
                     SENSHU
                   </div>
                 )}
-                <span className="text-xs lg:text-sm font-black uppercase tracking-wider text-blue-400 ml-auto">AO - BLUE</span>
+                <span className="text-lg lg:text-2xl font-black uppercase tracking-widest text-blue-400 ml-auto">AO - BLUE</span>
               </div>
 
               <div className="w-full text-center mt-0.5">
-                <h2 className="font-competitor text-[clamp(16px,1.8vw,22px)] font-extrabold truncate max-w-full text-center uppercase leading-tight" title={competitorAo?.full_name || 'TBD Blue'}>
+                <h2 className="font-competitor text-base md:text-lg lg:text-xl font-bold truncate max-w-full text-center uppercase leading-tight text-white tracking-tight" title={competitorAo?.full_name || 'TBD Blue'}>
                   {competitorAo?.full_name || 'TBD Blue'}
                 </h2>
-                <p className="text-blue-400/60 text-[10px] font-bold text-center truncate max-w-full">
+                <p className="text-xs md:text-sm font-semibold text-blue-400/80 text-center truncate max-w-full mt-0.5">
                   {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
                 </p>
               </div>
             </div>
 
             {/* Score & Point History */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-1">
-              <span className={`font-din text-[clamp(65px,10vh,120px)] font-bold leading-none tracking-tight select-none transition-all duration-300 ${
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-0.5">
+              <span className={`font-din text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
                 winnerSide === 'ao'
-                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_45px_rgba(59,130,246,0.7)] scale-105'
+                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_50px_rgba(59,130,246,0.95)] scale-105'
                   : scoreAo - scoreAka >= 8
-                    ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(59,130,246,0.65)]'
-                    : 'text-blue-400 drop-shadow-[0_0_35px_rgba(59,130,246,0.3)]'
+                    ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_50px_rgba(59,130,246,0.85)]'
+                    : 'text-blue-400 drop-shadow-[0_0_40px_rgba(59,130,246,0.5)]'
               }`}>
                 {scoreAo}
               </span>
 
               {showPointHistory && eventsAo.length > 0 && (
-                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1 px-1">
+                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-0.5 px-1">
                   {eventsAo.map((ev, idx) => (
                     <div key={idx} className="flex items-center shrink-0">
-                      {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-0.5 select-none">→</span>}
+                      {idx > 0 && <span className="text-white/20 text-[9px] font-bold mx-0.5 select-none">→</span>}
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
-                        <span className="text-[8px] font-black text-blue-400 uppercase">+{ev.points}({ev.technique})</span>
+                        <span className="text-[9px] md:text-[10px] font-black text-blue-400 uppercase">+{ev.points}({ev.technique})</span>
                       </span>
                     </div>
                   ))}
@@ -1484,50 +1484,50 @@ export default function ScoreboardControlPage() {
             </div>
 
             {/* AO Controls: Score Buttons + Penalties */}
-            <div className="w-full flex flex-col gap-2 pt-2 border-t border-blue-900/30 shrink-0">
+            <div className="w-full flex flex-col gap-1.5 pt-1.5 border-t border-blue-900/30 shrink-0 pb-1">
               {/* Score Buttons */}
-              <div className="grid grid-cols-3 gap-1.5 w-full">
+              <div className="grid grid-cols-3 gap-1 w-full">
                 <button
                   onClick={() => handleAddScore('ao', 1)}
                   disabled={bout.status === 'Completed'}
-                  className="py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                  className="py-1.5 lg:py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-lg flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
                 >
-                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+1</span>
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Yuko</span>
+                  <span className="text-sm md:text-base lg:text-lg font-black uppercase tracking-wider leading-none">+1</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight mt-0.5">Yuko</span>
                 </button>
                 <button
                   onClick={() => handleAddScore('ao', 2)}
                   disabled={bout.status === 'Completed'}
-                  className="py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                  className="py-1.5 lg:py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-lg flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
                 >
-                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+2</span>
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Waza-ari</span>
+                  <span className="text-sm md:text-base lg:text-lg font-black uppercase tracking-wider leading-none">+2</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight mt-0.5">Waza-ari</span>
                 </button>
                 <button
                   onClick={() => handleAddScore('ao', 3)}
                   disabled={bout.status === 'Completed'}
-                  className="py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                  className="py-1.5 lg:py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-lg flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
                 >
-                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+3</span>
-                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Ippon</span>
+                  <span className="text-sm md:text-base lg:text-lg font-black uppercase tracking-wider leading-none">+3</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight mt-0.5">Ippon</span>
                 </button>
               </div>
 
               {/* Penalties Row */}
               <div className="w-full">
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-0.5">
                   <button
                     onClick={() => handleToggleSenshu('ao')}
-                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAo
-                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
+                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border transition cursor-pointer ${senshuAo
+                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
                         : 'bg-transparent text-white/40 border-white/15'
                       }`}
                   >
                     SENSHU {senshuAo ? 'ON' : 'OFF'}
                   </button>
-                  <span className="text-[9px] uppercase font-black tracking-widest text-blue-400/60">AO Penalties</span>
+                  <span className="text-[8px] uppercase font-black tracking-widest text-blue-400/60">AO Penalties</span>
                 </div>
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-5 gap-0.5">
                   {[1, 2, 3, 4, 5].map((level) => {
                     const isActive = c1Ao >= level;
                     const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
@@ -1535,8 +1535,8 @@ export default function ScoreboardControlPage() {
                       <button
                         key={level}
                         onClick={() => handleTogglePenalty('ao', level)}
-                        className={`py-1.5 rounded text-xs font-black transition cursor-pointer border ${isActive
-                            ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                        className={`py-1 rounded text-[10px] md:text-[11px] font-black transition cursor-pointer border ${isActive
+                            ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
                             : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
                           }`}
                       >
@@ -1553,8 +1553,8 @@ export default function ScoreboardControlPage() {
       </main>
 
       {/* Keyboard guide footer */}
-      <footer className="bg-[#0b0b10] border-t border-white/5 px-6 py-3 flex items-center justify-between text-[10px] text-gray-500 font-semibold shrink-0 flex-wrap gap-4">
-        <div className="flex gap-4 items-center">
+      <footer className="bg-[#0e0e14] border-t border-white/10 px-4 py-2 flex items-center justify-between text-[10px] text-gray-400 font-semibold shrink-0 flex-wrap gap-2 shadow-2xl z-20">
+        <div className="flex gap-2.5 items-center">
           <span>Shortcuts:</span>
           <span><b className="text-gray-400">Space</b> Start/Stop</span>
           <span><b className="text-gray-400">R/U</b> AKA/AO +1</span>
@@ -1564,14 +1564,14 @@ export default function ScoreboardControlPage() {
           <span><b className="text-gray-400">Enter</b> Finish</span>
         </div>
 
-        <div className="flex gap-2 items-center ml-auto">
+        <div className="flex gap-1.5 items-center ml-auto">
           {(winnerSide || bout.status === 'Completed') && (
             <button
               onClick={handleRematch}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer active:scale-95 shadow-md shadow-red-600/10"
+              className="flex items-center gap-1 px-2.5 py-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 shadow-md shadow-red-600/10"
             >
-              <RotateCcw className="h-4 w-4" /> Rematch
+              <RotateCcw className="h-3 w-3" /> Rematch
             </button>
           )}
 
@@ -1590,9 +1590,9 @@ export default function ScoreboardControlPage() {
               }
               setShowFinishModal(true);
             }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer active:scale-95 shadow-md shadow-yellow-500/10"
+            className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 shadow-md shadow-yellow-500/10"
           >
-            <Save className="h-4 w-4" /> Save Bout Result
+            <Save className="h-3 w-3" /> Save Bout Result
           </button>
         </div>
       </footer>
