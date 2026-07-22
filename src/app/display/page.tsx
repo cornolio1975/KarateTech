@@ -577,26 +577,38 @@ function SpectatorDisplayContent() {
         {/* AKA RED CARD */}
         <div className={`col-span-3 h-full rounded-[40px] p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
           winnerSide === 'aka'
-            ? 'bg-red-950/80 border-4 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.4),0_0_80px_rgba(239,68,68,0.8)] animate-blink'
+            ? 'bg-red-950/80 border-4 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.4),0_0_80px_rgba(239,68,68,0.8)]'
             : 'bg-[#150000] border-4 border-red-600/40 text-white'
         }`}>
           <div>
-            <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex flex-col items-center gap-1.5 text-center">
               {senshuAka && (
                 <span className="bg-yellow-500 text-black font-black text-sm lg:text-base uppercase px-4 py-1 rounded-xl tracking-widest animate-pulse border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] flex items-center justify-center gap-1.5 w-max max-w-full mx-auto">
                   <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
                   先取 SENSHU
                 </span>
               )}
-              <span className={`text-4xl lg:text-5xl font-black uppercase tracking-wider leading-none ${
+              <span className={`text-3xl lg:text-4xl font-black uppercase tracking-wider leading-none ${
                 winnerSide === 'aka' && winMethod === 'Superior Points' ? 'text-red-400' : 'text-red-500'
-              }`}>AKA<br/>RED</span>
+              }`}>AKA RED</span>
+
+              {/* Fighter Name directly under AKA RED */}
+              <div className="w-full px-2 mt-1.5">
+                <h2 className="font-competitor text-[clamp(24px,3.2vw,40px)] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={akaName}>
+                  {akaName}
+                </h2>
+                <p className={`${
+                  winnerSide === 'aka' && winMethod === 'Superior Points' ? 'text-green-400/50' : 'text-red-400/50'
+                } text-sm font-bold mt-1 uppercase tracking-wider text-center truncate max-w-full`}>
+                  {akaClub}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Huge Score */}
+          {/* Huge Score (DIN 1451 Bold 140-220px) */}
           <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
-            <span className={`text-[clamp(8rem,18vh,15rem)] font-black leading-none font-mono select-none tracking-tight transition-all duration-300 ${
+            <span className={`font-din text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
               winnerSide === 'aka'
                 ? 'text-red-500 animate-blink drop-shadow-[0_0_80px_rgba(239,68,68,0.7)] scale-110'
                 : scoreAka - scoreAo >= 8 
@@ -621,31 +633,20 @@ function SpectatorDisplayContent() {
             )}
           </div>
 
-          <div className="mt-auto mb-6">
-            <h2 className="text-4xl lg:text-5xl font-black tracking-tight truncate text-center">
-              {akaName}
-            </h2>
-            <p className={`${
-              winnerSide === 'aka' && winMethod === 'Superior Points' ? 'text-green-400/50' : 'text-red-400/50'
-            } text-base font-bold mt-1.5 uppercase tracking-wider text-center`}>
-              {akaClub}
-            </p>
-          </div>
-
           {/* AKA Warnings Row */}
-          <div className="border-t-2 border-red-900/30 pt-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm lg:text-base font-black text-red-500/70 w-10 text-left uppercase tracking-widest">PEN</span>
-              <div className="flex-1 grid grid-cols-5 gap-2">
+          <div className="border-t-2 border-red-900/30 pt-3">
+            <div className="flex items-center gap-2">
+              <span className="font-din text-xs lg:text-sm font-bold text-red-500/70 shrink-0 uppercase tracking-widest">PEN</span>
+              <div className="flex-1 grid grid-cols-5 gap-1.5">
                 {[1, 2, 3, 4, 5].map((level) => {
                   const isActive = c1Aka >= level;
                   const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
                   return (
                     <div
                       key={level}
-                      className={`text-center py-2.5 rounded-lg text-lg lg:text-xl font-black transition-all border ${
+                      className={`flex items-center justify-center h-9 lg:h-11 rounded-xl font-din text-[clamp(14px,2.2vh,24px)] font-bold transition-all border ${
                         isActive
-                          ? 'bg-red-500 text-black border-red-400 font-black shadow-[0_0_10px_rgba(239,68,68,0.35)]'
+                          ? 'bg-red-500 text-black border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
                           : 'bg-transparent text-white/10 border-white/5'
                       }`}
                     >
@@ -670,15 +671,15 @@ function SpectatorDisplayContent() {
               </span>
             </div>
             
-            {/* Giant digital timer */}
-            <div className={`text-[clamp(6rem,14vw,18rem)] font-black font-mono leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
+            {/* Giant digital timer (DIN 1451 Bold White 160-260px) */}
+            <div className={`font-din text-[clamp(160px,24vh,260px)] font-bold leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
               timeLeft <= 150 && timeLeft > 0 
                 ? 'text-red-500 scale-105 animate-pulse drop-shadow-[0_0_40px_rgba(239,68,68,0.5)]' 
-                : 'text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.2)]'
+                : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]'
             }`}>
               <span>{formatMainTime(timeLeft)}</span>
-              <span className={`text-[clamp(3.5rem,7vw,9rem)] font-bold ml-1 lg:ml-2 ${
-                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/50'
+              <span className={`font-din text-[clamp(80px,12vh,130px)] font-bold ml-1 lg:ml-2 ${
+                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/70'
               }`}>
                 {formatDecsTime(timeLeft)}
               </span>
@@ -704,26 +705,38 @@ function SpectatorDisplayContent() {
         {/* AO BLUE CARD */}
         <div className={`col-span-3 h-full rounded-[40px] p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
           winnerSide === 'ao'
-            ? 'bg-blue-950/80 border-4 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.4),0_0_80px_rgba(59,130,246,0.8)] animate-blink'
+            ? 'bg-blue-950/80 border-4 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.4),0_0_80px_rgba(59,130,246,0.8)]'
             : 'bg-[#000515] border-4 border-blue-600/40 text-white'
         }`}>
           <div>
-            <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex flex-col items-center gap-1.5 text-center">
               {senshuAo && (
                 <span className="bg-yellow-500 text-black font-black text-sm lg:text-base uppercase px-4 py-1 rounded-xl tracking-widest animate-pulse border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] flex items-center justify-center gap-1.5 w-max max-w-full mx-auto">
                   <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
                   先取 SENSHU
                 </span>
               )}
-              <span className={`text-4xl lg:text-5xl font-black uppercase tracking-wider leading-none ${
+              <span className={`text-3xl lg:text-4xl font-black uppercase tracking-wider leading-none ${
                 winnerSide === 'ao' ? 'text-blue-400' : 'text-blue-400'
-              }`}>AO<br/>BLUE</span>
+              }`}>AO BLUE</span>
+
+              {/* Fighter Name directly under AO BLUE */}
+              <div className="w-full px-2 mt-1.5">
+                <h2 className="font-competitor text-[clamp(24px,3.2vw,40px)] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={aoName}>
+                  {aoName}
+                </h2>
+                <p className={`${
+                  winnerSide === 'ao' && winMethod === 'Superior Points' ? 'text-green-400/50' : 'text-blue-400/50'
+                } text-sm font-bold mt-1 uppercase tracking-wider text-center truncate max-w-full`}>
+                  {aoClub}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Huge Score */}
+          {/* Huge Score (DIN 1451 Bold 140-220px) */}
           <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
-            <span className={`text-[clamp(8rem,18vh,15rem)] font-black leading-none font-mono select-none tracking-tight transition-all duration-300 ${
+            <span className={`font-din text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
               winnerSide === 'ao'
                 ? 'text-blue-400 animate-blink drop-shadow-[0_0_80px_rgba(59,130,246,0.7)] scale-110'
                 : scoreAo - scoreAka >= 8 
@@ -748,31 +761,20 @@ function SpectatorDisplayContent() {
             )}
           </div>
 
-          <div className="mt-auto mb-6">
-            <h2 className="text-4xl lg:text-5xl font-black tracking-tight truncate text-center">
-              {aoName}
-            </h2>
-            <p className={`${
-              winnerSide === 'ao' && winMethod === 'Superior Points' ? 'text-green-400/50' : 'text-blue-400/50'
-            } text-base font-bold mt-1.5 uppercase tracking-wider text-center`}>
-              {aoClub}
-            </p>
-          </div>
-
           {/* AO Warnings Row */}
-          <div className="border-t-2 border-blue-900/30 pt-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm lg:text-base font-black text-blue-400/70 w-10 text-left uppercase tracking-widest">PEN</span>
-              <div className="flex-1 grid grid-cols-5 gap-2">
+          <div className="border-t-2 border-blue-900/30 pt-3">
+            <div className="flex items-center gap-2">
+              <span className="font-din text-xs lg:text-sm font-bold text-blue-400/70 shrink-0 uppercase tracking-widest">PEN</span>
+              <div className="flex-1 grid grid-cols-5 gap-1.5">
                 {[1, 2, 3, 4, 5].map((level) => {
                   const isActive = c1Ao >= level;
                   const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
                   return (
                     <div
                       key={level}
-                      className={`text-center py-2.5 rounded-lg text-lg lg:text-xl font-black transition-all border ${
+                      className={`flex items-center justify-center h-9 lg:h-11 rounded-xl font-din text-[clamp(14px,2.2vh,24px)] font-bold transition-all border ${
                         isActive
-                          ? 'bg-blue-500 text-black border-blue-400 font-black shadow-[0_0_10px_rgba(59,130,246,0.35)]'
+                          ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]'
                           : 'bg-transparent text-white/10 border-white/5'
                       }`}
                     >

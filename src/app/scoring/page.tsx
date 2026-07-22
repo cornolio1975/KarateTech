@@ -847,14 +847,14 @@ export default function ScoringPage() {
               MATCH TIME
             </span>
             <div
-              className={`font-black font-mono leading-none tracking-tighter transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
+              className={`font-din font-bold leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
                 timeLeft <= 30 && timerRunning ? 'text-red-400 animate-pulse drop-shadow-[0_0_30px_rgba(239,68,68,0.7)]' :
-                timeLeft === 0 ? 'text-red-500' : 'text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.2)]'
+                timeLeft === 0 ? 'text-red-500' : 'text-white drop-shadow-[0_0_25px_rgba(255,255,255,0.4)]'
               }`}
-              style={{ fontSize: 'clamp(6rem, 14vw, 16rem)' }}
+              style={{ fontSize: 'clamp(140px, 20vh, 240px)' }}
             >
               <span>{fmtTimeFull(timeLeft)}</span>
-              <span className="text-[clamp(3.5rem,7vw,8rem)] font-bold text-white/40 ml-1 lg:ml-2">.0</span>
+              <span className="font-din text-[clamp(70px,10vh,120px)] font-bold text-white/70 ml-1 lg:ml-2">.0</span>
             </div>
             <div className="flex items-center gap-2 mt-6">
               <span className={`w-3 h-3 rounded-full ${timerRunning ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />

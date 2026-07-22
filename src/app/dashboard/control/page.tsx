@@ -279,6 +279,27 @@ export default function ScoreboardControlPage() {
         setTimeLeft((currentBout.timer_seconds ?? 180) * 10);
         setMatchDuration(currentBout.timer_seconds ?? 180);
         setHasTimerRun(false);
+
+        // Seed history with clean match start state for complete undo support
+        const initialSnap = {
+          scoreAka: currentBout.score_a ?? 0,
+          scoreAo: currentBout.score_b ?? 0,
+          senshuAka: currentBout.senshu_a ?? false,
+          senshuAo: currentBout.senshu_b ?? false,
+          firstScorer: currentBout.senshu_a ? 'aka' : currentBout.senshu_b ? 'ao' : null,
+          hasTimerRun: false,
+          c1Aka: currentBout.penalties_c1_a ? parseInt(currentBout.penalties_c1_a) || 0 : 0,
+          c1Ao: currentBout.penalties_c1_b ? parseInt(currentBout.penalties_c1_b) || 0 : 0,
+          pointsAka: savedPointsAka,
+          pointsAo: savedPointsAo,
+          stoppageScorers: [],
+          eventsAka: parsedEventsAka,
+          eventsAo: parsedEventsAo,
+          winnerSide: null,
+          winMethod: '',
+          timeLeft: (currentBout.timer_seconds ?? 180) * 10
+        };
+        setHistory([initialSnap]);
       }
     } catch (err) {
       console.error('Error loading scoreboard bout details:', err);
@@ -493,7 +514,7 @@ export default function ScoreboardControlPage() {
   };
 
   // Helper to determine the winner automatically upon match expiration based on WKF rules
-  const autoDetermineWinner = (): { side: 'aka' | 'ao'; method: string } => {
+  const autoDetermineWinner = (): { side: 'aka' | 'ao'; method: string } | null => {
     if (scoreAka > scoreAo) {
       return { side: 'aka', method: 'Points' };
     }
@@ -596,7 +617,10 @@ export default function ScoreboardControlPage() {
     prevPointsAo = pointsAo,
     prevStoppageScorers = stoppageScorers,
     prevEventsAka = eventsAka,
-    prevEventsAo = eventsAo
+    prevEventsAo = eventsAo,
+    prevWinnerSide = winnerSide,
+    prevWinMethod = winMethod,
+    prevTimeLeft = timeLeft
   ) => {
     setHistory((prev) => [
       ...prev,
@@ -613,12 +637,15 @@ export default function ScoreboardControlPage() {
         pointsAo: prevPointsAo,
         stoppageScorers: prevStoppageScorers,
         eventsAka: prevEventsAka,
-        eventsAo: prevEventsAo
+        eventsAo: prevEventsAo,
+        winnerSide: prevWinnerSide,
+        winMethod: prevWinMethod,
+        timeLeft: prevTimeLeft
       }
     ]);
   };
 
-  // Undo action
+  // Undo action: undoes actions all the way back to match start
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
     const lastState = history[history.length - 1];
@@ -635,7 +662,12 @@ export default function ScoreboardControlPage() {
     setEventsAka(lastState.eventsAka ?? []);
     setEventsAo(lastState.eventsAo ?? []);
     setStoppageScorers(lastState.stoppageScorers ?? []);
-    setHistory((prev) => prev.slice(0, -1));
+    setWinnerSide(lastState.winnerSide ?? null);
+    setWinMethod(lastState.winMethod ?? '');
+    if (lastState.timeLeft !== undefined) {
+      setTimeLeft(lastState.timeLeft);
+    }
+    setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, [history]);
 
   // Adjust scores with Senshu Award Rules:
@@ -777,20 +809,12 @@ export default function ScoreboardControlPage() {
       const finalWinner = finalScoreAka > finalScoreAo ? 'aka' : 'ao';
       setWinnerSide(finalWinner);
       setWinMethod('Points');
-      const winnerId = finalWinner === 'aka' ? bout?.participant_a_id : bout?.participant_b_id;
-      setBout(prev => prev ? { 
-        ...prev, 
-        status: 'Completed', 
-        winner_id: winnerId || null, 
-        victory_method: 'Points' 
-      } : null);
     }
   }, [scoreAka, scoreAo, senshuAka, senshuAo, firstScorer, hasTimerRun, triggerBuzzer, pointsAka, pointsAo, eventsAka, eventsAo, c1Aka, c1Ao, bout, timerActive]);
 
   // Manage Penalties WKF System: C1, C2, C3, HC, H (level 1 to 5)
   const handleTogglePenalty = (side: 'aka' | 'ao', level: number) => {
     if (!bout || bout.status === 'Completed') return;
-    if (c1Aka >= 5 || c1Ao >= 5) return;
     pushHistory();
 
     const isAka = side === 'aka';
@@ -811,44 +835,18 @@ export default function ScoreboardControlPage() {
       const opponentSide = isAka ? 'ao' : 'aka';
       setWinnerSide(opponentSide);
       setWinMethod('HANSOKU');
-      
-      const winnerId = opponentSide === 'aka' ? bout.participant_a_id : bout.participant_b_id;
-      
-      // Update local bout state so status is Completed
-      setBout(prev => prev ? { 
-        ...prev, 
-        status: 'Completed', 
-        winner_id: winnerId || null, 
-        victory_method: 'HANSOKU' 
-      } : null);
-
-      if (winnerId) {
-        db.bouts.updateBoutState(boutId!, {
-          status: 'Completed',
-          winner_id: winnerId,
-          score_a: scoreAka,
-          score_b: scoreAo,
-          senshu_a: senshuAka,
-          senshu_b: senshuAo,
-          penalties_c1_a: String(isAka ? 5 : c1Aka),
-          penalties_c1_b: String(!isAka ? 5 : c1Ao),
-          penalties_c2_a: '0',
-          penalties_c2_b: '0',
-          penalties_c3_a: '0',
-          penalties_c3_b: '0',
-          victory_method: 'HANSOKU'
-        }).then(() => {
-          console.log('Hansoku result saved automatically.');
-        }).catch(err => {
-          console.error('Error auto-saving Hansoku result:', err);
-        });
+    } else if ((isAka && c1Aka >= 5) || (!isAka && c1Ao >= 5)) {
+      // Operator reduced penalty back down below 5
+      if (winMethod === 'HANSOKU') {
+        setWinnerSide(null);
+        setWinMethod('');
       }
     }
   };
 
   // Manage Senshu - manual toggle (referee override only)
   const handleToggleSenshu = (side: 'aka' | 'ao') => {
-    if (bout?.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5) return;
+    if (!bout || bout.status === 'Completed') return;
     pushHistory();
     if (side === 'aka') {
       if (firstScorer === 'aka') {
@@ -875,12 +873,14 @@ export default function ScoreboardControlPage() {
   };
 
   const handleResetTimer = () => {
+    pushHistory();
     setTimerActive(false);
     setTimeLeft(matchDuration * 10);
     setHasTimerRun(false);
   };
 
   const handleAdjustTime = (seconds: number) => {
+    pushHistory();
     setTimeLeft((prev) => Math.max(0, prev + seconds * 10));
   };
 
@@ -932,8 +932,13 @@ export default function ScoreboardControlPage() {
           setTimerActive(false);
           if (c1Aka < 5 && c1Ao < 5) {
             const autoWin = autoDetermineWinner();
-            setWinnerSide(autoWin.side);
-            setWinMethod(autoWin.method);
+            if (autoWin) {
+              setWinnerSide(autoWin.side);
+              setWinMethod(autoWin.method);
+            } else {
+              setWinnerSide(null);
+              setWinMethod('Hantei');
+            }
           }
           setShowFinishModal(true);
           break;
@@ -1168,343 +1173,381 @@ export default function ScoreboardControlPage() {
 
       {/* Main Scoreboard - No Scroll Layout */}
       <main className="flex-1 flex flex-col gap-2 p-2 lg:p-4 overflow-hidden min-h-0">
-        {/* ROW 1: Visual Displays (AKA | TIMER | AO) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-4 flex-1 min-h-0">
-          
-          {/* AKA Display Panel */}
-          <section className={`lg:col-span-3 border rounded-3xl p-4 flex flex-col justify-center items-center transition-all duration-500 ${
+        {/* Hansoku Disqualification Blinking Banner */}
+        {(c1Aka >= 5 || c1Ao >= 5) && !winnerSide && (
+          <div className="bg-red-600 text-white font-black text-center py-2 text-xl lg:text-2xl rounded-2xl mb-1 animate-pulse tracking-widest uppercase border-2 border-red-500 shadow-[0_0_30px_rgba(220,38,38,0.6)] z-20 shrink-0">
+            🚨 HANSOKU DISQUALIFICATION – {c1Aka >= 5 ? 'AKA (RED)' : 'AO (BLUE)'} 🚨
+          </div>
+        )}
+
+        {/* Dynamic Winner Alert Header */}
+        {winnerSide && (
+          <div className={`p-2 lg:p-3 mb-1 shrink-0 rounded-2xl flex items-center justify-center font-black text-base lg:text-xl tracking-widest uppercase border-2 shadow-xl animate-pulse z-20 ${
             winnerSide === 'aka'
-              ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)] animate-blink'
+              ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.5)]'
+              : 'bg-blue-950/90 text-blue-400 border-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.5)]'
+          }`}>
+            {winMethod === 'HANSOKU' ? '🚨' : '🏆'} WINNER BY {
+              winMethod === 'Points' ? 'POINTS ADVANTAGE' :
+              winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' :
+              winMethod === 'Superior Points' ? 'SUPERIOR POINTS' :
+              winMethod === 'Hantei' ? 'HANTEI DECISION' :
+              winMethod === 'HANSOKU' ? 'HANSOKU DISQUALIFICATION' :
+              winMethod === 'Kiken' ? 'KIKEN (WITHDRAWAL)' :
+              winMethod || 'POINTS ADVANTAGE'
+            }: {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} {winMethod === 'HANSOKU' ? '🚨' : '🏆'}
+          </div>
+        )}
+
+        {/* ROW 1: Visual Displays & Controls (3-Column Layout: AKA | TIMER | AO) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-3 flex-1 min-h-0 overflow-hidden">
+          
+          {/* AKA Display & Control Panel */}
+          <section className={`lg:col-span-4 border rounded-3xl p-3 lg:p-4 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
+            winnerSide === 'aka'
+              ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_80px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)]'
               : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
           }`}>
-            <div className="flex items-center justify-between w-full mb-2">
-              <span className="text-base font-black uppercase tracking-wider text-red-400">AKA - RED</span>
-              {senshuAka && (
-                <div className="flex items-center gap-1 bg-yellow-500 text-black text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
-                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                  SENSHU
-                </div>
-              )}
+            {/* Header & Fighter Name */}
+            <div className="w-full flex flex-col items-center shrink-0">
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs lg:text-sm font-black uppercase tracking-wider text-red-400">AKA - RED</span>
+                {senshuAka && (
+                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
+                    <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                    SENSHU
+                  </div>
+                )}
+              </div>
+
+              <div className="w-full text-center mt-0.5">
+                <h2 className="font-competitor text-[clamp(16px,1.8vw,22px)] font-extrabold truncate max-w-full text-center uppercase leading-tight" title={competitorAka?.full_name || 'TBD Red'}>
+                  {competitorAka?.full_name || 'TBD Red'}
+                </h2>
+                <p className="text-red-400/60 text-[10px] font-bold text-center truncate max-w-full">
+                  {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
+                </p>
+              </div>
             </div>
 
+            {/* Score & Point History */}
             <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-1">
-              <span className={`text-[clamp(3rem,6vw,6rem)] font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
+              <span className={`font-din text-[clamp(65px,10vh,120px)] font-bold leading-none tracking-tight select-none transition-all duration-300 ${
                 winnerSide === 'aka'
-                  ? 'text-red-500 animate-blink drop-shadow-[0_0_45px_rgba(239,68,68,0.7)] scale-110'
+                  ? 'text-red-500 animate-blink drop-shadow-[0_0_45px_rgba(239,68,68,0.7)] scale-105'
                   : scoreAka - scoreAo >= 8
                     ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(239,68,68,0.65)]'
                     : 'text-red-500 drop-shadow-[0_0_35px_rgba(220,38,38,0.25)]'
               }`}>
                 {scoreAka}
               </span>
-            </div>
 
-            <h2 className="text-xl font-black truncate text-center mb-0.5 mt-auto">
-              {competitorAka?.full_name || 'TBD Red'}
-            </h2>
-            <p className="text-red-400/60 text-[10px] font-bold text-center">
-              {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
-            </p>
-
-            {showPointHistory && eventsAka.length > 0 && (
-              <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1">
-                {eventsAka.map((ev, idx) => (
-                  <div key={idx} className="flex items-center shrink-0">
-                    {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-1 select-none">→</span>}
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
-                      <span className="text-[8px] font-black text-red-400 uppercase">+{ev.points}({ev.technique})</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* TIMER Display Panel */}
-          <section className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-3xl p-4 flex flex-col justify-center items-center text-center min-h-0">
-            <span className="text-[10px] uppercase font-black text-white/40 tracking-wider mb-2">Match Timer</span>
-            <div className="flex-1 flex items-center justify-center w-full min-h-0">
-              <div className={`text-[clamp(4rem,8vw,8rem)] font-black font-mono leading-none select-none flex items-baseline justify-center ${
-                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.2)]'
-              }`}>
-                <span>{formatMainTime(timeLeft)}</span>
-                <span className={`text-[clamp(2rem,4vw,4rem)] font-bold ml-1 lg:ml-2 ${
-                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/50'
-                }`}>{formatDecsTime(timeLeft)}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-1.5 mt-2">
-              <span className={`w-2 h-2 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
-              <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
-                {timerActive ? 'ACTIVE RUNNING' : 'PAUSED'}
-              </span>
-            </div>
-          </section>
-
-          {/* AO Display Panel */}
-          <section className={`lg:col-span-3 border rounded-3xl p-4 flex flex-col justify-center items-center transition-all duration-500 ${
-            winnerSide === 'ao'
-              ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)] animate-blink'
-              : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
-          }`}>
-            <div className="flex items-center justify-between w-full mb-2">
-              {senshuAo && (
-                <div className="flex items-center gap-1 bg-yellow-500 text-black text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
-                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                  SENSHU
+              {showPointHistory && eventsAka.length > 0 && (
+                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1 px-1">
+                  {eventsAka.map((ev, idx) => (
+                    <div key={idx} className="flex items-center shrink-0">
+                      {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-0.5 select-none">→</span>}
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
+                        <span className="text-[8px] font-black text-red-400 uppercase">+{ev.points}({ev.technique})</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
-              <span className="text-base font-black uppercase tracking-wider text-blue-400 ml-auto">AO - BLUE</span>
             </div>
 
+            {/* AKA Controls: Score Buttons + Penalties */}
+            <div className="w-full flex flex-col gap-2 pt-2 border-t border-red-900/30 shrink-0">
+              {/* Score Buttons */}
+              <div className="grid grid-cols-3 gap-1.5 w-full">
+                <button
+                  onClick={() => handleAddScore('aka', 1)}
+                  disabled={bout.status === 'Completed'}
+                  className="py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                >
+                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+1</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Yuko</span>
+                </button>
+                <button
+                  onClick={() => handleAddScore('aka', 2)}
+                  disabled={bout.status === 'Completed'}
+                  className="py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                >
+                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+2</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Waza-ari</span>
+                </button>
+                <button
+                  onClick={() => handleAddScore('aka', 3)}
+                  disabled={bout.status === 'Completed'}
+                  className="py-2 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                >
+                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+3</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Ippon</span>
+                </button>
+              </div>
+
+              {/* Penalties Row */}
+              <div className="w-full">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-red-400/60">AKA Penalties</span>
+                  <button
+                    onClick={() => handleToggleSenshu('aka')}
+                    disabled={bout.status === 'Completed'}
+                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAka
+                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
+                        : 'bg-transparent text-white/40 border-white/15'
+                      } disabled:opacity-25 disabled:cursor-not-allowed`}
+                  >
+                    SENSHU {senshuAka ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[1, 2, 3, 4, 5].map((level) => {
+                    const isActive = c1Aka >= level;
+                    const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenalty('aka', level)}
+                        disabled={bout.status === 'Completed'}
+                        className={`py-1.5 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                            ? 'bg-red-500 text-black border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.3)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                          }`}
+                      >
+                        {labels[level]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* TIMER Display & Control Panel (Middle Column) */}
+          <section className="lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-3xl p-3 lg:p-4 flex flex-col justify-between items-center text-center overflow-hidden">
+            <span className="text-xs uppercase font-black text-white/50 tracking-widest shrink-0">Match Timer</span>
+            
+            {/* Giant Timer */}
+            <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-1">
+              <div className={`font-din text-[clamp(80px,13vh,140px)] font-bold leading-none select-none flex items-baseline justify-center tracking-tight ${
+                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : 'text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]'
+              }`}>
+                <span>{formatMainTime(timeLeft)}</span>
+                <span className={`font-din text-[clamp(40px,6vh,70px)] font-bold ml-1 lg:ml-2 ${
+                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/70'
+                }`}>{formatDecsTime(timeLeft)}</span>
+              </div>
+              <div className="flex items-center justify-center gap-1.5 mt-1">
+                <span className={`w-2 h-2 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
+                <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
+                  {timerActive ? 'ACTIVE RUNNING' : 'PAUSED'}
+                </span>
+              </div>
+            </div>
+
+            {/* Integrated Controls */}
+            <div className="w-full flex flex-col gap-2 pt-2 border-t border-white/10 shrink-0">
+              {/* Primary Controls */}
+              <div className="grid grid-cols-4 gap-1.5 w-full">
+                <div className="col-span-2">
+                  {timerActive ? (
+                    <button
+                      onClick={handleStopTimer}
+                      disabled={bout.status === 'Completed'}
+                      className="w-full h-full py-2 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-red-950/40"
+                    >
+                      <Square className="h-4 w-4 fill-white" /> Stop Timer
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleStartTimer}
+                      disabled={timeLeft === 0 || bout.status === 'Completed'}
+                      className="w-full h-full py-2 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-green-950/40"
+                    >
+                      <Play className="h-4 w-4 fill-white" /> Start Timer
+                    </button>
+                  )}
+                </div>
+                
+                <button
+                  onClick={handleResetTimer}
+                  disabled={timerActive || bout.status === 'Completed'}
+                  className="py-2 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Reset
+                </button>
+                
+                <div className="grid grid-rows-2 gap-1">
+                  <button
+                    onClick={() => handleAdjustTime(1)}
+                    disabled={timerActive || bout.status === 'Completed'}
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[10px] uppercase transition cursor-pointer border border-white/20"
+                  >
+                    +1s
+                  </button>
+                  <button
+                    onClick={() => handleAdjustTime(-1)}
+                    disabled={timerActive || bout.status === 'Completed'}
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[10px] uppercase transition cursor-pointer border border-white/20"
+                  >
+                    -1s
+                  </button>
+                </div>
+              </div>
+
+              {/* Secondary Match Actions */}
+              <div className="grid grid-cols-2 gap-1.5 w-full">
+                <div>
+                  <label className="block text-[8px] uppercase font-bold text-gray-400 mb-0.5 text-left">Match Duration</label>
+                  <select
+                    value={matchDuration}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setMatchDuration(val);
+                      setTimeLeft(val * 10);
+                    }}
+                    disabled={timerActive || bout.status === 'Completed'}
+                    className="w-full bg-[#101015] border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
+                  >
+                    <option value={60}>1:00 Minute</option>
+                    <option value={90}>1:30 Minutes</option>
+                    <option value={120}>2:00 Minutes</option>
+                    <option value={180}>3:00 Minutes</option>
+                  </select>
+                </div>
+                <div className="flex flex-col justify-end">
+                  <button
+                    onClick={handleUndo}
+                    disabled={history.length === 0}
+                    className="w-full py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-[11px] uppercase transition cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Undo Action
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* AO Display & Control Panel */}
+          <section className={`lg:col-span-4 border rounded-3xl p-3 lg:p-4 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
+            winnerSide === 'ao'
+              ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_80px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)]'
+              : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
+          }`}>
+            {/* Header & Fighter Name */}
+            <div className="w-full flex flex-col items-center shrink-0">
+              <div className="flex items-center justify-between w-full mb-1">
+                {senshuAo && (
+                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]">
+                    <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                    SENSHU
+                  </div>
+                )}
+                <span className="text-xs lg:text-sm font-black uppercase tracking-wider text-blue-400 ml-auto">AO - BLUE</span>
+              </div>
+
+              <div className="w-full text-center mt-0.5">
+                <h2 className="font-competitor text-[clamp(16px,1.8vw,22px)] font-extrabold truncate max-w-full text-center uppercase leading-tight" title={competitorAo?.full_name || 'TBD Blue'}>
+                  {competitorAo?.full_name || 'TBD Blue'}
+                </h2>
+                <p className="text-blue-400/60 text-[10px] font-bold text-center truncate max-w-full">
+                  {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
+                </p>
+              </div>
+            </div>
+
+            {/* Score & Point History */}
             <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-1">
-              <span className={`text-[clamp(3rem,6vw,6rem)] font-black leading-none tracking-tight font-mono select-none transition-all duration-300 ${
+              <span className={`font-din text-[clamp(65px,10vh,120px)] font-bold leading-none tracking-tight select-none transition-all duration-300 ${
                 winnerSide === 'ao'
-                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_45px_rgba(59,130,246,0.7)] scale-110'
+                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_45px_rgba(59,130,246,0.7)] scale-105'
                   : scoreAo - scoreAka >= 8
                     ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_45px_rgba(59,130,246,0.65)]'
                     : 'text-blue-400 drop-shadow-[0_0_35px_rgba(59,130,246,0.3)]'
               }`}>
                 {scoreAo}
               </span>
-            </div>
 
-            <h2 className="text-xl font-black truncate text-center mb-0.5 mt-auto">
-              {competitorAo?.full_name || 'TBD Blue'}
-            </h2>
-            <p className="text-blue-400/60 text-[10px] font-bold text-center">
-              {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
-            </p>
-
-            {showPointHistory && eventsAo.length > 0 && (
-              <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1">
-                {eventsAo.map((ev, idx) => (
-                  <div key={idx} className="flex items-center shrink-0">
-                    {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-1 select-none">→</span>}
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
-                      <span className="text-[8px] font-black text-blue-400 uppercase">+{ev.points}({ev.technique})</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-        </div>
-
-        {/* ROW 2: Control Interfaces (AKA CONTROLS | REFEREE OPTIONS | AO CONTROLS) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-4 shrink-0 mt-auto">
-          
-          {/* AKA Score Buttons */}
-          <div className="lg:col-span-3 grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleAddScore('aka', 1)}
-              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-              className="py-2.5 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            >
-              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+1</span>
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Yuko</span>
-            </button>
-            <button
-              onClick={() => handleAddScore('aka', 2)}
-              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-              className="py-2.5 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            >
-              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+2</span>
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Waza-ari</span>
-            </button>
-            <button
-              onClick={() => handleAddScore('aka', 3)}
-              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-              className="py-2.5 bg-red-600/40 hover:bg-red-600/60 border border-red-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            >
-              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+3</span>
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Ippon</span>
-            </button>
-          </div>
-
-          {/* Timer Controls */}
-          <div className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-xl p-3 grid grid-cols-4 gap-2">
-            <div className="col-span-2">
-              {timerActive ? (
-                <button
-                  onClick={handleStopTimer}
-                  disabled={bout.status === 'Completed'}
-                  className="w-full h-full bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-lg font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-red-950/40"
-                >
-                  <Square className="h-5 w-5 fill-white" /> Stop Timer
-                </button>
-              ) : (
-                <button
-                  onClick={handleStartTimer}
-                  disabled={timeLeft === 0 || bout.status === 'Completed'}
-                  className="w-full h-full bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-green-950/40"
-                >
-                  <Play className="h-5 w-5 fill-white" /> Start Timer
-                </button>
+              {showPointHistory && eventsAo.length > 0 && (
+                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-1 px-1">
+                  {eventsAo.map((ev, idx) => (
+                    <div key={idx} className="flex items-center shrink-0">
+                      {idx > 0 && <span className="text-white/20 text-[8px] font-bold mx-0.5 select-none">→</span>}
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
+                        <span className="text-[8px] font-black text-blue-400 uppercase">+{ev.points}({ev.technique})</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            
-            <button
-              onClick={handleResetTimer}
-              disabled={timerActive || bout.status === 'Completed'}
-              className="h-full bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-white/10"
-            >
-              <RotateCcw className="h-4 w-4" /> Reset
-            </button>
-            
-            <div className="grid grid-rows-2 gap-1.5">
-              <button
-                onClick={() => handleAdjustTime(1)}
-                disabled={timerActive || bout.status === 'Completed'}
-                className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs uppercase transition cursor-pointer border border-white/20"
-              >
-                +1s
-              </button>
-              <button
-                onClick={() => handleAdjustTime(-1)}
-                disabled={timerActive || bout.status === 'Completed'}
-                className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs uppercase transition cursor-pointer border border-white/20"
-              >
-                -1s
-              </button>
-            </div>
-          </div>
 
-          {/* AO Score Buttons */}
-          <div className="lg:col-span-3 grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleAddScore('ao', 1)}
-              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-              className="py-2.5 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            >
-              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+1</span>
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Yuko</span>
-            </button>
-            <button
-              onClick={() => handleAddScore('ao', 2)}
-              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-              className="py-2.5 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            >
-              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+2</span>
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Waza-ari</span>
-            </button>
-            <button
-              onClick={() => handleAddScore('ao', 3)}
-              disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-              className="py-2.5 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            >
-              <span className="text-sm md:text-base font-black uppercase tracking-wider leading-tight">+3</span>
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider leading-tight">Ippon</span>
-            </button>
-          </div>
+            {/* AO Controls: Score Buttons + Penalties */}
+            <div className="w-full flex flex-col gap-2 pt-2 border-t border-blue-900/30 shrink-0">
+              {/* Score Buttons */}
+              <div className="grid grid-cols-3 gap-1.5 w-full">
+                <button
+                  onClick={() => handleAddScore('ao', 1)}
+                  disabled={bout.status === 'Completed'}
+                  className="py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                >
+                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+1</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Yuko</span>
+                </button>
+                <button
+                  onClick={() => handleAddScore('ao', 2)}
+                  disabled={bout.status === 'Completed'}
+                  className="py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                >
+                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+2</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Waza-ari</span>
+                </button>
+                <button
+                  onClick={() => handleAddScore('ao', 3)}
+                  disabled={bout.status === 'Completed'}
+                  className="py-2 bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500/30 rounded-xl flex flex-col items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
+                >
+                  <span className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight">+3</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight">Ippon</span>
+                </button>
+              </div>
 
-        </div>
-
-        {/* ROW 3: Secondary Controls (Penalties & Settings) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 shrink-0">
-          
-          {/* AKA Penalties */}
-          <div className="lg:col-span-3 bg-red-950/10 border border-red-900/20 rounded-xl p-3 flex flex-col justify-center">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] uppercase font-black tracking-widest text-red-400/60">AKA Penalties</span>
-              <button
-                onClick={() => handleToggleSenshu('aka')}
-                disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAka
-                    ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
-                    : 'bg-transparent text-white/40 border-white/15'
-                  } disabled:opacity-25 disabled:cursor-not-allowed`}
-              >
-                SENSHU {senshuAka ? 'ON' : 'OFF'}
-              </button>
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {[1, 2, 3, 4, 5].map((level) => {
-                const isActive = c1Aka >= level;
-                const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
-                return (
+              {/* Penalties Row */}
+              <div className="w-full">
+                <div className="flex items-center justify-between mb-1">
                   <button
-                    key={level}
-                    onClick={() => handleTogglePenalty('aka', level)}
-                    disabled={bout.status === 'Completed' || (c1Aka >= 5 && level !== c1Aka) || c1Ao >= 5}
-                    className={`py-2 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
-                        ? 'bg-red-500 text-black border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.3)]'
-                        : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                    onClick={() => handleToggleSenshu('ao')}
+                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAo
+                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
+                        : 'bg-transparent text-white/40 border-white/15'
                       }`}
                   >
-                    {labels[level]}
+                    SENSHU {senshuAo ? 'ON' : 'OFF'}
                   </button>
-                );
-              })}
+                  <span className="text-[9px] uppercase font-black tracking-widest text-blue-400/60">AO Penalties</span>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[1, 2, 3, 4, 5].map((level) => {
+                    const isActive = c1Ao >= level;
+                    const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleTogglePenalty('ao', level)}
+                        className={`py-1.5 rounded text-xs font-black transition cursor-pointer border ${isActive
+                            ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                          }`}
+                      >
+                        {labels[level]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Match Settings / Timer Length */}
-          <div className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-xl p-3 flex items-center justify-center gap-4">
-            <div className="flex-1">
-              <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Match Duration</label>
-              <select
-                value={matchDuration}
-                onChange={e => {
-                  const val = Number(e.target.value);
-                  setMatchDuration(val);
-                  setTimeLeft(val * 10);
-                }}
-                disabled={timerActive || bout.status === 'Completed'}
-                className="w-full bg-[#101015] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
-              >
-                <option value={60}>1:00 Minute</option>
-                <option value={90}>1:30 Minutes</option>
-                <option value={120}>2:00 Minutes</option>
-                <option value={180}>3:00 Minutes</option>
-              </select>
-            </div>
-            <div className="w-px h-8 bg-white/10"></div>
-            <button
-              onClick={handleUndo}
-              disabled={history.length === 0 || bout.status === 'Completed'}
-              className="flex-1 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-xs uppercase transition cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <RotateCcw className="h-3 w-3" /> Undo Last Action
-            </button>
-          </div>
-
-          {/* AO Penalties */}
-          <div className="lg:col-span-3 bg-blue-950/10 border border-blue-900/20 rounded-xl p-3 flex flex-col justify-center">
-            <div className="flex items-center justify-between mb-1.5">
-              <button
-                onClick={() => handleToggleSenshu('ao')}
-                disabled={bout.status === 'Completed' || c1Aka >= 5 || c1Ao >= 5}
-                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border transition cursor-pointer ${senshuAo
-                    ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
-                    : 'bg-transparent text-white/40 border-white/15'
-                  } disabled:opacity-25 disabled:cursor-not-allowed`}
-              >
-                SENSHU {senshuAo ? 'ON' : 'OFF'}
-              </button>
-              <span className="text-[10px] uppercase font-black tracking-widest text-blue-400/60">AO Penalties</span>
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {[1, 2, 3, 4, 5].map((level) => {
-                const isActive = c1Ao >= level;
-                const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
-                return (
-                  <button
-                    key={level}
-                    onClick={() => handleTogglePenalty('ao', level)}
-                    disabled={bout.status === 'Completed' || c1Aka >= 5 || (c1Ao >= 5 && level !== c1Ao)}
-                    className={`py-2 rounded text-xs font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
-                        ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
-                        : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
-                      }`}
-                  >
-                    {labels[level]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          </section>
 
         </div>
       </main>
@@ -1537,8 +1580,13 @@ export default function ScoreboardControlPage() {
               setTimerActive(false);
               if (c1Aka < 5 && c1Ao < 5) {
                 const autoWin = autoDetermineWinner();
-                setWinnerSide(autoWin.side);
-                setWinMethod(autoWin.method);
+                if (autoWin) {
+                  setWinnerSide(autoWin.side);
+                  setWinMethod(autoWin.method);
+                } else {
+                  setWinnerSide(null);
+                  setWinMethod('Hantei');
+                }
               }
               setShowFinishModal(true);
             }}
