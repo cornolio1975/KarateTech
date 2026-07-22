@@ -1,2 +1,2 @@
-:HL["/_next/static/chunks/18hnt_ricka7d.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"public","param":null,"prefetchHints":0,"slots":{"children":{"name":"past-tournaments","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}},"staleTime":300,"buildId":"pfIha_uLsRdnj5ztZy2Wa"}
+:HL["/KarateTech/_next/static/chunks/2eulkn21cnjzl.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"public","param":null,"prefetchHints":0,"slots":{"children":{"name":"past-tournaments","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}},"staleTime":300,"buildId":"q7fnKTCE8jXfwT83vvtxG"}
