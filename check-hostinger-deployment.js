@@ -94,7 +94,7 @@ console.log('║  Next Steps:                                                   
 console.log('║  1. Upload all files from /out to public_html/                ║');
 console.log('║  2. Upload .htaccess to public_html/                          ║');
 console.log('║  3. Verify file permissions (644 for files, 755 for dirs)    ║');
-console.log('║  4. Test: https://slategray-monkey-804118.hostingersite.com/ ║');
+console.log('║  4. Test: https://karatetech.spsportdatasolution.org/ ║');
 console.log('║                                                                ║');
 console.log('║  See HOSTINGER_DEPLOYMENT.md for detailed instructions        ║');
 console.log('╚════════════════════════════════════════════════════════════════╝\n');
