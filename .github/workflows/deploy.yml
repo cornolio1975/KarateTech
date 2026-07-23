@@ -26,7 +26,7 @@ jobs:
         run: npm ci
 
       - name: Build Next.js Static Export 🚀
-        run: npm run build
+        run: npm run build:gh
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://baoiiwfxfbvjfsfdmhjm.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_QuJS043IZONU1brj_3YhSA_lIUEXeM8

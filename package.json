@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:gh": "node build-gh.js",
     "build:hostinger": "node build-hostinger.js",
     "check:hostinger": "node check-hostinger-deployment.js",
     "start": "next start",
