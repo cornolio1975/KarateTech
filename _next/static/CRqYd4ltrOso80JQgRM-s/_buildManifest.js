@@ -1,7 +1,12 @@
 self.__BUILD_MANIFEST = {
   "__rewrites": {
     "afterFiles": [],
-    "beforeFiles": [],
+    "beforeFiles": [
+      {
+        "source": "/KarateTech//_next/:path+",
+        "destination": "/KarateTech/_next/:path+"
+      }
+    ],
     "fallback": []
   },
   "sortedPages": [
