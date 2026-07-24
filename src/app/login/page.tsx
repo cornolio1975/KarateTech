@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Users, Eye, Mail, Lock, EyeOff, Shield, ArrowRight, 
-  User, KeyRound, Send, ArrowLeft 
+  User, KeyRound, Send, ArrowLeft, Globe, ExternalLink 
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, basePath } from '@/db/dbClient';
 
@@ -270,10 +270,32 @@ export default function LoginPage() {
 
           <div className="p-8 sm:p-10 flex flex-col items-center space-y-6">
             
+            {/* CORPORATE HOME NAVIGATION LINK */}
+            <div className="flex items-center justify-between w-full pb-2 border-b border-white/5">
+              <a
+                href="https://spsportdatasolution.org/karatetech/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/20 hover:bg-indigo-900/60 text-xs font-bold text-indigo-300 hover:text-white transition-all cursor-pointer group"
+                title="Return to Corporate Showcase"
+              >
+                <Globe className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-indigo-400" />
+                <span>Corporate Home</span>
+                <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
+              </a>
+              <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">spsportdatasolution.org</span>
+            </div>
+
             {/* HEADER */}
             <div className="flex flex-col items-center space-y-4 text-center w-full">
-              <div className="flex flex-col items-center space-y-3">
-                <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0">
+              <a
+                href="https://spsportdatasolution.org/karatetech/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center space-y-3 group cursor-pointer"
+                title="Open Corporate Home"
+              >
+                <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-indigo-400 transition-all">
                   <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
                 </div>
                 <div className="flex flex-col items-center leading-none">
@@ -282,14 +304,14 @@ export default function LoginPage() {
                     <span style={{ color: '#38bdf8' }}>Tech</span>
                   </div>
                   <div style={{ height: '2px', width: '80px', background: 'linear-gradient(90deg, #b91c2e 60%, transparent 100%)', marginTop: '2px', marginBottom: '2px', borderRadius: '1px' }} />
-                  <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }}>
-                    SP SportData Solution
+                  <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
+                    SP SportData Solution <ExternalLink className="inline h-2.5 w-2.5 opacity-70" />
                   </span>
                   <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: '0.58rem', letterSpacing: '0.08em', color: '#64748b', lineHeight: 1.2, marginTop: '2px' }}>
                     • Precision. • Speed. • Results. •
                   </span>
                 </div>
-              </div>
+              </a>
               
               <div className="space-y-1 mt-2">
                 <h2 className="text-lg font-black tracking-tight text-white uppercase drop-shadow-md">Senshi Goju-Ryu</h2>

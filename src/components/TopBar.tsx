@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Search, SlidersHorizontal, Download, Upload, MoreHorizontal, 
-  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home
+  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink
 } from 'lucide-react';
 import { db } from '@/db/dbClient';
 
@@ -85,11 +85,21 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
+        <a
+          href="https://spsportdatasolution.org/karatetech/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-indigo-500/20 bg-indigo-950/20 hover:bg-indigo-900/40 rounded-lg text-xs font-bold transition text-indigo-300 hover:text-white cursor-pointer"
+          title="Open Corporate Home Showcase"
+        >
+          <Globe className="h-3.5 w-3.5 text-indigo-400" />
+          <span className="hidden md:inline">Corporate Home</span>
+        </a>
         <Link
           href="/"
           prefetch={false}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-border hover:bg-secondary rounded-lg text-xs font-bold transition text-muted-foreground hover:text-foreground cursor-pointer"
-          title="Back to Dashboard"
+          title="Back to App Dashboard"
         >
           <Home className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Home</span>

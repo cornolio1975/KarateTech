@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, UsersRound, Tags, GitPullRequest, 
   CalendarDays, Sword, ShieldCheck, Award, FileText, Settings, Trophy, Tv, LogOut, Zap,
-  CalendarCheck, History
+  CalendarCheck, History, Globe, ExternalLink
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import { basePath } from '@/db/dbClient';
@@ -57,8 +57,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full border-none px-0'}
       `}
     >
-      <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
-        <div className="h-10 w-10 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
+      <a 
+        href="https://spsportdatasolution.org/karatetech/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="h-16 flex items-center gap-3 px-6 border-b border-border hover:bg-secondary/40 transition-colors group cursor-pointer"
+        title="Open Corporate Home Showcase (spsportdatasolution.org/karatetech)"
+      >
+        <div className="h-10 w-10 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-primary transition-all">
           <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
         </div>
         <div className="flex flex-col leading-none">
@@ -67,14 +73,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span style={{ color: '#38bdf8' }}>Tech</span>
           </div>
           <div style={{ height: '1.5px', background: 'linear-gradient(90deg, #b91c2e 60%, transparent 100%)', marginTop: '1.5px', marginBottom: '1.5px', borderRadius: '1px' }} />
-          <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }}>
-            SP SportData Solution
+          <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
+            SP SportData Solution <ExternalLink className="inline h-2.5 w-2.5 opacity-70" />
           </span>
           <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: '0.45rem', letterSpacing: '0.08em', color: '#64748b', lineHeight: 1.2, marginTop: '1.5px' }}>
             • Precision. • Speed. • Results. •
           </span>
         </div>
-      </div>
+      </a>
 
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">

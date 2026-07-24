@@ -172,8 +172,14 @@ export default function LandingPage() {
       
       {/* 1. Header Bar */}
       <header className={`relative z-10 border-b ${theme === 'dark' ? 'border-white/5 bg-[#0b0f19]' : 'border-slate-200 bg-white'} px-6 py-4 flex items-center justify-between`}>
-        <div className="flex items-center gap-3">
-          <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0">
+        <a 
+          href="https://spsportdatasolution.org/karatetech/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 group cursor-pointer"
+          title="Open Corporate Showcase (spsportdatasolution.org/karatetech)"
+        >
+          <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-indigo-400 transition-all">
             <img src={`${basePath}/logo.jpg`} alt="Tournament Logo" className="h-full w-full object-cover" />
           </div>
           {/* Brand Logo — KarateTech */}
@@ -186,15 +192,15 @@ export default function LandingPage() {
             {/* Thin crimson divider */}
             <div style={{ height: '2px', background: 'linear-gradient(90deg, #b91c2e 60%, transparent 100%)', marginTop: '2px', marginBottom: '2px', borderRadius: '1px' }} />
             {/* Line 2: SP Sport Data Solution */}
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em', color: theme === 'dark' ? '#818cf8' : '#1a2744', lineHeight: 1.15 }}>
-              SP SportData Solution
+            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em', color: theme === 'dark' ? '#818cf8' : '#1a2744', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
+              SP SportData Solution <ExternalLink size={10} className="opacity-70" />
             </span>
             {/* Line 3: Tagline */}
             <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: '0.58rem', letterSpacing: '0.08em', color: theme === 'dark' ? '#64748b' : '#64748b', lineHeight: 1.2, marginTop: '2px' }}>
               • Precision. • Speed. • Results. •
             </span>
           </div>
-        </div>
+        </a>
 
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2 text-xs font-semibold opacity-70">
@@ -231,10 +237,25 @@ export default function LandingPage() {
           <Link href="/public/tournaments" className="font-bold hover:text-indigo-400 transition-colors">Tournament Info</Link>
           <Link href="/public/past-tournaments" className="font-bold hover:text-indigo-400 transition-colors">Past Results</Link>
           <Link href="/public" className="font-bold hover:text-indigo-400 transition-colors">Spectator Hub</Link>
-          <Link href="/login" className="font-bold text-slate-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5 ml-auto">
-            <LogIn size={13} />
-            <span>Portal Login</span>
-          </Link>
+          
+          <div className="ml-auto flex items-center gap-5">
+            <a
+              href="https://spsportdatasolution.org/karatetech/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-slate-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5"
+              title="SP SportData Solution Corporate Showcase"
+            >
+              <Globe size={13} className="text-indigo-400" />
+              <span>Corporate Home</span>
+              <ExternalLink size={10} className="opacity-60" />
+            </a>
+
+            <Link href="/login" className="font-bold text-slate-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+              <LogIn size={13} />
+              <span>Portal Login</span>
+            </Link>
+          </div>
         </div>
       </nav>
 
