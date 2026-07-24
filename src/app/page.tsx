@@ -240,6 +240,18 @@ export default function LandingPage() {
           
           <div className="ml-auto flex items-center gap-5">
             <a
+              href="https://tournamentdisplay.spsportdatasolution.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1.5"
+              title="Open Tournament Live Display"
+            >
+              <Tv size={13} className="text-amber-400" />
+              <span>T-LiveDisplay</span>
+              <ExternalLink size={10} className="opacity-60" />
+            </a>
+
+            <a
               href="https://spsportdatasolution.org/karatetech/"
               target="_blank"
               rel="noopener noreferrer"

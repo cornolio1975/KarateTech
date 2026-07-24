@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Users, Eye, Mail, Lock, EyeOff, Shield, ArrowRight, 
-  User, KeyRound, Send, ArrowLeft, Globe, ExternalLink 
+  User, KeyRound, Send, ArrowLeft, Globe, ExternalLink, Tv 
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, basePath } from '@/db/dbClient';
 
@@ -270,19 +270,32 @@ export default function LoginPage() {
 
           <div className="p-8 sm:p-10 flex flex-col items-center space-y-6">
             
-            {/* CORPORATE HOME NAVIGATION LINK */}
+            {/* CORPORATE HOME & T-LIVEDISPLAY NAVIGATION LINKS */}
             <div className="flex items-center justify-between w-full pb-2 border-b border-white/5">
-              <a
-                href="https://spsportdatasolution.org/karatetech/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/20 hover:bg-indigo-900/60 text-xs font-bold text-indigo-300 hover:text-white transition-all cursor-pointer group"
-                title="Return to Corporate Showcase"
-              >
-                <Globe className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-indigo-400" />
-                <span>Corporate Home</span>
-                <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://tournamentdisplay.spsportdatasolution.org/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-950/40 border border-amber-500/20 hover:bg-amber-900/60 text-xs font-bold text-amber-300 hover:text-white transition-all cursor-pointer group"
+                  title="Open Tournament Live Display"
+                >
+                  <Tv className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-amber-400" />
+                  <span>T-LiveDisplay</span>
+                  <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
+                </a>
+                <a
+                  href="https://spsportdatasolution.org/karatetech/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/20 hover:bg-indigo-900/60 text-xs font-bold text-indigo-300 hover:text-white transition-all cursor-pointer group"
+                  title="Return to Corporate Showcase"
+                >
+                  <Globe className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-indigo-400" />
+                  <span>Corporate Home</span>
+                  <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
+                </a>
+              </div>
               <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">spsportdatasolution.org</span>
             </div>
 
