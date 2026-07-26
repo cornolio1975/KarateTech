@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/db/dbClient';
-import { Bout, Category, Participant } from '@/db/types';
+import { Bout, Category, Participant, isKataCategory, isKumiteCategory } from '@/db/types';
 import { CalendarDays, Save, Sparkles, Clock, RefreshCw, Layers, X } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
@@ -16,6 +16,7 @@ export default function SchedulePage() {
   
   // Selection/filters
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
+  const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
   
   // Edit schedule form
   const [editBoutId, setEditBoutId] = useState<string | null>(null);
@@ -81,6 +82,9 @@ export default function SchedulePage() {
   const handleAutoSchedule = () => {
     const targetBouts = bouts.filter(b => {
       if (b.status === 'Completed' || b.status === 'Walkover') return false;
+      const cat = categories.find(c => c.id === b.category_id);
+      if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
+      if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;
       if (selectedCatId !== 'ALL' && b.category_id !== selectedCatId) return false;
       return true;
     });
@@ -122,8 +126,18 @@ export default function SchedulePage() {
 
   if (!mounted) return null;
 
+  // Filtered categories display list
+  const displayCategories = categories.filter(c => {
+    if (disciplineFilter === 'KUMITE') return isKumiteCategory(c);
+    if (disciplineFilter === 'KATA') return isKataCategory(c);
+    return true;
+  });
+
   // Filtered Bouts
   const filteredBouts = bouts.filter(b => {
+    const cat = categories.find(c => c.id === b.category_id);
+    if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
+    if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;
     if (selectedCatId !== 'ALL' && b.category_id !== selectedCatId) return false;
     return true;
   });
@@ -167,7 +181,25 @@ export default function SchedulePage() {
           )}
 
           <div className="space-y-4">
-            {/* Filter by Category inside Auto-schedule */}
+            {/* Discipline Filter */}
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Discipline Filter</label>
+              <select 
+                value={disciplineFilter}
+                onChange={(e) => {
+                  const val = e.target.value as 'ALL' | 'KUMITE' | 'KATA';
+                  setDisciplineFilter(val);
+                  setSelectedCatId('ALL');
+                }}
+                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
+              >
+                <option value="ALL">All Disciplines (Kumite & Kata)</option>
+                <option value="KUMITE">Kumite Categories ({categories.filter(isKumiteCategory).length})</option>
+                <option value="KATA">Kata Categories ({categories.filter(isKataCategory).length})</option>
+              </select>
+            </div>
+
+            {/* Target Category Selection */}
             <div>
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Target Category Selection</label>
               <select 
@@ -175,9 +207,11 @@ export default function SchedulePage() {
                 onChange={(e) => setSelectedCatId(e.target.value)}
                 className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
               >
-                <option value="ALL">All Categories</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                <option value="ALL">All Categories in Filter ({displayCategories.length})</option>
+                {displayCategories.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -238,15 +272,39 @@ export default function SchedulePage() {
 
         {/* RIGHT COLUMN: BOUTS SCHEDULE GRID */}
         <div className={`bg-card border border-border rounded-xl shadow-xs ${canModify ? 'lg:col-span-2' : ''} flex flex-col min-h-0 overflow-hidden`}>
-          <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
+          <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Matches Scheduled List</h2>
             </div>
             
-            <span className="text-[10px] bg-secondary px-2.5 py-1 rounded-md font-mono font-bold text-muted-foreground">
-              {filteredBouts.length} bouts total
-            </span>
+            <div className="flex items-center gap-2">
+              {/* Discipline Tabs */}
+              <div className="flex bg-secondary p-0.5 rounded-lg text-[10px] font-bold">
+                <button
+                  onClick={() => { setDisciplineFilter('ALL'); setSelectedCatId('ALL'); }}
+                  className={`px-2 py-1 rounded transition ${disciplineFilter === 'ALL' ? 'bg-card text-foreground font-black shadow-xs' : 'text-muted-foreground'}`}
+                >
+                  ALL
+                </button>
+                <button
+                  onClick={() => { setDisciplineFilter('KUMITE'); setSelectedCatId('ALL'); }}
+                  className={`px-2 py-1 rounded transition ${disciplineFilter === 'KUMITE' ? 'bg-yellow-400 text-black font-black shadow-xs' : 'text-muted-foreground'}`}
+                >
+                  KUMITE
+                </button>
+                <button
+                  onClick={() => { setDisciplineFilter('KATA'); setSelectedCatId('ALL'); }}
+                  className={`px-2 py-1 rounded transition ${disciplineFilter === 'KATA' ? 'bg-yellow-400 text-black font-black shadow-xs' : 'text-muted-foreground'}`}
+                >
+                  KATA
+                </button>
+              </div>
+
+              <span className="text-[10px] bg-secondary px-2.5 py-1 rounded-md font-mono font-bold text-muted-foreground">
+                {filteredBouts.length} bouts total
+              </span>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
