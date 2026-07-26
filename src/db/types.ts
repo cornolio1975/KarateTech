@@ -224,4 +224,27 @@ export interface Tournament {
   created_at?: string;
 }
 
+export interface DisplayPlaylistSlide {
+  id: string;
+  type: 'live_scoreboard' | 'kata_scoreboard' | 'bracket' | 'medals' | 'schedule' | 'announcement';
+  title: string;
+  duration_seconds: number;
+  tatami_filter?: string;
+  category_filter?: string;
+  announcement_text?: string;
+  sponsor_image_url?: string;
+}
+
+export interface DisplayPlaylist {
+  id: string;
+  name: string;
+  description?: string;
+  tatami?: string;
+  is_active?: boolean;
+  slides: DisplayPlaylistSlide[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+
 

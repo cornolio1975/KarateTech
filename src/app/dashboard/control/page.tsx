@@ -7,9 +7,10 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant } from '@/db/types';
 import {
   Zap, Play, Square, RotateCcw, X, Award, Timer,
-  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2
+  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
+import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
 
 export default function ScoreboardControlPage() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function ScoreboardControlPage() {
   const boutId = searchParams.get('boutId');
   const catId = searchParams.get('catId'); // passed from categories page
   const { tournamentName } = useTournament();
+
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1125,6 +1128,15 @@ export default function ScoreboardControlPage() {
             <span>Spectator View</span>
           </button>
 
+          {/* Display Playlists button */}
+          <button
+            onClick={() => setIsPlaylistModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-white/10 text-white rounded-lg text-[10px] font-bold transition cursor-pointer"
+          >
+            <List className="h-3 w-3 text-yellow-400" />
+            <span>Display Playlists</span>
+          </button>
+
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
@@ -1764,6 +1776,12 @@ export default function ScoreboardControlPage() {
           </div>
         </div>
       )}
+
+      {/* Display Playlist Manager Modal */}
+      <DisplayPlaylistModal
+        isOpen={isPlaylistModalOpen}
+        onClose={() => setIsPlaylistModalOpen(false)}
+      />
     </div>
   );
 }

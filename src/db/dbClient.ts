@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { mockStore } from './mockStore';
 import { 
   Country, Club, Coach, Category, Team, Participant, 
-  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament
+  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist, DisplayPlaylistSlide
 } from './types';
 
 // Read Supabase credentials
@@ -1082,5 +1082,121 @@ export const db = {
       }
       return mockStore.tournaments.delete(id);
     }
+  },
+
+  // 17. Display Playlists
+  displayPlaylists: {
+    list: async (): Promise<DisplayPlaylist[]> => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('display_playlists').select('*').order('created_at', { ascending: false });
+          if (!error && data && data.length > 0) return data;
+        } catch (e: unknown) {
+          console.warn('Supabase display_playlists list error, falling back to LocalStorage:', describeError(e));
+        }
+      }
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('ts_display_playlists');
+        if (stored) {
+          try {
+            return JSON.parse(stored);
+          } catch (e) {}
+        }
+        localStorage.setItem('ts_display_playlists', JSON.stringify(DEFAULT_PLAYLISTS));
+      }
+      return DEFAULT_PLAYLISTS;
+    },
+    add: async (playlist: Omit<DisplayPlaylist, 'id'>): Promise<DisplayPlaylist> => {
+      const newPlaylist: DisplayPlaylist = {
+        ...playlist,
+        id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('display_playlists').insert([newPlaylist]).select().single();
+          if (!error && data) return data;
+        } catch (e: unknown) {
+          console.warn('Supabase display_playlists add error, saving to LocalStorage fallback:', describeError(e));
+        }
+      }
+      if (typeof window !== 'undefined') {
+        const current = await db.displayPlaylists.list();
+        const updated = [newPlaylist, ...current];
+        localStorage.setItem('ts_display_playlists', JSON.stringify(updated));
+      }
+      return newPlaylist;
+    },
+    update: async (id: string, updates: Partial<DisplayPlaylist>): Promise<DisplayPlaylist> => {
+      const updatedPayload = { ...updates, updated_at: new Date().toISOString() };
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('display_playlists').update(updatedPayload).eq('id', id).select().single();
+          if (!error && data) return data;
+        } catch (e: unknown) {
+          console.warn('Supabase display_playlists update error, saving to LocalStorage fallback:', describeError(e));
+        }
+      }
+      const list = await db.displayPlaylists.list();
+      const idx = list.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], ...updatedPayload };
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ts_display_playlists', JSON.stringify(list));
+        }
+        return list[idx];
+      }
+      throw new Error(`Playlist ${id} not found`);
+    },
+    delete: async (id: string): Promise<void> => {
+      if (supabase) {
+        try {
+          const { error } = await supabase.from('display_playlists').delete().eq('id', id);
+          if (!error) return;
+        } catch (e: unknown) {
+          console.warn('Supabase display_playlists delete error, falling back to LocalStorage:', describeError(e));
+        }
+      }
+      const list = await db.displayPlaylists.list();
+      const filtered = list.filter(p => p.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ts_display_playlists', JSON.stringify(filtered));
+      }
+    }
   }
 };
+
+const DEFAULT_PLAYLISTS: DisplayPlaylist[] = [
+  {
+    id: 'playlist-default-main',
+    name: 'Main Stage Arena Presentation',
+    description: 'Complete rotation of Live Scoreboards, Category Brackets, Medals Leaderboard, and Match Schedule.',
+    tatami: 'ALL',
+    is_active: true,
+    slides: [
+      { id: 's1', type: 'live_scoreboard', title: 'Live Kumite Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
+      { id: 's2', type: 'kata_scoreboard', title: 'WKF Kata Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
+      { id: 's3', type: 'bracket', title: 'Category Brackets & Draws', duration_seconds: 20 },
+      { id: 's4', type: 'medals', title: 'Club Medal Standings Leaderboard', duration_seconds: 15 },
+      { id: 's5', type: 'schedule', title: 'Upcoming Tatami Match Schedule', duration_seconds: 15 },
+      { id: 's6', type: 'announcement', title: 'Official Championship Announcement', duration_seconds: 12, announcement_text: 'Welcome to KarateTech Open Championship 2026! Respect rules, honor opponents.' }
+    ],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'playlist-tatami-1',
+    name: 'Tatami 1 Arena Dedicated Loop',
+    description: 'Focused rotation for Ring 1 featuring live match scoreboard and Tatami 1 schedule.',
+    tatami: 'Tatami 1',
+    is_active: false,
+    slides: [
+      { id: 't1-s1', type: 'live_scoreboard', title: 'Tatami 1 Live Match', duration_seconds: 30, tatami_filter: 'Tatami 1' },
+      { id: 't1-s2', type: 'schedule', title: 'Tatami 1 Upcoming Bouts', duration_seconds: 15, tatami_filter: 'Tatami 1' },
+      { id: 't1-s3', type: 'medals', title: 'Medal Standings', duration_seconds: 15 }
+    ],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];

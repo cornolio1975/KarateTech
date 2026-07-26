@@ -2,16 +2,33 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { db, supabase } from '@/db/dbClient';
-import { Bout, Participant, Category, Club } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2 } from 'lucide-react';
+import { db, supabase, basePath } from '@/db/dbClient';
+import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide } from '@/db/types';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, List, Monitor, Clock, Layers, Calendar } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
+import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
 
 function SpectatorDisplayContent() {
   const searchParams = useSearchParams();
   const urlBoutId = searchParams.get('boutId');
+  const urlPlaylistId = searchParams.get('playlistId');
+
   const [activeBoutId, setActiveBoutId] = useState<string | null>(null);
   const { tournamentName } = useTournament();
+
+  // Playlist Presentation Engine States
+  const [playlists, setPlaylists] = useState<DisplayPlaylist[]>([]);
+  const [activePlaylist, setActivePlaylist] = useState<DisplayPlaylist | null>(null);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
+  const [slideTimeLeft, setSlideTimeLeft] = useState<number>(25);
+  const [isPlaylistPaused, setIsPlaylistPaused] = useState<boolean>(false);
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState<boolean>(false);
+
+  // General Presentation Data
+  const [allBouts, setAllBouts] = useState<Bout[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
+  const [allClubs, setAllClubs] = useState<Club[]>([]);
 
   // Sync activeBoutId with URL query params initially or when they change
   useEffect(() => {
@@ -54,7 +71,6 @@ function SpectatorDisplayContent() {
   const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [timerActive, setTimerActive] = useState<boolean>(false);
 
-
   // Winner banner
   const [winnerSide, setWinnerSide] = useState<'aka' | 'ao' | null>(null);
   const [winMethod, setWinMethod] = useState<string>('');
@@ -93,6 +109,73 @@ function SpectatorDisplayContent() {
     resetHideTimer();
     return () => { if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current); };
   }, []);
+
+  // Load Playlist & Presentation Data
+  useEffect(() => {
+    const loadPresentationData = async () => {
+      try {
+        const [plList, bList, cList, pList, clList] = await Promise.all([
+          db.displayPlaylists.list(),
+          db.bouts.list(),
+          db.categories.list(),
+          db.participants.list(),
+          db.clubs.list()
+        ]);
+        setPlaylists(plList);
+        setAllBouts(bList);
+        setAllCategories(cList);
+        setAllParticipants(pList);
+        setAllClubs(clList);
+
+        if (urlPlaylistId) {
+          const targetPl = plList.find(p => p.id === urlPlaylistId);
+          if (targetPl) {
+            setActivePlaylist(targetPl);
+            setCurrentSlideIndex(0);
+            setSlideTimeLeft(targetPl.slides[0]?.duration_seconds || 25);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading presentation data:', err);
+      }
+    };
+    loadPresentationData();
+  }, [urlPlaylistId]);
+
+  // Playlist Slide Rotation Timer Effect
+  useEffect(() => {
+    if (!activePlaylist || !activePlaylist.slides || activePlaylist.slides.length === 0 || isPlaylistPaused) return;
+
+    const timer = setInterval(() => {
+      setSlideTimeLeft((prev) => {
+        if (prev <= 1) {
+          setCurrentSlideIndex((curr) => {
+            const nextIdx = (curr + 1) % activePlaylist.slides.length;
+            setSlideTimeLeft(activePlaylist.slides[nextIdx]?.duration_seconds || 25);
+            return nextIdx;
+          });
+          return 25;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activePlaylist, isPlaylistPaused]);
+
+  const handleNextSlide = () => {
+    if (!activePlaylist || !activePlaylist.slides.length) return;
+    const nextIdx = (currentSlideIndex + 1) % activePlaylist.slides.length;
+    setCurrentSlideIndex(nextIdx);
+    setSlideTimeLeft(activePlaylist.slides[nextIdx]?.duration_seconds || 25);
+  };
+
+  const handlePrevSlide = () => {
+    if (!activePlaylist || !activePlaylist.slides.length) return;
+    const prevIdx = (currentSlideIndex - 1 + activePlaylist.slides.length) % activePlaylist.slides.length;
+    setCurrentSlideIndex(prevIdx);
+    setSlideTimeLeft(activePlaylist.slides[prevIdx]?.duration_seconds || 25);
+  };
 
   // Trigger Superior Points fanfare or Hansoku alarm when winner is declared
   useEffect(() => {
@@ -503,6 +586,9 @@ function SpectatorDisplayContent() {
     return `.${decs}0`;
   };
 
+  const currentSlide = activePlaylist?.slides[currentSlideIndex];
+  const currentSlideType = currentSlide?.type || 'live_scoreboard';
+
   if (!mounted) return null;
 
   return (
@@ -510,41 +596,227 @@ function SpectatorDisplayContent() {
       className="h-[100dvh] max-h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden select-none font-sans p-4 lg:p-6 relative"
       onMouseMove={resetHideTimer}
     >
+      {/* Display Playlist Modal */}
+      <DisplayPlaylistModal
+        isOpen={isPlaylistModalOpen}
+        onClose={() => setIsPlaylistModalOpen(false)}
+        onSelectPlaylist={(pl) => {
+          setActivePlaylist(pl);
+          setCurrentSlideIndex(0);
+          setSlideTimeLeft(pl.slides[0]?.duration_seconds || 25);
+          setIsPlaylistModalOpen(false);
+        }}
+      />
 
-      {/* Floating Fullscreen Button */}
-      <button
-        onClick={toggleFullscreen}
-        className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-sm border ${
-          showControls || !isFullscreen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
-        } ${
-          isFullscreen
-            ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-            : 'bg-yellow-400/20 border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/30'
-        }`}
-      >
-        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-      </button>
-      {/* Top Details bar (Projector optimized size) */}
-      <div className="flex justify-between items-center border-b-2 border-white/10 pb-4 mb-4 shrink-0">
-        <div>
-          <span className="text-yellow-400 font-black tracking-widest text-lg uppercase">
-            {tatamiName} • BOUT #{boutNo} • ROUND {roundNo}
-          </span>
-          <h1 className="text-2xl font-black tracking-tight text-white/80 line-clamp-1 mt-1">
-            {categoryName}
-          </h1>
+      {/* Top Controls Bar (Playlist & Fullscreen) */}
+      <div className={`fixed top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none transition-all duration-300 ${
+        showControls || !isFullscreen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+      }`}>
+        {/* Playlist Controls Badge */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            onClick={() => setIsPlaylistModalOpen(true)}
+            className="bg-yellow-500 hover:bg-yellow-400 text-black font-extrabold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xl border border-yellow-400 cursor-pointer uppercase tracking-wider transition"
+          >
+            <List className="h-4 w-4" />
+            <span>Display Playlists</span>
+          </button>
+
+          {activePlaylist && (
+            <div className="flex items-center gap-2.5 bg-black/85 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-2xl">
+              <div className="flex items-center gap-1.5 text-yellow-400">
+                <Monitor className="h-4 w-4" />
+                <span className="max-w-[140px] truncate">{activePlaylist.name}</span>
+              </div>
+              <span className="text-white/30">|</span>
+              <span className="text-white/90">
+                SLIDE {currentSlideIndex + 1}/{activePlaylist.slides.length}: {currentSlide?.title}
+              </span>
+              <span className="bg-yellow-500/20 text-yellow-400 border border-yellow-400/30 px-2 py-0.5 rounded-md font-mono text-[11px] font-black">
+                ⏱ {slideTimeLeft}s
+              </span>
+
+              <div className="flex items-center gap-1 ml-1 border-l border-white/20 pl-2">
+                <button
+                  onClick={handlePrevSlide}
+                  className="p-1 hover:bg-white/20 rounded text-white cursor-pointer transition"
+                  title="Previous Slide"
+                >
+                  <SkipBack className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setIsPlaylistPaused(!isPlaylistPaused)}
+                  className="p-1 hover:bg-white/20 rounded text-yellow-400 cursor-pointer transition"
+                  title={isPlaylistPaused ? 'Resume Rotation' : 'Pause Rotation'}
+                >
+                  {isPlaylistPaused ? <Play className="h-3.5 w-3.5 fill-current" /> : <Pause className="h-3.5 w-3.5 fill-current" />}
+                </button>
+                <button
+                  onClick={handleNextSlide}
+                  className="p-1 hover:bg-white/20 rounded text-white cursor-pointer transition"
+                  title="Next Slide"
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="text-right">
-          <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
-            TOURNAMENT HUB
-          </span>
-          <p className="text-lg font-black text-white/70 tracking-tight">
+        {/* Floating Fullscreen Button */}
+        <button
+          onClick={toggleFullscreen}
+          className={`pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-md border shadow-xl ${
+            isFullscreen
+              ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+              : 'bg-yellow-400/20 border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/30'
+          }`}
+        >
+          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        </button>
+      </div>
+
+      {/* RENDER NON-SCOREBOARD PRESENTATION SLIDES */}
+      {currentSlideType === 'kata_scoreboard' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6 bg-gradient-to-b from-slate-950 via-black to-slate-950 rounded-3xl border border-white/10 shadow-2xl my-12">
+          <div className="flex items-center gap-3">
+            <Award className="h-8 w-8 text-yellow-400" />
+            <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">WKF 7-Judge Kata Performance</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
+            {/* AKA RED KATA */}
+            <div className="bg-red-950/40 border-2 border-red-600/50 rounded-2xl p-6 flex flex-col items-center justify-between space-y-4">
+              <span className="text-red-400 font-extrabold text-2xl tracking-wider">AKA (RED)</span>
+              <h3 className="text-3xl font-black text-white">{akaName}</h3>
+              <p className="text-sm font-bold text-red-300/60 uppercase">{akaClub}</p>
+              <div className="w-full bg-red-900/30 p-3 rounded-xl border border-red-500/30 text-center">
+                <span className="text-xs text-red-300 font-bold block uppercase mb-1">Total Kata Score</span>
+                <span className="text-5xl font-black text-red-400 font-mono">24.65</span>
+              </div>
+            </div>
+
+            {/* AO BLUE KATA */}
+            <div className="bg-blue-950/40 border-2 border-blue-600/50 rounded-2xl p-6 flex flex-col items-center justify-between space-y-4">
+              <span className="text-blue-400 font-extrabold text-2xl tracking-wider">AO (BLUE)</span>
+              <h3 className="text-3xl font-black text-white">{aoName}</h3>
+              <p className="text-sm font-bold text-blue-300/60 uppercase">{aoClub}</p>
+              <div className="w-full bg-blue-900/30 p-3 rounded-xl border border-blue-500/30 text-center">
+                <span className="text-xs text-blue-300 font-bold block uppercase mb-1">Total Kata Score</span>
+                <span className="text-5xl font-black text-blue-400 font-mono">25.10</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentSlideType === 'bracket' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6 bg-slate-950/90 rounded-3xl border border-white/10 my-12 overflow-hidden">
+          <div className="flex items-center gap-3">
+            <Layers className="h-8 w-8 text-yellow-400" />
+            <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">Live Category Brackets & Progress</h2>
+          </div>
+          <div className="w-full max-w-5xl bg-secondary/10 border border-white/10 rounded-2xl p-6 text-center space-y-4">
+            <h3 className="text-2xl font-black text-white uppercase">{categoryName}</h3>
+            <div className="grid grid-cols-3 gap-4 pt-4">
+              {allCategories.slice(0, 3).map(cat => (
+                <div key={cat.id} className="bg-black/60 border border-white/10 p-4 rounded-xl text-left space-y-2">
+                  <span className="text-xs font-bold text-yellow-400 uppercase">{cat.discipline || 'Kumite'}</span>
+                  <h4 className="text-sm font-bold text-white truncate">{cat.name}</h4>
+                  <div className="flex justify-between text-[11px] text-white/60 font-mono">
+                    <span>Status: {cat.status}</span>
+                    <span>Max: {cat.capacity || 32}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentSlideType === 'medals' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6 bg-slate-950/90 rounded-3xl border border-white/10 my-12 overflow-hidden">
+          <div className="flex items-center gap-3">
+            <Trophy className="h-8 w-8 text-yellow-400" />
+            <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">Club Medal Standings Leaderboard</h2>
+          </div>
+          <div className="w-full max-w-4xl bg-black/60 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="grid grid-cols-6 p-4 bg-white/5 font-black text-xs text-white/60 uppercase border-b border-white/10">
+              <span className="col-span-3">Dojo / Club Academy</span>
+              <span className="text-center text-yellow-400">🥇 Gold</span>
+              <span className="text-center text-slate-300">🥈 Silver</span>
+              <span className="text-center text-amber-600">🥉 Bronze</span>
+            </div>
+            <div className="divide-y divide-white/10 text-sm font-bold">
+              {allClubs.slice(0, 5).map((cl, idx) => (
+                <div key={cl.id} className="grid grid-cols-6 p-4 items-center hover:bg-white/5 transition">
+                  <span className="col-span-3 text-white font-extrabold">{idx + 1}. {cl.name}</span>
+                  <span className="text-center font-mono text-yellow-400 font-extrabold">{3 - idx > 0 ? 3 - idx : 0}</span>
+                  <span className="text-center font-mono text-slate-300">{2 - idx > 0 ? 2 - idx : 0}</span>
+                  <span className="text-center font-mono text-amber-600">{1}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentSlideType === 'schedule' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6 bg-slate-950/90 rounded-3xl border border-white/10 my-12 overflow-hidden">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-8 w-8 text-yellow-400" />
+            <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">Upcoming Tatami Match Schedule</h2>
+          </div>
+          <div className="w-full max-w-4xl bg-black/60 border border-white/10 rounded-2xl p-4 divide-y divide-white/10">
+            {allBouts.slice(0, 4).map((b) => (
+              <div key={b.id} className="py-3 flex items-center justify-between text-sm font-bold">
+                <div className="flex items-center gap-3">
+                  <span className="text-yellow-400 font-mono text-xs font-black">BOUT #{b.bout_no}</span>
+                  <span className="text-white/80">{b.tatami || 'Tatami 1'}</span>
+                </div>
+                <span className="text-xs bg-white/10 px-3 py-1 rounded-md text-white/70 font-mono">{b.scheduled_time || '09:30 AM'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {currentSlideType === 'announcement' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6 bg-gradient-to-br from-yellow-950/40 via-black to-slate-950 rounded-3xl border-2 border-yellow-500/40 shadow-2xl my-12 text-center">
+          <Volume2 className="h-16 w-16 text-yellow-400 animate-bounce" />
+          <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-widest text-yellow-400 leading-tight">
+            {currentSlide?.announcement_text || 'Welcome to KarateTech Open Championship 2026!'}
+          </h2>
+          <p className="text-lg font-bold text-white/60 uppercase tracking-wider">
             {tournamentName || 'Kelab Karate Do Senshi Goju-Ryu'}
           </p>
         </div>
-      </div>
+      )}
+
+      {/* STANDARD WKF SCOREBOARD DISPLAY (Preserved baseline setup) */}
+      {currentSlideType === 'live_scoreboard' && (
+        <>
+          {/* Top Details bar (Projector optimized size) */}
+          <div className="flex justify-between items-center border-b-2 border-white/10 pb-4 mb-4 shrink-0 mt-8">
+            <div>
+              <span className="text-yellow-400 font-black tracking-widest text-lg uppercase">
+                {tatamiName} • BOUT #{boutNo} • ROUND {roundNo}
+              </span>
+              <h1 className="text-2xl font-black tracking-tight text-white/80 line-clamp-1 mt-1">
+                {categoryName}
+              </h1>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
+                TOURNAMENT HUB
+              </span>
+              <p className="text-lg font-black text-white/70 tracking-tight">
+                {tournamentName || 'Kelab Karate Do Senshi Goju-Ryu'}
+              </p>
+            </div>
+          </div>
 
       {/* Hansoku Disqualification Blinking Banner */}
       {(c1Aka >= 5 || c1Ao >= 5) && !winnerSide && (
@@ -787,9 +1059,10 @@ function SpectatorDisplayContent() {
           </div>
         </div>
       </div>
+    </>
+  )}
 
-
-    </div>
+</div>
   );
 }
 
