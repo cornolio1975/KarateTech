@@ -33,7 +33,20 @@ export interface Category {
   status: 'Open' | 'Closed' | 'Full';
   created_at?: string;
   format?: 'knockout' | 'round_robin' | 'wkf_repechage';
+  discipline?: 'Kumite' | 'Kata' | 'Team Kumite' | 'Team Kata';
 }
+
+export const isKataCategory = (cat: Category | undefined | null): boolean => {
+  if (!cat) return false;
+  if (cat.discipline === 'Kata' || cat.discipline === 'Team Kata') return true;
+  return cat.name.toLowerCase().includes('kata');
+};
+
+export const isKumiteCategory = (cat: Category | undefined | null): boolean => {
+  if (!cat) return false;
+  if (cat.discipline === 'Kumite' || cat.discipline === 'Team Kumite') return true;
+  return !isKataCategory(cat);
+};
 
 export interface Team {
   id: string;
@@ -166,6 +179,12 @@ export interface Bout {
   points_ao_history?: string;
   timer_seconds?: number;
   timer_active?: boolean;
+  kata_a?: string;
+  kata_b?: string;
+  judge_scores_a?: number[];
+  judge_scores_b?: number[];
+  total_score_a?: number;
+  total_score_b?: number;
 }
 
 export interface Official {

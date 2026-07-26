@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/db/dbClient';
-import { Bout, Participant, Category, Club } from '@/db/types';
+import { Bout, Participant, Category, Club, isKumiteCategory } from '@/db/types';
 import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
@@ -48,12 +48,17 @@ export default function ScoreboardDashboardPage() {
 
   if (!mounted) return null;
 
+  // Kumite-only categories
+  const kumiteCategories = categories.filter(isKumiteCategory);
+  const kumiteCatIds = new Set(kumiteCategories.map(c => c.id));
+
   // Extract unique Tatamis
   const tatamis = Array.from(new Set(bouts.map(b => b.tatami || 'Tatami 1').filter(Boolean))).sort();
 
-  // Filter bouts
+  // Filter bouts for Kumite categories strictly
   const filteredBouts = bouts.filter(b => {
     if (b.status === 'Walkover') return false;
+    if (!kumiteCatIds.has(b.category_id)) return false;
     const matchesCat = selectedCatId === 'ALL' || b.category_id === selectedCatId;
     const matchesStatus = selectedStatus === 'ALL' || b.status === selectedStatus;
     const matchesTatami = selectedTatami === 'ALL' || (b.tatami || 'Tatami 1') === selectedTatami;
@@ -73,7 +78,7 @@ export default function ScoreboardDashboardPage() {
               </span>
             </div>
             <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-              Match Console Hub
+              Match Console Hub (Kumite)
             </h1>
             <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
@@ -100,20 +105,20 @@ export default function ScoreboardDashboardPage() {
         {/* Filters Panel */}
         <div className="lg:col-span-1 bg-white/[0.02] border border-white/5 rounded-2xl p-6 backdrop-blur-md h-fit">
           <h2 className="text-base font-black tracking-wider uppercase mb-6 text-gray-300">
-            Filters
+            Kumite Filters
           </h2>
 
           <div className="space-y-4">
             {/* Category Filter */}
             <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Category</label>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Kumite Category</label>
               <select
                 value={selectedCatId}
                 onChange={e => setSelectedCatId(e.target.value)}
                 className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition"
               >
-                <option value="ALL">All Categories</option>
-                {categories.map(cat => (
+                <option value="ALL">All Kumite Categories ({kumiteCategories.length})</option>
+                {kumiteCategories.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>

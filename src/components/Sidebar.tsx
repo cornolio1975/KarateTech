@@ -20,7 +20,8 @@ const MENU_ITEMS = [
   { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'Draft' },
   { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
   { name: 'Bouts', icon: Sword, path: '/bouts' },
-  { name: 'Kumite Scoreboard', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF' },
+  { name: 'Kumite S-Board', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF', isYellow: true },
+  { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-control', badge: 'WKF', isYellow: true },
   { name: 'Officials', icon: ShieldCheck, path: '/officials' },
   { name: 'Public Scoreboard', icon: Tv, path: '/public', badge: 'Live' },
   { name: 'Upcoming Tournaments', icon: CalendarCheck, path: '/public/tournaments', badge: 'New' },
@@ -87,6 +88,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {MENU_ITEMS.map((item) => {
           const isActive = pathname === item.path;
           const Icon = item.icon;
+          const isYellow = item.isYellow;
 
           return (
             <Link
@@ -95,18 +97,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               prefetch={false}
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
-                isActive
+                isYellow
+                  ? isActive
+                    ? 'bg-yellow-400/20 text-yellow-400 font-bold border-l-2 border-yellow-400 pl-2.5 shadow-sm'
+                    : 'text-yellow-400 hover:bg-yellow-400/10 hover:text-yellow-300 font-semibold'
+                  : isActive
                   ? 'bg-secondary text-foreground shadow-sm border-l-2 border-primary pl-2.5'
                   : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
               }`}
             >
               <Icon className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
-                isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                isYellow
+                  ? 'text-yellow-400'
+                  : isActive
+                  ? 'text-foreground'
+                  : 'text-muted-foreground group-hover:text-foreground'
               }`} />
               <span className="truncate">{item.name}</span>
               
               {item.badge && (
-                <span className="ml-auto text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                  isYellow
+                    ? 'bg-yellow-400/20 text-yellow-400 border border-yellow-400/30'
+                    : 'bg-primary/10 text-primary'
+                }`}>
                   {item.badge}
                 </span>
               )}

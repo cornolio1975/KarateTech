@@ -929,6 +929,9 @@ export const db = {
       }
       return mockStore.bouts.updateBoutState(id, updates);
     },
+    update: async (id: string, updates: Partial<Bout>): Promise<Bout> => {
+      return db.bouts.updateBoutState(id, updates);
+    },
     resetBoutResult: async (boutId: string, matchDuration: number): Promise<Bout> => {
       if (supabase) {
         try {
