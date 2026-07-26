@@ -143,7 +143,7 @@ export default function SchedulePage() {
   });
 
   return (
-    <div className="p-6 space-y-6 text-foreground w-full h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+    <div className="p-6 space-y-6 text-foreground w-full min-h-[calc(100vh-64px)] flex flex-col overflow-y-auto">
       
       {/* Title */}
       <div className="flex items-center justify-between shrink-0">
@@ -271,7 +271,7 @@ export default function SchedulePage() {
         )}
 
         {/* RIGHT COLUMN: BOUTS SCHEDULE GRID */}
-        <div className={`bg-card border border-border rounded-xl shadow-xs ${canModify ? 'lg:col-span-2' : ''} flex flex-col min-h-0 overflow-hidden`}>
+        <div className={`bg-card border border-border rounded-xl shadow-xs ${canModify ? 'lg:col-span-2' : ''} flex flex-col min-h-[400px]`}>
           <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />

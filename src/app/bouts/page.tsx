@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '@/db/dbClient';
 import Link from 'next/link';
-import { Bout, Participant, Category, Club } from '@/db/types';
+import { Bout, Participant, Category, Club, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   Sword, Play, Pause, RotateCcw, X, ShieldAlert, 
   Check, Award, Timer, ChevronRight, Volume2, VolumeX, RefreshCw 
@@ -22,6 +22,7 @@ export default function BoutsAdminPage() {
   
   // Selection/filter states
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
+  const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedTatami, setSelectedTatami] = useState<string>('ALL');
 
@@ -232,8 +233,17 @@ export default function BoutsAdminPage() {
 
   if (!mounted) return null;
 
+  const displayCategories = categories.filter(c => {
+    if (disciplineFilter === 'KUMITE') return isKumiteCategory(c);
+    if (disciplineFilter === 'KATA') return isKataCategory(c);
+    return true;
+  });
+
   const filteredBouts = bouts.filter((b) => {
     if (b.status === 'Walkover') return false;
+    const cat = categories.find(c => c.id === b.category_id);
+    if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
+    if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;
     if (selectedCatId !== 'ALL' && b.category_id !== selectedCatId) return false;
     if (selectedStatus !== 'ALL' && b.status !== selectedStatus) return false;
     if (selectedTatami !== 'ALL' && b.tatami !== selectedTatami) return false;
@@ -241,7 +251,7 @@ export default function BoutsAdminPage() {
   });
 
   return (
-    <div className="p-6 space-y-6 text-foreground w-full h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+    <div className="p-6 space-y-6 text-foreground w-full min-h-[calc(100vh-64px)] flex flex-col overflow-y-auto">
       
       {/* Title */}
       <div className="flex items-center justify-between shrink-0">
@@ -269,7 +279,25 @@ export default function BoutsAdminPage() {
       </div>
 
       {/* Filters Card */}
-      <div className="bg-card border border-border p-4 rounded-xl shadow-xs shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="bg-card border border-border p-4 rounded-xl shadow-xs shrink-0 grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {/* Discipline Filter */}
+        <div>
+          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Discipline Filter</label>
+          <select 
+            value={disciplineFilter}
+            onChange={(e) => {
+              const val = e.target.value as 'ALL' | 'KUMITE' | 'KATA';
+              setDisciplineFilter(val);
+              setSelectedCatId('ALL');
+            }}
+            className="w-full px-3 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
+          >
+            <option value="ALL">All Disciplines (Kumite & Kata)</option>
+            <option value="KUMITE">Kumite Categories ({categories.filter(isKumiteCategory).length})</option>
+            <option value="KATA">Kata Categories ({categories.filter(isKataCategory).length})</option>
+          </select>
+        </div>
+
         {/* Category Filter */}
         <div>
           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Filter Category</label>
@@ -278,9 +306,11 @@ export default function BoutsAdminPage() {
             onChange={(e) => setSelectedCatId(e.target.value)}
             className="w-full px-3 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
           >
-            <option value="ALL">All Categories</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            <option value="ALL">All Categories in Filter ({displayCategories.length})</option>
+            {displayCategories.map(c => (
+              <option key={c.id} value={c.id}>
+                {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name}
+              </option>
             ))}
           </select>
         </div>

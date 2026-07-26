@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
-import { Participant, Club, Country, Category, Coach } from '@/db/types';
+import { Participant, Club, Country, Category, Coach, isKataCategory, isKumiteCategory } from '@/db/types';
 import AddParticipantModal from '@/components/AddParticipantModal';
 import EditParticipantDrawer from '@/components/EditParticipantDrawer';
 import ImportModal from '@/components/ImportModal';
@@ -41,8 +41,9 @@ export default function ParticipantsPage() {
   
   // Active states
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
-  const [activeCategoryTab, setActiveCategoryTab] = useState<'ALL' | 'CONFIRMED'>('ALL');
+  const [activeCategoryTab, setActiveCategoryTab] = useState<'ALL' | 'KUMITE' | 'KATA' | 'CONFIRMED'>('ALL');
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
   
   // Custom local filter states matching KumiteTechnology demo UI
   const [statusFilter, setStatusFilter] = useState<string>('Active'); // Active / Inactive / All
@@ -260,67 +261,127 @@ export default function ParticipantsPage() {
     currentPage * pageSize
   );
 
+  // Filtered categories display list
+  const displayCategories = categories.filter(c => {
+    if (activeCategoryTab === 'CONFIRMED') {
+      const { confirmed } = getCategoryCountInfo(c.id);
+      if (confirmed === 0) return false;
+    }
+    if (disciplineFilter === 'KUMITE') return isKumiteCategory(c);
+    if (disciplineFilter === 'KATA') return isKataCategory(c);
+    return true;
+  });
+
   return (
-    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-64px)] w-full text-foreground bg-background overflow-y-auto lg:overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-auto min-h-[calc(100vh-64px)] w-full text-foreground bg-background overflow-y-auto">
       
       {/* ======================================================== */}
       {/* LEFT COLUMN: CATEGORY TREE SIDE-PANEL                     */}
       {/* ======================================================== */}
       <div className="w-full lg:w-72 bg-card border-b lg:border-b-0 lg:border-r border-border h-48 lg:h-full flex flex-col shrink-0">
         
-        {/* Categories Tab selectors (ALL / Checked Checkmark) */}
-        <div className="flex border-b border-border text-xs font-semibold shrink-0 bg-secondary/10">
+        {/* Categories Tab selectors */}
+        <div className="grid grid-cols-4 border-b border-border text-[10px] font-bold shrink-0 bg-secondary/10">
           <button
-            onClick={() => { setActiveCategoryTab('ALL'); setSelectedCatId(null); }}
-            className={`flex-1 py-3 text-center transition-colors border-b-2 cursor-pointer ${
-              activeCategoryTab === 'ALL' && !selectedCatId
-                ? 'border-primary text-foreground bg-card'
+            onClick={() => { setActiveCategoryTab('ALL'); setDisciplineFilter('ALL'); setSelectedCatId(null); }}
+            className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
+              activeCategoryTab === 'ALL' && disciplineFilter === 'ALL' && !selectedCatId
+                ? 'border-primary text-foreground bg-card font-extrabold'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             ALL
           </button>
           <button
-            onClick={() => { setActiveCategoryTab('CONFIRMED'); setSelectedCatId(null); }}
-            className={`flex-1 py-3 text-center transition-colors border-b-2 flex items-center justify-center gap-1 cursor-pointer ${
-              activeCategoryTab === 'CONFIRMED'
-                ? 'border-primary text-foreground bg-card'
+            onClick={() => { setActiveCategoryTab('KUMITE'); setDisciplineFilter('KUMITE'); setSelectedCatId(null); }}
+            className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
+              disciplineFilter === 'KUMITE'
+                ? 'border-yellow-400 text-yellow-400 font-extrabold bg-card'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Check className="h-4 w-4" />
-            <span>CONFIRMED</span>
+            KUMITE
+          </button>
+          <button
+            onClick={() => { setActiveCategoryTab('KATA'); setDisciplineFilter('KATA'); setSelectedCatId(null); }}
+            className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
+              disciplineFilter === 'KATA'
+                ? 'border-yellow-400 text-yellow-400 font-extrabold bg-card'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            KATA
+          </button>
+          <button
+            onClick={() => { setActiveCategoryTab('CONFIRMED'); setDisciplineFilter('ALL'); setSelectedCatId(null); }}
+            className={`py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-0.5 cursor-pointer ${
+              activeCategoryTab === 'CONFIRMED'
+                ? 'border-primary text-foreground bg-card font-extrabold'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Check className="h-3 w-3" />
+            <span>CONF</span>
           </button>
         </div>
 
-        {/* Controller Dropdown display */}
-        <div className="p-4 border-b border-border space-y-3 shrink-0">
+        {/* Controller Dropdown & Discipline Filter */}
+        <div className="p-3 border-b border-border space-y-2.5 shrink-0">
           <div>
-            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Controller</label>
-            <select className="w-full px-3 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none">
-              <option>Tournament Manager</option>
-              <option>Tatami Controller</option>
-              <option>Chief Referee</option>
+            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Discipline Filter</label>
+            <select 
+              value={disciplineFilter}
+              onChange={e => {
+                const val = e.target.value as 'ALL' | 'KUMITE' | 'KATA';
+                setDisciplineFilter(val);
+                setActiveCategoryTab(val);
+                setSelectedCatId(null);
+                setCurrentPage(1);
+              }}
+              className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="ALL">All Disciplines (Kumite & Kata)</option>
+              <option value="KUMITE">Kumite Categories ({categories.filter(isKumiteCategory).length})</option>
+              <option value="KATA">Kata Categories ({categories.filter(isKataCategory).length})</option>
             </select>
           </div>
-          
-          <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-bold text-muted-foreground uppercase bg-secondary/30 p-2.5 rounded-lg border border-border">
+
+          <div>
+            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Quick Select Category</label>
+            <select 
+              value={selectedCatId || ''}
+              onChange={e => {
+                setSelectedCatId(e.target.value || null);
+                setCurrentPage(1);
+              }}
+              className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="">All Categories ({displayCategories.length})</option>
+              {displayCategories.map(c => (
+                <option key={c.id} value={c.id}>
+                  {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-bold text-muted-foreground uppercase bg-secondary/30 p-2 rounded-lg border border-border">
             <div>
-              <span className="block text-xs font-extrabold text-foreground">{categories.length}</span>
+              <span className="block text-xs font-extrabold text-foreground">{displayCategories.length}</span>
               <span>Categories</span>
             </div>
             <div>
               <span className="block text-xs font-extrabold text-foreground">
-                {categories.filter(c => getCategoryCountInfo(c.id).total === 0).length}
+                {displayCategories.filter(c => getCategoryCountInfo(c.id).total === 0).length}
               </span>
-              <span>Empty Categories</span>
+              <span>Empty</span>
             </div>
           </div>
         </div>
 
         {/* Category List */}
         <div className="flex-1 overflow-y-auto p-2.5 space-y-1 bg-secondary/5">
-          {categories.map(c => {
+          {displayCategories.map(c => {
             const { confirmed, total } = getCategoryCountInfo(c.id);
             const isSelected = selectedCatId === c.id;
 

@@ -318,7 +318,7 @@ export default function DrawsPage() {
 
   return (
     <>
-    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-64px)] w-full text-foreground bg-background overflow-y-auto lg:overflow-hidden no-print">
+    <div className="flex flex-col lg:flex-row h-auto min-h-[calc(100vh-64px)] w-full text-foreground bg-background overflow-y-auto no-print">
       
       {/* ======================================================== */}
       {/* LEFT COLUMN: CATEGORY NAVIGATION PANEL                   */}

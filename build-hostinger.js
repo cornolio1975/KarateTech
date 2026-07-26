@@ -16,7 +16,11 @@ try {
   // Create a zip of the 'out' folder for easy upload to Hostinger
   console.log('Build completed. Packaging /out into dist.zip...');
   if (fs.existsSync('dist.zip')) {
-    fs.unlinkSync('dist.zip');
+    try {
+      fs.unlinkSync('dist.zip');
+    } catch (e) {
+      console.warn('Warning: Could not delete old dist.zip, proceeding with -Force overwrite.');
+    }
   }
   if (process.platform === 'win32') {
     execSync('powershell "Compress-Archive -Path out\\* -DestinationPath dist.zip -Force"', { stdio: 'inherit' });

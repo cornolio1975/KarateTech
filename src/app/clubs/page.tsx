@@ -132,7 +132,7 @@ export default function ClubsPage() {
   );
 
   return (
-    <div className="p-6 space-y-6 text-foreground w-full h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+    <div className="p-6 space-y-6 text-foreground w-full min-h-[calc(100vh-64px)] flex flex-col overflow-y-auto">
       
       {/* Title */}
       <div className="flex items-center justify-between shrink-0">
