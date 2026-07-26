@@ -1,2 +1,2 @@
-:HL["/KarateTech/_next/static/chunks/1dotcw-skr23k.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"display","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"Luh-jcvUZnPthJop4D_AT"}
+:HL["/KarateTech/_next/static/chunks/0mw_l-1--9s8o.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"display","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"dnfouTbLvhGacfXzKoM-g"}
