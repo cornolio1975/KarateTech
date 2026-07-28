@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Users, Eye, Mail, Lock, EyeOff, Shield, ArrowRight, 
-  User, KeyRound, Send, ArrowLeft, Globe, ExternalLink, Tv 
+  User, KeyRound, Send, ArrowLeft, Globe, ExternalLink, Home 
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, basePath } from '@/db/dbClient';
 
@@ -270,33 +270,33 @@ export default function LoginPage() {
 
           <div className="p-8 sm:p-10 flex flex-col items-center space-y-6">
             
-            {/* CORPORATE HOME & T-LIVEDISPLAY NAVIGATION LINKS */}
+            {/* CORPORATE HOME NAVIGATION LINKS */}
             <div className="flex items-center justify-between w-full pb-2 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <a
-                  href="https://tournamentdisplay.spsportdatasolution.org/"
+                  href="https://spsportdatasolution.org/karatetech/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-950/40 border border-amber-500/20 hover:bg-amber-900/60 text-xs font-bold text-amber-300 hover:text-white transition-all cursor-pointer group"
-                  title="Open Tournament Live Display"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/20 hover:bg-indigo-900/60 text-xs font-bold text-indigo-300 hover:text-white transition-all cursor-pointer group"
+                  title="Return to Home"
                 >
-                  <Tv className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-amber-400" />
-                  <span>T-LiveDisplay</span>
+                  <Home className="h-3.5 w-3.5 group-hover:scale-110 transition-transform text-indigo-400" />
+                  <span>Home</span>
                   <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
                 </a>
                 <a
                   href="https://spsportdatasolution.org/karatetech/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/20 hover:bg-indigo-900/60 text-xs font-bold text-indigo-300 hover:text-white transition-all cursor-pointer group"
-                  title="Return to Corporate Showcase"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-500/20 hover:bg-slate-700/60 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer group"
+                  title="Corporate Home"
                 >
-                  <Globe className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-indigo-400" />
+                  <Globe className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform text-slate-400" />
                   <span>Corporate Home</span>
                   <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
                 </a>
               </div>
-              <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">spsportdatasolution.org</span>
+
             </div>
 
             {/* HEADER */}
@@ -308,8 +308,8 @@ export default function LoginPage() {
                 className="flex flex-col items-center space-y-3 group cursor-pointer"
                 title="Open Corporate Home"
               >
-                <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-indigo-400 transition-all">
-                  <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+                <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-indigo-400 transition-all shadow-xl">
+                  <img src={`${basePath}/karatetech-logo.png`} alt="KarateTech Logo" className="h-full w-full object-cover" />
                 </div>
                 <div className="flex flex-col items-center leading-none">
                   <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.15rem', lineHeight: 1, letterSpacing: '0.01em' }}>
