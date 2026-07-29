@@ -22,6 +22,8 @@ interface ParsedRow {
   phone?: string;
   payment_status: 'Paid' | 'Unpaid' | 'Pending';
   medical_status: 'Cleared' | 'Review Needed';
+  isKumite?: boolean;
+  isKata?: boolean;
 }
 
 export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
@@ -41,10 +43,10 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
   if (!isOpen) return null;
 
   // Raw mock CSV sample to seed pasting - Tab-separated to match user's custom template
-  const sampleCSV = "First Name\tLast Name\tGender\tDOB\tWeight / kg\tSize / cm\tPassport/IC\tClub\tEMail\tPhone\tPayment\tMedical\n" +
-    "Aainesh\tAainesh\tm\t2012-05-01\t46\t0\t\tSenshi Goju-Ryu\t\t60121523691\tPaid\tCleared\n" +
-    "AKILESH\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t\tSenshi Goju-Ryu\t\t6011-3334445\tPaid\tCleared\n" +
-    "AKILESH ALAGAN\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t80906101709\tSenshi Goju-Ryu\t\t6018-7776655\tPaid\tCleared";
+  const sampleCSV = "First Name\tLast Name\tGender\tDOB\tWeight / kg\tSize / cm\tPassport/IC\tClub\tEMail\tPhone\tPayment\tMedical\tKumite\tKata\n" +
+    "Aainesh\tAainesh\tm\t2012-05-01\t46\t0\t\tSenshi Goju-Ryu\t\t60121523691\tPaid\tCleared\tYes\tNo\n" +
+    "AKILESH\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t\tSenshi Goju-Ryu\t\t6011-3334445\tPaid\tCleared\tYes\tYes\n" +
+    "AKILESH ALAGAN\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t80906101709\tSenshi Goju-Ryu\t\t6018-7776655\tPaid\tCleared\tNo\tYes";
 
   const downloadCSVTemplate = () => {
     const link = document.createElement("a");
@@ -150,6 +152,12 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
       const lines = text.split('\n');
       const rows: ParsedRow[] = [];
       
+      const parseBoolean = (val?: string) => {
+        if (!val) return false;
+        const lower = val.trim().toLowerCase();
+        return lower === 'yes' || lower === 'y' || lower === 'true' || lower === '1';
+      };
+      
       // Skip header line
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -171,9 +179,11 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         let phone = '';
         let payment_status: 'Paid' | 'Unpaid' | 'Pending' = 'Unpaid';
         let medical_status: 'Cleared' | 'Review Needed' = 'Cleared';
+        let isKumite = false;
+        let isKata = false;
 
         if (cols.length >= 12) {
-          // 12 columns: First Name, Last Name, Gender, DOB, Weight / kg, Size / cm, Passport/IC, Club, EMail, Phone, Payment, Medical
+          // 12+ columns: First Name, Last Name, Gender, DOB, Weight / kg, Size / cm, Passport/IC, Club, EMail, Phone, Payment, Medical, (Kumite), (Kata)
           fullName = buildFullName(cols[0]?.trim() || '', cols[1]?.trim() || '');
           const rawGen = cols[2]?.trim().toLowerCase();
           gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
@@ -190,8 +200,13 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           
           const medStr = cols[11]?.trim().toLowerCase();
           medical_status = medStr === 'cleared' ? 'Cleared' : 'Review Needed';
+
+          if (cols.length >= 14) {
+            isKumite = parseBoolean(cols[12]);
+            isKata = parseBoolean(cols[13]);
+          }
         } else {
-          // Comma layout or standard (11 columns: Full Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical)
+          // Comma layout or standard (11+ columns: Full Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical, (Kumite), (Kata))
           fullName = normalizeName(cols[0]?.trim() || '');
           const rawGen = cols[1]?.trim().toLowerCase();
           gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
@@ -208,6 +223,11 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           
           const medStr = cols[10]?.trim().toLowerCase();
           medical_status = medStr === 'cleared' ? 'Cleared' : 'Review Needed';
+
+          if (cols.length >= 13) {
+            isKumite = parseBoolean(cols[11]);
+            isKata = parseBoolean(cols[12]);
+          }
         }
 
         if (!fullName) continue;
@@ -223,7 +243,9 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           email,
           phone,
           payment_status,
-          medical_status
+          medical_status,
+          isKumite,
+          isKata
         });
       }
 
@@ -288,6 +310,8 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           status: 'Pending',
           payment_status: row.payment_status,
           medical_status: row.medical_status === 'Cleared' ? 'Cleared' : 'Review Needed',
+          isKumite: row.isKumite,
+          isKata: row.isKata,
           remarks: row.passport_ic ? 'CSV Imported' : 'CSV Imported — IC/Passport pending update'
         });
         

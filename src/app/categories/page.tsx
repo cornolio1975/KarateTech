@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
-import { Category, Participant, Club, Bout } from '@/db/types';
+import { Category, Participant, Club, Bout, isKumiteCategory, isKataCategory } from '@/db/types';
 import { basePath } from '@/db/dbClient';
 import { 
   Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload
@@ -880,32 +880,14 @@ export default function CategoriesPage() {
 
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Select Participant</label>
-                <select
-                  required
-                  value={movePartId}
-                  onChange={(e) => setMovePartId(e.target.value)}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
-                >
-                  <option value="">Choose athlete...</option>
-                  {participants.map(p => {
-                    const cId = mappings.find(m => m.participant_id === p.id)?.category_id;
-                    const cName = categories.find(cat => cat.id === cId)?.name || 'Unassigned';
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} ({p.gender}, {p.weight}kg) • Currently: {cName}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Target Category</label>
                 <select
                   required
                   value={moveTargetCatId}
-                  onChange={(e) => setMoveTargetCatId(e.target.value)}
+                  onChange={(e) => {
+                    setMoveTargetCatId(e.target.value);
+                    setMovePartId(''); // Reset participant when category changes
+                  }}
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                 >
                   <option value="">Choose destination category...</option>
@@ -914,6 +896,35 @@ export default function CategoriesPage() {
                       {c.name} ({c.min_weight}-{c.max_weight}kg)
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Select Participant</label>
+                <select
+                  required
+                  value={movePartId}
+                  onChange={(e) => setMovePartId(e.target.value)}
+                  disabled={!moveTargetCatId}
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground disabled:opacity-50"
+                >
+                  <option value="">{moveTargetCatId ? "Choose athlete..." : "Select Target Category first"}</option>
+                  {participants.filter(p => {
+                    if (!moveTargetCatId) return true;
+                    const cat = activeCategories.find(c => c.id === moveTargetCatId);
+                    if (!cat) return true;
+                    if (isKumiteCategory(cat)) return p.isKumite;
+                    if (isKataCategory(cat)) return p.isKata;
+                    return true;
+                  }).map(p => {
+                    const cId = mappings.find(m => m.participant_id === p.id)?.category_id;
+                    const cName = categories.find(cat => cat.id === cId)?.name || 'Unassigned';
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} ({p.gender}, {p.weight}kg) • Currently: {cName}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

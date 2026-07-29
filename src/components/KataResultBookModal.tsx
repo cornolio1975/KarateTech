@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Printer, Trophy, Award, CheckCircle2, FileText, ShieldAlert } from 'lucide-react';
+import { X, Printer, Trophy, Award, CheckCircle2, FileText, ShieldAlert, Flag } from 'lucide-react';
 import { Bout, Participant, Category, Club } from '@/db/types';
 
 interface KataResultBookModalProps {
@@ -63,6 +63,8 @@ export default function KataResultBookModal({
   const isWinnerA = winnerId === participantA?.id;
   const isWinnerB = winnerId === participantB?.id;
 
+  const isFlagsMatch = judgeScoresA.every(s => s === 0 || s === 1) && judgeScoresB.every(s => s === 0 || s === 1);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
       {/* Modal Container */}
@@ -106,7 +108,7 @@ export default function KataResultBookModal({
               WORLD KARATE FEDERATION (WKF) KATA PROTOCOL
             </div>
             <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent print:text-black">
-              Official Match Scorecard
+              Official Match Scorecard {isFlagsMatch && <span className="text-yellow-400 text-lg ml-2">(Flags System)</span>}
             </h1>
             <div className="flex flex-wrap justify-center items-center gap-4 text-xs font-semibold text-gray-400 mt-2 print:text-gray-700">
               <span>Category: <strong className="text-white print:text-black">{category?.name || 'Kata Division'}</strong></span>
@@ -165,7 +167,7 @@ export default function KataResultBookModal({
           {/* Detailed Judge Score Matrix Table */}
           <div className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 print:text-gray-800">
-              Judge Panel Score Breakdown (7-Judge WKF Matrix)
+              Judge Panel Score Breakdown ({isFlagsMatch ? 'Flags Voting Matrix' : '7-Judge WKF Matrix'})
             </h4>
             <div className="overflow-hidden border border-white/10 rounded-xl print:border-gray-300">
               <table className="w-full text-xs text-left border-collapse">
@@ -177,12 +179,15 @@ export default function KataResultBookModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 print:divide-gray-200">
-                  {Array.from({ length: 7 }).map((_, idx) => {
+                  {Array.from({ length: judgeScoresA.length }).map((_, idx) => {
                     const statusA = getScoreStatus(judgeScoresA, idx);
                     const statusB = getScoreStatus(judgeScoresB, idx);
 
                     const scoreA = judgeScoresA[idx] !== undefined ? judgeScoresA[idx].toFixed(1) : '-';
                     const scoreB = judgeScoresB[idx] !== undefined ? judgeScoresB[idx].toFixed(1) : '-';
+                    
+                    const isFlagA = judgeScoresA[idx] === 1;
+                    const isFlagB = judgeScoresB[idx] === 1;
 
                     return (
                       <tr key={idx} className="hover:bg-white/[0.02] print:hover:bg-transparent">
@@ -192,7 +197,9 @@ export default function KataResultBookModal({
                         
                         {/* AKA Score Cell */}
                         <td className="p-3 text-center font-mono text-sm font-bold">
-                          {statusA !== 'active' ? (
+                          {isFlagsMatch ? (
+                            isFlagA ? <Flag className="inline-block h-5 w-5 fill-red-500 text-red-500" /> : <span className="text-gray-600 opacity-30">-</span>
+                          ) : statusA !== 'active' ? (
                             <span className="line-through text-red-400/50 bg-red-950/40 px-2 py-0.5 rounded border border-red-500/20 print:bg-red-100 print:text-red-600 print:border-red-300">
                               {scoreA} ({statusA === 'max' ? 'MAX Discard' : 'MIN Discard'})
                             </span>
@@ -203,7 +210,9 @@ export default function KataResultBookModal({
 
                         {/* AO Score Cell */}
                         <td className="p-3 text-center font-mono text-sm font-bold">
-                          {statusB !== 'active' ? (
+                          {isFlagsMatch ? (
+                            isFlagB ? <Flag className="inline-block h-5 w-5 fill-blue-500 text-blue-500" /> : <span className="text-gray-600 opacity-30">-</span>
+                          ) : statusB !== 'active' ? (
                             <span className="line-through text-blue-400/50 bg-blue-950/40 px-2 py-0.5 rounded border border-blue-500/20 print:bg-blue-100 print:text-blue-600 print:border-blue-300">
                               {scoreB} ({statusB === 'max' ? 'MAX Discard' : 'MIN Discard'})
                             </span>
@@ -217,12 +226,28 @@ export default function KataResultBookModal({
 
                   {/* Summary Totals Row */}
                   <tr className="bg-white/10 font-black text-sm border-t-2 border-white/20 print:bg-gray-200 print:text-black">
-                    <td className="p-3 uppercase">Total Calculated Score (5 Middle Sum)</td>
+                    <td className="p-3 uppercase">{isFlagsMatch ? 'Total Flags Awarded' : 'Total Calculated Score (5 Middle Sum)'}</td>
                     <td className="p-3 text-center font-mono text-base text-red-400 print:text-red-800">
-                      {totalScoreA.toFixed(2)}
+                      {isFlagsMatch ? (
+                        <div className="flex flex-wrap items-center justify-center gap-0.5">
+                          {Array.from({ length: Math.round(totalScoreA) }).map((_, i) => (
+                            <Flag key={`red-flag-${i}`} className="h-5 w-5 fill-red-500 text-red-500" />
+                          ))}
+                        </div>
+                      ) : (
+                        totalScoreA.toFixed(2)
+                      )}
                     </td>
                     <td className="p-3 text-center font-mono text-base text-blue-400 print:text-blue-800">
-                      {totalScoreB.toFixed(2)}
+                      {isFlagsMatch ? (
+                        <div className="flex flex-wrap items-center justify-center gap-0.5">
+                          {Array.from({ length: Math.round(totalScoreB) }).map((_, i) => (
+                            <Flag key={`blue-flag-${i}`} className="h-5 w-5 fill-blue-500 text-blue-500" />
+                          ))}
+                        </div>
+                      ) : (
+                        totalScoreB.toFixed(2)
+                      )}
                     </td>
                   </tr>
                 </tbody>

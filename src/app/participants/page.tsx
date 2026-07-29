@@ -597,6 +597,8 @@ export default function ParticipantsPage() {
                   <th className="p-3 w-36 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('full_name')}>
                     <div className="flex items-center gap-1">Last Name <ArrowUpDown className="h-3 w-3" /></div>
                   </th>
+                  <th className="p-3 w-20 font-bold text-muted-foreground text-center">Kumite</th>
+                  <th className="p-3 w-20 font-bold text-muted-foreground text-center">Kata</th>
                   <th className="p-3 w-32 font-bold text-muted-foreground">Category Assigned</th>
                   <th className="p-3 w-28 font-bold text-muted-foreground">Date of Birth</th>
                   <th className="p-3 w-16 font-bold text-muted-foreground">Age</th>
@@ -673,6 +675,28 @@ export default function ParticipantsPage() {
                         <td className="p-3">
                           {/* Last Name cell */}
                           <span className="font-semibold text-foreground">{splitName(p.full_name).lastName}</span>
+                        </td>
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            checked={p.isKumite || false}
+                            onChange={async (e) => {
+                              await db.participants.update(p.id, { isKumite: e.target.checked }, 'Inline Edit');
+                              triggerRefresh();
+                            }}
+                            className="rounded border-border text-primary cursor-pointer accent-primary"
+                          />
+                        </td>
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            checked={p.isKata || false}
+                            onChange={async (e) => {
+                              await db.participants.update(p.id, { isKata: e.target.checked }, 'Inline Edit');
+                              triggerRefresh();
+                            }}
+                            className="rounded border-border text-primary cursor-pointer accent-primary"
+                          />
                         </td>
                         <td className="p-3 font-semibold text-primary hover:underline">
                           {cat ? cat.name : 'Unassigned'}

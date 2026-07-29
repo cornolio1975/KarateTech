@@ -45,6 +45,8 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
   const [height, setHeight] = useState('');
   const [status, setStatus] = useState<'Confirmed' | 'Pending' | 'Checked In' | 'Disqualified' | 'Cancelled'>('Pending');
   const [remarks, setRemarks] = useState('');
+  const [isKumite, setIsKumite] = useState(false);
+  const [isKata, setIsKata] = useState(false);
 
   // Category mapping state
   const [assignedCat, setAssignedCat] = useState<Category | null>(null);
@@ -129,6 +131,8 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
         setHeight(String(p.height));
         setStatus(p.status);
         setRemarks(p.remarks || '');
+        setIsKumite(p.isKumite || false);
+        setIsKata(p.isKata || false);
 
         // Fetch category
         const mapping = await db.participants.getAssignedCategory(p.id);
@@ -209,6 +213,8 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
         height: parseFloat(height) || 0,
         status,
         remarks,
+        isKumite,
+        isKata,
         payment_status: payStatus === 'Refunded' ? 'Unpaid' : payStatus,
         medical_status: hasClearance ? 'Cleared' : 'Review Needed'
       }, 'Admin Director');
@@ -533,6 +539,29 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
                       <option value="Disqualified">Disqualified</option>
                       <option value="Cancelled">Cancelled</option>
                     </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Competition Events</label>
+                    <div className="flex items-center gap-6 p-3 bg-secondary border border-border rounded-lg">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={isKumite} 
+                          onChange={(e) => setIsKumite(e.target.checked)} 
+                          className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary accent-primary"
+                        />
+                        <span className="text-xs font-medium text-foreground">Kumite</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={isKata} 
+                          onChange={(e) => setIsKata(e.target.checked)} 
+                          className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary accent-primary"
+                        />
+                        <span className="text-xs font-medium text-foreground">Kata</span>
+                      </label>
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Internal Log Remarks</label>

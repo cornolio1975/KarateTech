@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
@@ -41,6 +41,7 @@ export default function KataControlPanelPage() {
   const [judgeScoresA, setJudgeScoresA] = useState<number[]>([8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
   const [judgeScoresB, setJudgeScoresB] = useState<number[]>([8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
   const [activeScoringTab, setActiveScoringTab] = useState<'AKA' | 'AO'>('AKA');
+  const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Points');
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
 
   // Modal state
@@ -92,19 +93,30 @@ export default function KataControlPanelPage() {
 
     const defaultScoresA = bout.judge_scores_a && bout.judge_scores_a.length > 0 
       ? bout.judge_scores_a 
-      : [8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4];
+      : (scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
     const defaultScoresB = bout.judge_scores_b && bout.judge_scores_b.length > 0 
       ? bout.judge_scores_b 
-      : [8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3];
+      : (scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
 
     setJudgeScoresA(defaultScoresA.slice(0, panelSize));
     setJudgeScoresB(defaultScoresB.slice(0, panelSize));
+    
+    // Auto-detect if loaded bout was a Flags match
+    if (bout.judge_scores_a && bout.judge_scores_a.length > 0) {
+      const isFlagsMatch = bout.judge_scores_a.every(s => s === 0 || s === 1) && bout.judge_scores_b?.every(s => s === 0 || s === 1);
+      if (isFlagsMatch) {
+        setScoringMethod('Flags');
+      } else {
+        setScoringMethod('Points');
+      }
+    }
     setSelectedWinnerId(bout.winner_id || null);
   };
 
   // Helper to trim High (MAX) and Low (MIN) scores and calculate Total Score
-  const calculateTotalScore = (scores: number[]) => {
+  const calculateTotalScore = (scores: number[], method: 'Points' | 'Flags' = scoringMethod) => {
     if (!scores || scores.length === 0) return 0;
+    if (method === 'Flags') return scores.reduce((a, b) => a + b, 0);
     if (scores.length <= 2) return scores.reduce((a, b) => a + b, 0);
 
     const sorted = [...scores].sort((a, b) => a - b);
@@ -129,8 +141,8 @@ export default function KataControlPanelPage() {
     return trimmed.reduce((a, b) => a + b, 0);
   };
 
-  const totalScoreA = calculateTotalScore(judgeScoresA);
-  const totalScoreB = calculateTotalScore(judgeScoresB);
+  const totalScoreA = calculateTotalScore(judgeScoresA, scoringMethod);
+  const totalScoreB = calculateTotalScore(judgeScoresB, scoringMethod);
 
   // Auto recommend winner
   useEffect(() => {
@@ -192,6 +204,46 @@ export default function KataControlPanelPage() {
     } catch (err) {
       console.error('Error completing Kata bout:', err);
       alert('Failed to save bout results.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRematch = async () => {
+    if (!currentBout) return;
+    if (!window.confirm("Are you sure you want to reset this match? All saved scores and the winner decision will be permanently deleted from the database.")) return;
+
+    try {
+      setIsSaving(true);
+      const updates: Partial<Bout> = {
+        kata_a: undefined,
+        kata_b: undefined,
+        judge_scores_a: [],
+        judge_scores_b: [],
+        total_score_a: 0,
+        total_score_b: 0,
+        score_a: 0,
+        score_b: 0,
+        winner_id: null as any,
+        status: 'Running',
+      };
+
+      const updatedBout = await db.bouts.updateBoutState(currentBout.id, updates);
+      
+      // Update local state directly so we don't need a full reload
+      setKataA('Suparinpei');
+      setKataB('Anan Dai');
+      setJudgeScoresA(scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
+      setJudgeScoresB(scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
+      setSelectedWinnerId(null);
+      setCurrentBout(updatedBout);
+      
+      // Refresh list
+      await loadData();
+      
+    } catch (err) {
+      console.error('Error resetting bout:', err);
+      alert('Failed to reset match.');
     } finally {
       setIsSaving(false);
     }
@@ -347,6 +399,33 @@ export default function KataControlPanelPage() {
                 </button>
               </div>
             </div>
+
+            {/* Scoring Method Select */}
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Scoring Method</label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-[#101015] rounded-xl border border-white/10">
+                <button
+                  onClick={() => {
+                    setScoringMethod('Points');
+                    setJudgeScoresA(prev => prev.map(s => s === 0 || s === 1 ? 8.0 : s));
+                    setJudgeScoresB(prev => prev.map(s => s === 0 || s === 1 ? 8.0 : s));
+                  }}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition ${scoringMethod === 'Points' ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                  WKF Points
+                </button>
+                <button
+                  onClick={() => {
+                    setScoringMethod('Flags');
+                    setJudgeScoresA(prev => prev.map(() => 0));
+                    setJudgeScoresB(prev => prev.map(() => 0));
+                  }}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition ${scoringMethod === 'Flags' ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                  WKF Flags
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -370,12 +449,28 @@ export default function KataControlPanelPage() {
             <div className="flex items-center gap-4">
               <div className="text-right">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">AKA Total</div>
-                <div className="text-2xl font-black font-mono text-red-500">{totalScoreA.toFixed(2)}</div>
+                <div className="text-2xl font-black font-mono text-red-500">
+                  {scoringMethod === 'Flags' ? (
+                    <div className="flex items-center gap-1 justify-end">
+                      {Array.from({ length: totalScoreA }).map((_, i) => (
+                        <Flag key={`aka-${i}`} className="h-5 w-5 fill-current" />
+                      ))}
+                    </div>
+                  ) : totalScoreA.toFixed(2)}
+                </div>
               </div>
               <div className="text-gray-600 font-bold text-lg">VS</div>
               <div className="text-left">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">AO Total</div>
-                <div className="text-2xl font-black font-mono text-blue-500">{totalScoreB.toFixed(2)}</div>
+                <div className="text-2xl font-black font-mono text-blue-500">
+                  {scoringMethod === 'Flags' ? (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalScoreB }).map((_, i) => (
+                        <Flag key={`ao-${i}`} className="h-5 w-5 fill-current" />
+                      ))}
+                    </div>
+                  ) : totalScoreB.toFixed(2)}
+                </div>
               </div>
             </div>
           </div>
@@ -389,8 +484,17 @@ export default function KataControlPanelPage() {
                 <span className="px-3 py-1 bg-red-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
                   AKA 🔴
                 </span>
-                <span className="text-xs font-mono font-bold text-red-400">
-                  Total: <strong className="text-xl text-white ml-1">{totalScoreA.toFixed(2)}</strong>
+                <span className="text-xs font-mono font-bold text-red-400 flex items-center">
+                  Total: 
+                  <strong className="text-xl text-white ml-2 flex items-center gap-1">
+                    {scoringMethod === 'Flags' ? (
+                      Array.from({ length: totalScoreA }).map((_, i) => (
+                        <Flag key={`card-aka-${i}`} className="h-4 w-4 fill-red-500 text-red-500" />
+                      ))
+                    ) : (
+                      totalScoreA.toFixed(2)
+                    )}
+                  </strong>
                 </span>
               </div>
 
@@ -418,8 +522,17 @@ export default function KataControlPanelPage() {
                 <span className="px-3 py-1 bg-blue-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
                   AO 🔵
                 </span>
-                <span className="text-xs font-mono font-bold text-blue-400">
-                  Total: <strong className="text-xl text-white ml-1">{totalScoreB.toFixed(2)}</strong>
+                <span className="text-xs font-mono font-bold text-blue-400 flex items-center">
+                  Total: 
+                  <strong className="text-xl text-white ml-2 flex items-center gap-1">
+                    {scoringMethod === 'Flags' ? (
+                      Array.from({ length: totalScoreB }).map((_, i) => (
+                        <Flag key={`card-ao-${i}`} className="h-4 w-4 fill-blue-500 text-blue-500" />
+                      ))
+                    ) : (
+                      totalScoreB.toFixed(2)
+                    )}
+                  </strong>
                 </span>
               </div>
 
@@ -457,41 +570,104 @@ export default function KataControlPanelPage() {
               </div>
 
               {/* AKA vs AO Tab Toggle */}
-              <div className="flex items-center gap-2 p-1 bg-[#101015] border border-white/10 rounded-xl">
-                <button
-                  onClick={() => setActiveScoringTab('AKA')}
-                  className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AKA' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'text-gray-400 hover:text-white'}`}
-                >
-                  AKA Scoring 🔴
-                </button>
-                <button
-                  onClick={() => setActiveScoringTab('AO')}
-                  className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AO' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'text-gray-400 hover:text-white'}`}
-                >
-                  AO Scoring 🔵
-                </button>
-              </div>
+              {scoringMethod === 'Points' && (
+                <div className="flex items-center gap-2 p-1 bg-[#101015] border border-white/10 rounded-xl">
+                  <button
+                    onClick={() => setActiveScoringTab('AKA')}
+                    className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AKA' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    AKA Scoring 🔴
+                  </button>
+                  <button
+                    onClick={() => setActiveScoringTab('AO')}
+                    className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AO' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    AO Scoring 🔵
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Quick Presets Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white/5 rounded-xl">
-              <span className="text-xs font-bold text-gray-300">Set All Judges ({activeScoringTab}):</span>
+              <span className="text-xs font-bold text-gray-300">Set All Judges:</span>
               <div className="flex flex-wrap gap-2">
-                {[8.0, 8.2, 8.4, 8.5, 8.8, 9.0].map(val => (
-                  <button
-                    key={val}
-                    onClick={() => setAllJudgeScores(activeScoringTab, val)}
-                    className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer"
-                  >
-                    {val.toFixed(1)}
-                  </button>
-                ))}
+                {scoringMethod === 'Points' ? (
+                  [8.0, 8.2, 8.4, 8.5, 8.8, 9.0].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => setAllJudgeScores(activeScoringTab, val)}
+                      className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer"
+                    >
+                      {val.toFixed(1)}
+                    </button>
+                  ))
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setJudgeScoresA(Array(panelSize).fill(1));
+                        setJudgeScoresB(Array(panelSize).fill(0));
+                      }}
+                      className="flex items-center gap-1 px-3 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 text-xs font-bold rounded-lg transition cursor-pointer"
+                    >
+                      All Flags AKA <Flag className="h-3 w-3 fill-current" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setJudgeScoresA(Array(panelSize).fill(0));
+                        setJudgeScoresB(Array(panelSize).fill(1));
+                      }}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-950/40 hover:bg-blue-900/60 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition cursor-pointer"
+                    >
+                      All Flags AO <Flag className="h-3 w-3 fill-current" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Judge Score Cards Input Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
               {Array.from({ length: panelSize }).map((_, idx) => {
+                if (scoringMethod === 'Flags') {
+                  const isAka = judgeScoresA[idx] === 1;
+                  const isAo = judgeScoresB[idx] === 1;
+                  return (
+                    <div key={idx} className="p-3 rounded-xl border bg-white/[0.02] border-white/10 flex flex-col items-center transition">
+                      <span className="text-[10px] font-bold uppercase text-gray-400 mb-3">Judge {idx + 1}</span>
+                      <div className="flex flex-col gap-2 w-full h-full">
+                        <button
+                          onClick={() => {
+                            const newA = [...judgeScoresA];
+                            const newB = [...judgeScoresB];
+                            newA[idx] = 1;
+                            newB[idx] = 0;
+                            setJudgeScoresA(newA);
+                            setJudgeScoresB(newB);
+                          }}
+                          className={`flex-1 py-3 text-red-500 rounded-lg border transition flex items-center justify-center ${isAka ? 'bg-red-600 border-red-400 shadow-lg shadow-red-600/40 grayscale-0 text-white' : 'bg-red-950/20 border-red-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
+                        >
+                          <Flag className="h-6 w-6 fill-current" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const newA = [...judgeScoresA];
+                            const newB = [...judgeScoresB];
+                            newA[idx] = 0;
+                            newB[idx] = 1;
+                            setJudgeScoresA(newA);
+                            setJudgeScoresB(newB);
+                          }}
+                          className={`flex-1 py-3 text-blue-500 rounded-lg border transition flex items-center justify-center ${isAo ? 'bg-blue-600 border-blue-400 shadow-lg shadow-blue-600/40 grayscale-0 text-white' : 'bg-blue-950/20 border-blue-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
+                        >
+                          <Flag className="h-6 w-6 fill-current" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const activeScores = activeScoringTab === 'AKA' ? judgeScoresA : judgeScoresB;
                 const status = getScoreStatusIndex(activeScores, idx);
                 const score = activeScores[idx] !== undefined ? activeScores[idx] : 8.0;
@@ -571,6 +747,14 @@ export default function KataControlPanelPage() {
 
             {/* Primary Action Buttons */}
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handleRematch}
+                disabled={isSaving || !currentBout}
+                className="flex items-center gap-2 px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className="h-5 w-5" />
+                Reset Match
+              </button>
               <button
                 onClick={handleSaveAndCompleteBout}
                 disabled={isSaving || !currentBout}

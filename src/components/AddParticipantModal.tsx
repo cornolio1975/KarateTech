@@ -34,6 +34,8 @@ export default function AddParticipantModal() {
   const [paymentStatus, setPaymentStatus] = useState<'Paid' | 'Unpaid' | 'Pending'>('Unpaid');
   const [remarks, setRemarks] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [isKumite, setIsKumite] = useState(false);
+  const [isKata, setIsKata] = useState(false);
 
   // Auto assignment preview
   const [previewCat, setPreviewCat] = useState<Category | null>(null);
@@ -126,6 +128,8 @@ export default function AddParticipantModal() {
         status: 'Pending',
         payment_status: paymentStatus,
         medical_status: 'Cleared',
+        isKumite,
+        isKata,
         remarks: remarks || medicalConditions ? `Conditions: ${medicalConditions}. Remarks: ${remarks}` : '',
         photo_url: photoUrl || undefined
       });
@@ -164,6 +168,8 @@ export default function AddParticipantModal() {
     setPaymentStatus('Unpaid');
     setRemarks('');
     setPhotoUrl('');
+    setIsKumite(false);
+    setIsKata(false);
     setPreviewCat(null);
   };
 
@@ -430,6 +436,33 @@ export default function AddParticipantModal() {
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
                 />
               </div>
+            </div>
+          </div>
+
+          <hr className="border-border" />
+
+          {/* Section: Competition Events */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Competition Events</h4>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isKumite} 
+                  onChange={(e) => setIsKumite(e.target.checked)} 
+                  className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-primary accent-primary"
+                />
+                <span className="text-sm font-medium text-foreground">Kumite</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isKata} 
+                  onChange={(e) => setIsKata(e.target.checked)} 
+                  className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-primary accent-primary"
+                />
+                <span className="text-sm font-medium text-foreground">Kata</span>
+              </label>
             </div>
           </div>
 

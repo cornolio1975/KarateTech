@@ -79,6 +79,8 @@ export interface Participant {
   status: 'Confirmed' | 'Pending' | 'Checked In' | 'Disqualified' | 'Cancelled';
   medical_status: 'Cleared' | 'Review Needed' | 'Action Required';
   payment_status: 'Paid' | 'Unpaid' | 'Pending';
+  isKumite?: boolean;
+  isKata?: boolean;
   remarks?: string;
   created_at?: string;
   deleted_at?: string; // soft delete timestamp
