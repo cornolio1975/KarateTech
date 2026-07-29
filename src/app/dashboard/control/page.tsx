@@ -1092,7 +1092,7 @@ export default function ScoreboardControlPage() {
   }
 
   return (
-    <div className="h-full w-full overflow-hidden bg-[#0b0b10] text-white flex flex-col min-h-0">
+    <div className="min-h-full lg:h-full w-full overflow-y-auto lg:overflow-hidden bg-[#0b0b10] text-white flex flex-col">
       {/* Header */}
       <header className="bg-[#0b0b10] border-b border-white/5 px-4 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -1183,8 +1183,8 @@ export default function ScoreboardControlPage() {
       )}
 
 
-      {/* Main Scoreboard - Single Viewport Layout (No Scroll) */}
-      <main className="flex-1 flex flex-col gap-1 p-2 overflow-hidden min-h-0">
+      {/* Main Scoreboard - Single Viewport Layout (Scrollable on Mobile) */}
+      <main className="flex-1 flex flex-col gap-1 p-2 min-h-0">
         {/* Hansoku Disqualification Blinking Banner */}
         {(c1Aka >= 5 || c1Ao >= 5) && !winnerSide && (
           <div className="bg-red-600 text-white font-black text-center py-0.5 text-xs lg:text-sm rounded-lg mb-0.5 animate-pulse tracking-widest uppercase border border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.6)] z-20 shrink-0">
@@ -1212,10 +1212,10 @@ export default function ScoreboardControlPage() {
         )}
 
         {/* ROW 1: Visual Displays & Controls (3-Column Layout: AKA | TIMER | AO) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-1.5 lg:gap-2 flex-1 min-h-0 overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-12 gap-1 lg:gap-2 flex-1 min-h-0">
           
           {/* AKA Display & Control Panel */}
-          <section className={`lg:col-span-4 border rounded-xl p-2.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
+          <section className={`col-span-1 lg:col-span-4 order-2 lg:order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'aka'
               ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_80px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)]'
               : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
@@ -1243,24 +1243,29 @@ export default function ScoreboardControlPage() {
             </div>
 
             {/* Score & Point History */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-0.5">
-              <span className={`font-din text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
-                winnerSide === 'aka'
-                  ? 'text-red-500 animate-blink drop-shadow-[0_0_50px_rgba(239,68,68,0.95)] scale-105'
-                  : scoreAka - scoreAo >= 8
-                    ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_50px_rgba(239,68,68,0.85)]'
-                    : 'text-red-500 drop-shadow-[0_0_40px_rgba(220,38,38,0.5)]'
-              }`}>
-                {scoreAka}
-              </span>
+            <div className="flex-1 flex flex-row items-center justify-center min-h-0 py-0.5 w-full relative">
+              <div className="flex-1 flex justify-center">
+                <span className={`font-din text-[clamp(40px,8vh,170px)] lg:text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
+                  winnerSide === 'aka'
+                    ? 'text-red-500 animate-blink drop-shadow-[0_0_50px_rgba(239,68,68,0.95)] scale-105'
+                    : scoreAka - scoreAo >= 8
+                      ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_50px_rgba(239,68,68,0.85)]'
+                      : 'text-red-500 drop-shadow-[0_0_40px_rgba(220,38,38,0.5)]'
+                }`}>
+                  {scoreAka}
+                </span>
+              </div>
 
               {showPointHistory && eventsAka.length > 0 && (
-                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-0.5 px-1">
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 grid grid-rows-5 grid-flow-col gap-x-0.5 gap-y-0.5 h-auto items-center justify-start max-w-[45%] pr-1">
                   {eventsAka.map((ev, idx) => (
-                    <div key={idx} className="flex items-center shrink-0">
-                      {idx > 0 && <span className="text-white/20 text-[9px] font-bold mx-0.5 select-none">→</span>}
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
-                        <span className="text-[9px] md:text-[10px] font-black text-red-400 uppercase">+{ev.points}({ev.technique})</span>
+                    <div key={idx} className="flex items-center">
+                      <span className={`inline-flex items-center gap-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap transition-all ${
+                        eventsAka.length > 15 ? 'px-1 py-[1px] text-[5px] lg:text-[6px]' :
+                        eventsAka.length > 5 ? 'px-1 py-[2px] text-[6px] lg:text-[8px]' :
+                        'px-1.5 py-[2px] text-[7px] lg:text-[9px]'
+                      }`}>
+                        <span className="font-black text-red-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
                       </span>
                     </div>
                   ))}
@@ -1300,8 +1305,7 @@ export default function ScoreboardControlPage() {
 
               {/* Penalties Row */}
               <div className="w-full">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[8px] uppercase font-black tracking-widest text-red-400/60">AKA Penalties</span>
+                <div className="flex items-center justify-end mb-0.5">
                   <button
                     onClick={() => handleToggleSenshu('aka')}
                     disabled={bout.status === 'Completed'}
@@ -1313,18 +1317,18 @@ export default function ScoreboardControlPage() {
                     SENSHU {senshuAka ? 'ON' : 'OFF'}
                   </button>
                 </div>
-                <div className="grid grid-cols-5 gap-0.5">
+                <div className="grid grid-cols-5 gap-1">
                   {[1, 2, 3, 4, 5].map((level) => {
                     const isActive = c1Aka >= level;
                     const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
                     return (
                       <button
                         key={level}
-                        onClick={() => handleTogglePenalty('aka', level)}
+                        onClick={() => handleUpdatePenalty('aka', level)}
                         disabled={bout.status === 'Completed'}
-                        className={`py-1 rounded text-[10px] md:text-[11px] font-black transition cursor-pointer border disabled:opacity-25 disabled:cursor-not-allowed ${isActive
-                            ? 'bg-red-500 text-black border-red-400 shadow-[0_0_8px_rgba(220,38,38,0.3)]'
-                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-[clamp(14px,2vh,24px)] lg:text-[clamp(20px,3.5vh,36px)] font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                            ? 'bg-red-500 text-black border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                            : 'bg-transparent text-white/30 border-white/15 hover:bg-white/5'
                           }`}
                       >
                         {labels[level]}
@@ -1337,16 +1341,16 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* TIMER Display & Control Panel (Middle Column) */}
-          <section className="lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-xl p-2.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden">
-            <span className="text-base lg:text-xl uppercase font-black text-white/80 tracking-[0.3em] shrink-0">MATCH TIMER</span>
+          <section className="col-span-2 lg:col-span-4 order-1 lg:order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
+            <span className="text-xs md:text-sm lg:text-xl uppercase font-black text-white/80 tracking-[0.3em] shrink-0 mb-0.5 lg:mb-0">MATCH TIMER</span>
             
             {/* Giant Timer */}
             <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-0.5">
-              <div className={`font-din text-[clamp(80px,12vh,155px)] font-black leading-none select-none flex items-baseline justify-center tracking-tight ${
+              <div className={`font-din text-[clamp(40px,8vh,155px)] lg:text-[clamp(80px,12vh,155px)] font-black leading-none select-none flex items-baseline justify-center tracking-tight ${
                 timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_35px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]'
               }`}>
                 <span>{formatMainTime(timeLeft)}</span>
-                <span className={`font-din text-[clamp(36px,5.5vh,64px)] font-black ml-1 ${
+                <span className={`font-din text-[clamp(24px,4vh,64px)] lg:text-[clamp(36px,5.5vh,64px)] font-black ml-1 ${
                   timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'
                 }`}>{formatDecsTime(timeLeft)}</span>
               </div>
@@ -1442,7 +1446,7 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* AO Display & Control Panel */}
-          <section className={`lg:col-span-4 border rounded-xl p-2.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden ${
+          <section className={`col-span-1 lg:col-span-4 order-3 lg:order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'ao'
               ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_80px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)]'
               : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
@@ -1450,12 +1454,6 @@ export default function ScoreboardControlPage() {
             {/* Header & Fighter Name */}
             <div className="w-full flex flex-col items-center shrink-0">
               <div className="flex items-center justify-between w-full mb-1">
-                {senshuAo && (
-                  <div className="flex items-center gap-1 bg-yellow-500 text-black text-xs font-black uppercase px-3 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)]">
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                    SENSHU
-                  </div>
-                )}
                 <span className="text-lg lg:text-2xl font-black uppercase tracking-widest text-blue-400 ml-auto">AO - BLUE</span>
               </div>
 
@@ -1463,31 +1461,33 @@ export default function ScoreboardControlPage() {
                 <h2 className="font-competitor text-base md:text-lg lg:text-xl font-bold truncate max-w-full text-center uppercase leading-tight text-white tracking-tight" title={competitorAo?.full_name || 'TBD Blue'}>
                   {competitorAo?.full_name || 'TBD Blue'}
                 </h2>
-                <p className="text-xs md:text-sm font-semibold text-blue-400/80 text-center truncate max-w-full mt-0.5">
-                  {competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}
-                </p>
               </div>
             </div>
 
             {/* Score & Point History */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-0.5">
-              <span className={`font-din text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
-                winnerSide === 'ao'
-                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_50px_rgba(59,130,246,0.95)] scale-105'
-                  : scoreAo - scoreAka >= 8
-                    ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_50px_rgba(59,130,246,0.85)]'
-                    : 'text-blue-400 drop-shadow-[0_0_40px_rgba(59,130,246,0.5)]'
-              }`}>
-                {scoreAo}
-              </span>
+            <div className="flex-1 flex flex-row items-center justify-center min-h-0 py-0.5 w-full relative">
+              <div className="flex-1 flex justify-center">
+                <span className={`font-din text-[clamp(40px,8vh,170px)] lg:text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
+                  winnerSide === 'ao'
+                    ? 'text-blue-400 animate-blink drop-shadow-[0_0_50px_rgba(59,130,246,0.95)] scale-105'
+                    : scoreAo - scoreAka >= 8
+                      ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_50px_rgba(59,130,246,0.85)]'
+                      : 'text-blue-400 drop-shadow-[0_0_40px_rgba(59,130,246,0.5)]'
+                }`}>
+                  {scoreAo}
+                </span>
+              </div>
 
               {showPointHistory && eventsAo.length > 0 && (
-                <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide max-w-full mt-0.5 px-1">
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 grid grid-rows-5 grid-flow-col gap-x-0.5 gap-y-0.5 h-auto items-center justify-start max-w-[45%] pr-1">
                   {eventsAo.map((ev, idx) => (
-                    <div key={idx} className="flex items-center shrink-0">
-                      {idx > 0 && <span className="text-white/20 text-[9px] font-bold mx-0.5 select-none">→</span>}
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
-                        <span className="text-[9px] md:text-[10px] font-black text-blue-400 uppercase">+{ev.points}({ev.technique})</span>
+                    <div key={idx} className="flex items-center">
+                      <span className={`inline-flex items-center gap-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap transition-all ${
+                        eventsAo.length > 15 ? 'px-1 py-[1px] text-[5px] lg:text-[6px]' :
+                        eventsAo.length > 5 ? 'px-1 py-[2px] text-[6px] lg:text-[8px]' :
+                        'px-1.5 py-[2px] text-[7px] lg:text-[9px]'
+                      }`}>
+                        <span className="font-black text-blue-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
                       </span>
                     </div>
                   ))}
@@ -1527,29 +1527,30 @@ export default function ScoreboardControlPage() {
 
               {/* Penalties Row */}
               <div className="w-full">
-                <div className="flex items-center justify-between mb-0.5">
+                <div className="flex items-center justify-end mb-0.5">
                   <button
                     onClick={() => handleToggleSenshu('ao')}
+                    disabled={bout.status === 'Completed'}
                     className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border transition cursor-pointer ${senshuAo
                         ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
                         : 'bg-transparent text-white/40 border-white/15'
-                      }`}
+                      } disabled:opacity-25 disabled:cursor-not-allowed`}
                   >
                     SENSHU {senshuAo ? 'ON' : 'OFF'}
                   </button>
-                  <span className="text-[8px] uppercase font-black tracking-widest text-blue-400/60">AO Penalties</span>
                 </div>
-                <div className="grid grid-cols-5 gap-0.5">
+                <div className="grid grid-cols-5 gap-1">
                   {[1, 2, 3, 4, 5].map((level) => {
                     const isActive = c1Ao >= level;
                     const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
                     return (
                       <button
                         key={level}
-                        onClick={() => handleTogglePenalty('ao', level)}
-                        className={`py-1 rounded text-[10px] md:text-[11px] font-black transition cursor-pointer border ${isActive
-                            ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
-                            : 'bg-transparent text-white/30 border-white/5 hover:border-white/15'
+                        onClick={() => handleUpdatePenalty('ao', level)}
+                        disabled={bout.status === 'Completed'}
+                        className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-[clamp(14px,2vh,24px)] lg:text-[clamp(20px,3.5vh,36px)] font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                            ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]'
+                            : 'bg-transparent text-white/30 border-white/15 hover:bg-white/5'
                           }`}
                       >
                         {labels[level]}

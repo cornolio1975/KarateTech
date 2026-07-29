@@ -593,7 +593,7 @@ function SpectatorDisplayContent() {
 
   return (
     <div
-      className="h-[100dvh] max-h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden select-none font-sans p-4 lg:p-6 relative"
+      className="min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-black text-white flex flex-col lg:overflow-hidden select-none font-sans p-4 lg:p-6 relative"
       onMouseMove={resetHideTimer}
     >
       {/* Display Playlist Modal */}
@@ -845,9 +845,9 @@ function SpectatorDisplayContent() {
       )}
 
       {/* Main Scoreboard Arena Grid */}
-      <div className="flex-1 min-h-0 grid grid-cols-12 gap-4 lg:gap-6 overflow-hidden pb-2">
+      <div className="flex-1 min-h-0 grid grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 pb-2">
         {/* AKA RED CARD */}
-        <div className={`col-span-3 h-full rounded-[40px] p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
+        <div className={`col-span-1 lg:col-span-3 order-2 lg:order-1 h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
           winnerSide === 'aka'
             ? 'bg-red-950/80 border-4 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.4),0_0_80px_rgba(239,68,68,0.8)]'
             : 'bg-[#150000] border-4 border-red-600/40 text-white'
@@ -865,7 +865,7 @@ function SpectatorDisplayContent() {
               }`}>AKA RED</span>
 
               {/* Fighter Name directly under AKA RED */}
-              <div className="w-full px-2 mt-1.5">
+              <div className="w-full px-2 mt-1.5 flex flex-col items-center relative z-10">
                 <h2 className="font-competitor text-[clamp(24px,3.2vw,40px)] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={akaName}>
                   {akaName}
                 </h2>
@@ -874,13 +874,33 @@ function SpectatorDisplayContent() {
                 } text-sm font-bold mt-1 uppercase tracking-wider text-center truncate max-w-full`}>
                   {akaClub}
                 </p>
+
+                {showPointHistory && eventsAka.length > 0 && (
+                  <div className="absolute right-0 top-full mt-1 pr-1 lg:pr-2 flex justify-end w-full pointer-events-none z-20">
+                    <div className="grid grid-rows-6 grid-flow-col gap-x-0.5 gap-y-0.5 lg:gap-x-1 lg:gap-y-1 max-w-[45%] pointer-events-auto">
+                      {eventsAka.map((ev, idx) => (
+                        <div key={idx} className="flex items-center justify-end">
+                          <span className={`inline-flex items-center gap-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap transition-all ${
+                            eventsAka.length > 15 ? 'px-0.5 py-[1px] text-[5px] lg:text-[6px]' :
+                            eventsAka.length > 5 ? 'px-1 py-[1px] text-[6px] lg:text-[8px]' :
+                            'px-1.5 py-[2px] text-[8px] lg:text-[10px]'
+                          }`}>
+                            <span className="font-black text-red-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Huge Score (DIN 1451 Bold 140-220px) */}
-          <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
-            <span className={`font-din text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
+          <div className={`flex-1 flex flex-col items-center justify-center min-h-0 py-2 w-full transition-all duration-500 ${
+            showPointHistory && eventsAka.length > 0 ? 'pr-[40%] lg:pr-[45%]' : ''
+          }`}>
+            <span className={`font-din text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
               winnerSide === 'aka'
                 ? 'text-red-500 animate-blink drop-shadow-[0_0_80px_rgba(239,68,68,0.7)] scale-110'
                 : scoreAka - scoreAo >= 8 
@@ -889,37 +909,22 @@ function SpectatorDisplayContent() {
             }`}>
               {scoreAka}
             </span>
-            {showPointHistory && eventsAka.length > 0 && (
-              <div className="flex items-center flex-wrap gap-y-1.5 mt-2 justify-center overflow-x-auto max-w-[90%]">
-                {eventsAka.map((ev, idx) => (
-                  <div key={idx} className="flex items-center">
-                    {idx > 0 && (
-                      <span className="text-white/20 text-[10px] font-bold mx-1.5 select-none">→</span>
-                    )}
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap">
-                      <span className="text-[10px] font-black text-red-400 uppercase tracking-wider">+{ev.points}({ev.technique})</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* AKA Warnings Row */}
-          <div className="border-t-2 border-red-900/30 pt-3">
-            <div className="flex items-center gap-2">
-              <span className="font-din text-xs lg:text-sm font-bold text-red-500/70 shrink-0 uppercase tracking-widest">PEN</span>
-              <div className="flex-1 grid grid-cols-5 gap-1.5">
+          <div className="border-t-2 border-red-900/30 pt-3 mt-auto">
+            <div className="flex items-center gap-2 w-full">
+              <div className="flex-1 grid grid-cols-5 gap-2 lg:gap-3">
                 {[1, 2, 3, 4, 5].map((level) => {
                   const isActive = c1Aka >= level;
                   const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
                   return (
                     <div
                       key={level}
-                      className={`flex items-center justify-center h-9 lg:h-11 rounded-xl font-din text-[clamp(14px,2.2vh,24px)] font-bold transition-all border ${
+                      className={`flex items-center justify-center h-12 lg:h-16 rounded-xl font-din text-[clamp(20px,3.5vh,36px)] font-black transition-all border ${
                         isActive
-                          ? 'bg-red-500 text-black border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                          : 'bg-transparent text-white/10 border-white/5'
+                          ? 'bg-red-500 text-black border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.6)]'
+                          : 'bg-transparent text-white/20 border-white/10'
                       }`}
                     >
                       {labels[level]}
@@ -932,8 +937,8 @@ function SpectatorDisplayContent() {
         </div>
 
         {/* CENTER COLUMN: TIMER */}
-        <div className="col-span-6 flex flex-col justify-center items-center h-full text-center px-4">
-          <div className="bg-black/60 backdrop-blur-xl border border-white/20 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[40px] w-full h-full p-8 flex flex-col justify-between items-center relative overflow-hidden">
+        <div className="col-span-2 lg:col-span-6 order-1 lg:order-2 flex flex-col justify-center items-center h-full text-center px-1 lg:px-4">
+          <div className="bg-black/60 backdrop-blur-xl border border-white/20 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[40px] w-full h-full p-2 lg:p-8 flex flex-col justify-between items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
             
             {/* Top Area: Label */}
@@ -944,7 +949,7 @@ function SpectatorDisplayContent() {
             </div>
             
             {/* Giant digital timer (DIN 1451 Bold White 160-260px) */}
-            <div className={`font-din text-[clamp(160px,24vh,260px)] font-bold leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
+            <div className={`font-din text-[clamp(60px,15vh,260px)] lg:text-[clamp(160px,24vh,260px)] font-bold leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
               timeLeft <= 150 && timeLeft > 0 
                 ? 'text-red-500 scale-105 animate-pulse drop-shadow-[0_0_40px_rgba(239,68,68,0.5)]' 
                 : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]'
@@ -975,7 +980,7 @@ function SpectatorDisplayContent() {
         </div>
 
         {/* AO BLUE CARD */}
-        <div className={`col-span-3 h-full rounded-[40px] p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
+        <div className={`col-span-1 lg:col-span-3 order-3 lg:order-3 h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
           winnerSide === 'ao'
             ? 'bg-blue-950/80 border-4 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.4),0_0_80px_rgba(59,130,246,0.8)]'
             : 'bg-[#000515] border-4 border-blue-600/40 text-white'
@@ -993,7 +998,7 @@ function SpectatorDisplayContent() {
               }`}>AO BLUE</span>
 
               {/* Fighter Name directly under AO BLUE */}
-              <div className="w-full px-2 mt-1.5">
+              <div className="w-full px-2 mt-1.5 flex flex-col items-center relative z-10">
                 <h2 className="font-competitor text-[clamp(24px,3.2vw,40px)] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={aoName}>
                   {aoName}
                 </h2>
@@ -1002,13 +1007,33 @@ function SpectatorDisplayContent() {
                 } text-sm font-bold mt-1 uppercase tracking-wider text-center truncate max-w-full`}>
                   {aoClub}
                 </p>
+
+                {showPointHistory && eventsAo.length > 0 && (
+                  <div className="absolute right-0 top-full mt-1 pr-1 lg:pr-2 flex justify-end w-full pointer-events-none z-20">
+                    <div className="grid grid-rows-6 grid-flow-col gap-x-0.5 gap-y-0.5 lg:gap-x-1 lg:gap-y-1 max-w-[45%] pointer-events-auto">
+                      {eventsAo.map((ev, idx) => (
+                        <div key={idx} className="flex items-center justify-end">
+                          <span className={`inline-flex items-center gap-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap transition-all ${
+                            eventsAo.length > 15 ? 'px-0.5 py-[1px] text-[5px] lg:text-[6px]' :
+                            eventsAo.length > 5 ? 'px-1 py-[1px] text-[6px] lg:text-[8px]' :
+                            'px-1.5 py-[2px] text-[8px] lg:text-[10px]'
+                          }`}>
+                            <span className="font-black text-blue-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Huge Score (DIN 1451 Bold 140-220px) */}
-          <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
-            <span className={`font-din text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
+          <div className={`flex-1 flex flex-col items-center justify-center min-h-0 py-2 w-full transition-all duration-500 ${
+            showPointHistory && eventsAo.length > 0 ? 'pr-[40%] lg:pr-[45%]' : ''
+          }`}>
+            <span className={`font-din text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
               winnerSide === 'ao'
                 ? 'text-blue-400 animate-blink drop-shadow-[0_0_80px_rgba(59,130,246,0.7)] scale-110'
                 : scoreAo - scoreAka >= 8 
@@ -1017,37 +1042,22 @@ function SpectatorDisplayContent() {
             }`}>
               {scoreAo}
             </span>
-            {showPointHistory && eventsAo.length > 0 && (
-              <div className="flex items-center flex-wrap gap-y-1.5 mt-2 justify-center overflow-x-auto max-w-[90%]">
-                {eventsAo.map((ev, idx) => (
-                  <div key={idx} className="flex items-center">
-                    {idx > 0 && (
-                      <span className="text-white/20 text-[10px] font-bold mx-1.5 select-none">→</span>
-                    )}
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap">
-                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">+{ev.points}({ev.technique})</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* AO Warnings Row */}
-          <div className="border-t-2 border-blue-900/30 pt-3">
-            <div className="flex items-center gap-2">
-              <span className="font-din text-xs lg:text-sm font-bold text-blue-400/70 shrink-0 uppercase tracking-widest">PEN</span>
-              <div className="flex-1 grid grid-cols-5 gap-1.5">
+          <div className="border-t-2 border-blue-900/30 pt-3 mt-auto">
+            <div className="flex items-center gap-2 w-full">
+              <div className="flex-1 grid grid-cols-5 gap-2 lg:gap-3">
                 {[1, 2, 3, 4, 5].map((level) => {
                   const isActive = c1Ao >= level;
                   const labels = ['', 'C1', 'C2', 'C3', 'HC', 'H'];
                   return (
                     <div
                       key={level}
-                      className={`flex items-center justify-center h-9 lg:h-11 rounded-xl font-din text-[clamp(14px,2.2vh,24px)] font-bold transition-all border ${
+                      className={`flex items-center justify-center h-12 lg:h-16 rounded-xl font-din text-[clamp(20px,3.5vh,36px)] font-black transition-all border ${
                         isActive
-                          ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]'
-                          : 'bg-transparent text-white/10 border-white/5'
+                          ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                          : 'bg-transparent text-white/20 border-white/10'
                       }`}
                     >
                       {labels[level]}

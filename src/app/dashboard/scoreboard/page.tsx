@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKumiteCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function ScoreboardDashboardPage() {
@@ -41,6 +41,24 @@ export default function ScoreboardDashboardPage() {
       setClubs(clList);
     } catch (err) {
       console.error('Error loading bouts data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRematch = async (bout: Bout) => {
+    const confirmRematch = window.confirm(
+      'Are you sure you want to reset this match and start a rematch? This will clear all scores, penalties, and history, and remove the winner placement in the bracket.'
+    );
+    if (!confirmRematch) return;
+    
+    try {
+      setLoading(true);
+      await db.bouts.resetBoutResult(bout.id, bout.timer_seconds || 180);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to rematch bout', err);
+      alert('Failed to reset match');
     } finally {
       setLoading(false);
     }
@@ -248,9 +266,19 @@ export default function ScoreboardDashboardPage() {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
                       >
                         <Play className="h-3.5 w-3.5 fill-black" />
-                        Control Panel
+                        {bout.status === 'Completed' ? 'View Results' : 'Control Panel'}
                       </Link>
                       
+                      {bout.status === 'Completed' && (
+                        <button
+                          onClick={() => handleRematch(bout)}
+                          className="flex items-center justify-center p-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 hover:text-white rounded-xl transition cursor-pointer"
+                          title="Rematch / Reset Bout"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                      )}
+
                       <Link
                         href={`/display?boutId=${bout.id}`}
                         target="_blank"

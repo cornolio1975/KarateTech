@@ -169,8 +169,8 @@ export default function KataResultBookModal({
             <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 print:text-gray-800">
               Judge Panel Score Breakdown ({isFlagsMatch ? 'Flags Voting Matrix' : '7-Judge WKF Matrix'})
             </h4>
-            <div className="overflow-hidden border border-white/10 rounded-xl print:border-gray-300">
-              <table className="w-full text-xs text-left border-collapse">
+            <div className="overflow-x-auto border border-white/10 rounded-xl print:border-gray-300">
+              <table className="w-full text-xs text-left border-collapse min-w-[300px]">
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10 text-gray-300 print:bg-gray-100 print:text-black">
                     <th className="p-3 font-bold">Judge #</th>
