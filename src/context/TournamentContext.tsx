@@ -136,8 +136,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [refreshKey, setRefreshKey] = useState(0);
   const [tournamentName, setTournamentNameState] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
   const [liveStreamUrl, setLiveStreamUrlState] = useState('');
-  const [logoUrl, setLogoUrlState] = useState(`${basePath}/logo.jpg`);
-  
+  const [logoUrl, setLogoUrlState] = useState(`${basePath}/karatetech-logo.png`);
+
   // Auth state
   const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
@@ -189,8 +189,10 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       }
 
       const storedLogo = localStorage.getItem('ts_logo_url');
-      if (storedLogo) {
+      if (storedLogo && !storedLogo.includes('logo.jpg')) {
         setLogoUrlState(storedLogo);
+      } else {
+        setLogoUrlState(`${basePath}/karatetech-logo.png`);
       }
 
       const storedRole = localStorage.getItem('ts_user_role') as 'Admin' | 'Co-Admin' | 'Viewer' | null;

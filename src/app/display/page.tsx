@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath } from '@/db/dbClient';
-import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, List, Monitor, Clock, Layers, Calendar } from 'lucide-react';
+import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, isKataCategory } from '@/db/types';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, List, Monitor, Clock, Layers, Calendar, Flag } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
 
@@ -30,12 +30,23 @@ function SpectatorDisplayContent() {
   const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
   const [allClubs, setAllClubs] = useState<Club[]>([]);
 
-  // Sync activeBoutId with URL query params initially or when they change
+  // Sync activeBoutId & mode & panelSize with URL query params initially or when they change
   useEffect(() => {
     if (urlBoutId) {
       setActiveBoutId(urlBoutId);
     }
-  }, [urlBoutId]);
+    const urlMode = searchParams.get('mode');
+    if (urlMode === 'Flags' || urlMode === 'flags') {
+      setScoringMethod('Flags');
+    } else if (urlMode === 'Points' || urlMode === 'points') {
+      setScoringMethod('Points');
+    }
+    const urlPanelSize = searchParams.get('panelSize');
+    if (urlPanelSize) {
+      const parsed = parseInt(urlPanelSize);
+      if (parsed === 5 || parsed === 7) setPanelSize(parsed);
+    }
+  }, [urlBoutId, searchParams]);
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -66,6 +77,27 @@ function SpectatorDisplayContent() {
   const [eventsAka, setEventsAka] = useState<{ fighter: string; points: number; technique: string; timestamp: number; matchId: string }[]>([]);
   const [eventsAo, setEventsAo] = useState<{ fighter: string; points: number; technique: string; timestamp: number; matchId: string }[]>([]);
   const [showPointHistory, setShowPointHistory] = useState(false);
+
+  // Kata spectator states
+  const [isKata, setIsKata] = useState<boolean>(false);
+  const [kataA, setKataA] = useState<string>('');
+  const [kataB, setKataB] = useState<string>('');
+  const [judgeScoresA, setJudgeScoresA] = useState<number[]>([]);
+  const [judgeScoresB, setJudgeScoresB] = useState<number[]>([]);
+  const [panelSize, setPanelSize] = useState<number>(5);
+  const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Flags');
+
+  const getScoreStatusIndex = (scores: number[], index: number) => {
+    if (!scores || scores.length < 3) return 'active';
+    const sorted = [...scores].sort((a, b) => a - b);
+    const minVal = sorted[0];
+    const maxVal = sorted[sorted.length - 1];
+
+    const val = scores[index];
+    if (val === minVal && scores.indexOf(val) === index) return 'min';
+    if (val === maxVal && scores.lastIndexOf(val) === index) return 'max';
+    return 'active';
+  };
 
   // Timer states
   const [timeLeft, setTimeLeft] = useState<number>(1800);
@@ -338,6 +370,20 @@ function SpectatorDisplayContent() {
           if (data.boutId !== activeBoutId) {
             setActiveBoutId(data.boutId);
           }
+
+          if (data.isKata !== undefined) {
+            setIsKata(data.isKata);
+          } else if (data.kataA || data.judgeScoresA) {
+            setIsKata(true);
+          }
+
+          if (data.kataA) setKataA(data.kataA);
+          if (data.kataB) setKataB(data.kataB);
+          if (data.judgeScoresA) setJudgeScoresA(data.judgeScoresA);
+          if (data.judgeScoresB) setJudgeScoresB(data.judgeScoresB);
+          if (data.panelSize) setPanelSize(data.panelSize);
+          if (data.scoringMethod) setScoringMethod(data.scoringMethod);
+
           setAkaName(data.akaName);
           setAkaClub(data.akaClub);
           setAoName(data.aoName);
@@ -389,6 +435,21 @@ function SpectatorDisplayContent() {
           const compAka = partsList.find(p => p.id === bout.participant_a_id);
           const compAo = partsList.find(p => p.id === bout.participant_b_id);
           const cat = categoriesList.find(c => c.id === bout.category_id);
+
+          const kataBout = isKataCategory(cat);
+          setIsKata(kataBout);
+
+          if (kataBout) {
+            setKataA(bout.kata_a || '');
+            setKataB(bout.kata_b || '');
+            if (bout.judge_scores_a && Array.isArray(bout.judge_scores_a)) setJudgeScoresA(bout.judge_scores_a);
+            if (bout.judge_scores_b && Array.isArray(bout.judge_scores_b)) setJudgeScoresB(bout.judge_scores_b);
+            setScoreAka(bout.total_score_a || bout.score_a || 0);
+            setScoreAo(bout.total_score_b || bout.score_b || 0);
+            if (bout.winner_id) {
+              setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
+            }
+          }
 
           setAkaName(compAka?.full_name || 'TBD Red');
           setAkaClub(compAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club');
@@ -794,8 +855,311 @@ function SpectatorDisplayContent() {
         </div>
       )}
 
-      {/* STANDARD WKF SCOREBOARD DISPLAY (Preserved baseline setup) */}
-      {currentSlideType === 'live_scoreboard' && (
+      {/* WKF KATA SPECTATOR DISPLAY */}
+      {currentSlideType === 'live_scoreboard' && isKata && (
+        <div className="flex-1 flex flex-col justify-between my-auto max-w-7xl mx-auto w-full pt-8 pb-4 space-y-6">
+          {/* Top Category Header */}
+          <div className="flex justify-between items-center border-b-2 border-white/10 pb-4 shrink-0">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Award className="h-5 w-5 text-yellow-400" />
+                <span className="text-yellow-400 font-black tracking-widest text-sm uppercase">
+                  WKF KATA SPECTATOR SCOREBOARD • {tatamiName} • BOUT #{boutNo}
+                </span>
+                <button
+                  onClick={() => setScoringMethod(prev => prev === 'Points' ? 'Flags' : 'Points')}
+                  title="Click to toggle spectator mode (WKF Points / WKF Flags)"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] uppercase font-black transition cursor-pointer bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-400 border border-yellow-400/40 shadow-sm"
+                >
+                  <Flag className="h-3 w-3" />
+                  <span>MODE: {scoringMethod === 'Flags' ? 'WKF FLAGS' : 'WKF POINTS'}</span>
+                </button>
+                <button
+                  disabled
+                  title="Judge panel locked to 5 Judges standard"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] uppercase font-black transition cursor-default bg-blue-400/20 text-blue-400 border border-blue-400/40 shadow-sm opacity-80"
+                >
+                  <span>PANEL: {panelSize} JUDGES (STANDARD)</span>
+                </button>
+              </div>
+              <h1 className="text-3xl font-black tracking-tight text-white line-clamp-1">
+                {categoryName}
+              </h1>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
+                OFFICIAL TOURNAMENT
+              </span>
+              <p className="text-lg font-black text-white/70 tracking-tight">
+                {tournamentName || 'Kelab Karate Do Senshi Goju-Ryu'}
+              </p>
+            </div>
+          </div>
+
+          {/* Winner Reveal Banner */}
+          {winnerSide && (
+            <div className={`py-4 px-6 rounded-2xl text-center flex items-center justify-center gap-4 animate-bounce shadow-2xl border-2 font-black uppercase tracking-widest text-2xl lg:text-3xl ${
+              winnerSide === 'aka'
+                ? 'bg-red-600/90 text-white border-red-400 shadow-red-600/50 ring-4 ring-red-500/30'
+                : 'bg-blue-600/90 text-white border-blue-400 shadow-blue-600/50 ring-4 ring-blue-500/30'
+            }`}>
+              <Trophy className="h-9 w-9 text-yellow-300 animate-spin" />
+              <span>{winnerSide === 'aka' ? akaName : aoName} — {winnerSide === 'aka' ? 'AKA WINNER 🔴' : 'AO WINNER 🔵'}</span>
+            </div>
+          )}
+
+          {/* AKA & AO Competitor Cards */}
+          {(() => {
+            const displayScoresA = (judgeScoresA.length > 0 ? judgeScoresA : Array(panelSize).fill(8.0)).slice(0, panelSize);
+            const displayScoresB = (judgeScoresB.length > 0 ? judgeScoresB : Array(panelSize).fill(8.0)).slice(0, panelSize);
+            const displayFlagsA = (judgeScoresA.length > 0 ? judgeScoresA : Array(panelSize).fill(1)).slice(0, panelSize);
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 items-stretch">
+                {/* AKA RED CARD */}
+                <div className={`relative rounded-3xl p-6 lg:p-8 flex flex-col justify-between border-2 transition-all duration-500 shadow-2xl overflow-hidden ${
+                  winnerSide === 'aka'
+                    ? 'bg-gradient-to-br from-red-950/90 via-red-900/60 to-black border-red-500 shadow-red-600/40 ring-4 ring-red-500/50'
+                    : 'bg-gradient-to-br from-red-950/40 via-red-950/20 to-black/80 border-red-600/40'
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="px-3.5 py-1 bg-red-600/30 border border-red-500/50 text-red-400 font-black text-xs uppercase tracking-widest rounded-lg">
+                        AKA (RED)
+                      </span>
+                      {kataA && (
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-red-300 bg-black/60 px-3.5 py-1.5 rounded-xl border border-red-500/30 font-mono">
+                          KATA: {kataA}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-white uppercase drop-shadow-md truncate">
+                      {akaName}
+                    </h2>
+                    <p className="text-sm lg:text-base font-bold text-red-300/70 uppercase tracking-wide truncate mt-1">
+                      {akaClub}
+                    </p>
+                  </div>
+
+                  {/* Judge Scorecard Breakdown */}
+                  {scoringMethod === 'Points' ? (
+                    <div className="my-4">
+                      <div className="text-[10px] uppercase font-bold text-red-400/80 tracking-widest mb-2 flex items-center justify-between">
+                        <span>Judge Score Breakdown ({displayScoresA.length} Judges)</span>
+                        <span className="text-gray-400 text-[9px]">Min & Max Trimmed</span>
+                      </div>
+                      <div className={`grid gap-1.5 bg-black/60 p-3 rounded-2xl border border-red-500/20 font-mono text-center ${
+                        displayScoresA.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
+                      }`}>
+                        {displayScoresA.map((score, idx) => {
+                          const status = getScoreStatusIndex(displayScoresA, idx);
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2 rounded-xl border flex flex-col items-center transition ${
+                                status === 'min' || status === 'max'
+                                  ? 'bg-white/5 border-white/10 text-gray-500 opacity-40 line-through scale-90'
+                                  : 'bg-red-500/20 border-red-500/40 text-red-300 font-black shadow-sm scale-100'
+                              }`}
+                            >
+                              <span className="text-[9px] text-gray-400 block font-sans">J{idx + 1}</span>
+                              <span className="text-base lg:text-lg font-black">{score.toFixed(1)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Flags Mode Scorecard */
+                    <div className="my-4">
+                      <div className="text-[10px] uppercase font-bold text-red-400/80 tracking-widest mb-2 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Flag className="h-3.5 w-3.5 text-red-400 fill-red-400" />
+                          WKF Flag Votes ({displayFlagsA.length} Judges)
+                        </span>
+                        <span className="text-red-300 text-[9px]">Red Flag Voted</span>
+                      </div>
+                      <div className={`grid gap-2 bg-black/60 p-3 rounded-2xl border border-red-500/20 font-mono text-center ${
+                        displayFlagsA.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
+                      }`}>
+                        {displayFlagsA.map((vote, idx) => {
+                          const isRedVote = vote === 1;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2 rounded-xl border flex flex-col items-center justify-between transition ${
+                                isRedVote
+                                  ? 'bg-red-600/40 border-red-500 text-red-300 font-black shadow-lg shadow-red-600/40 scale-105'
+                                  : 'bg-white/5 border-white/10 text-gray-600 opacity-30 scale-90'
+                              }`}
+                            >
+                              <span className="text-[9px] text-gray-400 block font-sans">J{idx + 1}</span>
+                              <div className="my-1">
+                                {isRedVote ? (
+                                  <Flag className="h-5 w-5 text-red-400 fill-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                                ) : (
+                                  <Flag className="h-4 w-4 text-gray-600 opacity-30" />
+                                )}
+                              </div>
+                              <span className="text-[8px] font-black uppercase text-red-400 tracking-tighter">
+                                {isRedVote ? 'AKA' : '—'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Total Score / Total Flags */}
+                  <div className="bg-red-950/60 border border-red-500/40 rounded-2xl p-4 lg:p-6 text-center flex items-center justify-between shadow-inner">
+                    <div className="text-left">
+                      <span className="text-xs uppercase font-extrabold tracking-widest text-red-400 block">
+                        {scoringMethod === 'Flags' ? 'Total WKF Flags' : 'Total Kata Score'}
+                      </span>
+                      <span className="text-[11px] font-bold text-red-300/70">
+                        {scoringMethod === 'Flags' ? 'Flags Awarded' : 'WKF Calculated'}
+                      </span>
+                    </div>
+                    <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-red-400 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)] flex items-center gap-3">
+                      {scoringMethod === 'Flags' ? (
+                        <>
+                          <span>{judgeScoresA.length > 0 ? judgeScoresA.filter(s => s === 1).length : Math.round(scoreAka)}</span>
+                          <Flag className="h-9 w-9 text-red-500 fill-red-500 inline-block drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                        </>
+                      ) : (
+                        scoreAka.toFixed(2)
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AO BLUE CARD */}
+                <div className={`relative rounded-3xl p-6 lg:p-8 flex flex-col justify-between border-2 transition-all duration-500 shadow-2xl overflow-hidden ${
+                  winnerSide === 'ao'
+                    ? 'bg-gradient-to-br from-blue-950/90 via-blue-900/60 to-black border-blue-500 shadow-blue-600/40 ring-4 ring-blue-500/50'
+                    : 'bg-gradient-to-br from-blue-950/40 via-blue-950/20 to-black/80 border-blue-600/40'
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="px-3.5 py-1 bg-blue-600/30 border border-blue-500/50 text-blue-400 font-black text-xs uppercase tracking-widest rounded-lg">
+                        AO (BLUE)
+                      </span>
+                      {kataB && (
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-blue-300 bg-black/60 px-3.5 py-1.5 rounded-xl border border-blue-500/30 font-mono">
+                          KATA: {kataB}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-white uppercase drop-shadow-md truncate">
+                      {aoName}
+                    </h2>
+                    <p className="text-sm lg:text-base font-bold text-blue-300/70 uppercase tracking-wide truncate mt-1">
+                      {aoClub}
+                    </p>
+                  </div>
+
+                  {/* Judge Scorecard Breakdown */}
+                  {scoringMethod === 'Points' ? (
+                    <div className="my-4">
+                      <div className="text-[10px] uppercase font-bold text-blue-400/80 tracking-widest mb-2 flex items-center justify-between">
+                        <span>Judge Score Breakdown ({displayScoresB.length} Judges)</span>
+                        <span className="text-gray-400 text-[9px]">Min & Max Trimmed</span>
+                      </div>
+                      <div className={`grid gap-1.5 bg-black/60 p-3 rounded-2xl border border-blue-500/20 font-mono text-center ${
+                        displayScoresB.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
+                      }`}>
+                        {displayScoresB.map((score, idx) => {
+                          const status = getScoreStatusIndex(displayScoresB, idx);
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2 rounded-xl border flex flex-col items-center transition ${
+                                status === 'min' || status === 'max'
+                                  ? 'bg-white/5 border-white/10 text-gray-500 opacity-40 line-through scale-90'
+                                  : 'bg-blue-500/20 border-blue-500/40 text-blue-300 font-black shadow-sm scale-100'
+                              }`}
+                            >
+                              <span className="text-[9px] text-gray-400 block font-sans">J{idx + 1}</span>
+                              <span className="text-base lg:text-lg font-black">{score.toFixed(1)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Flags Mode Scorecard */
+                    <div className="my-4">
+                      <div className="text-[10px] uppercase font-bold text-blue-400/80 tracking-widest mb-2 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Flag className="h-3.5 w-3.5 text-blue-400 fill-blue-400" />
+                          WKF Flag Votes ({displayFlagsA.length} Judges)
+                        </span>
+                        <span className="text-blue-300 text-[9px]">Blue Flag Voted</span>
+                      </div>
+                      <div className={`grid gap-2 bg-black/60 p-3 rounded-2xl border border-blue-500/20 font-mono text-center ${
+                        displayFlagsA.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
+                      }`}>
+                        {displayFlagsA.map((vote, idx) => {
+                          const isBlueVote = vote === 0;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2 rounded-xl border flex flex-col items-center justify-between transition ${
+                                isBlueVote
+                                  ? 'bg-blue-600/40 border-blue-500 text-blue-300 font-black shadow-lg shadow-blue-600/40 scale-105'
+                                  : 'bg-white/5 border-white/10 text-gray-600 opacity-30 scale-90'
+                              }`}
+                            >
+                              <span className="text-[9px] text-gray-400 block font-sans">J{idx + 1}</span>
+                              <div className="my-1">
+                                {isBlueVote ? (
+                                  <Flag className="h-5 w-5 text-blue-400 fill-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                                ) : (
+                                  <Flag className="h-4 w-4 text-gray-600 opacity-30" />
+                                )}
+                              </div>
+                              <span className="text-[8px] font-black uppercase text-blue-400 tracking-tighter">
+                                {isBlueVote ? 'AO' : '—'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Total Score / Total Flags */}
+                  <div className="bg-blue-950/60 border border-blue-500/40 rounded-2xl p-4 lg:p-6 text-center flex items-center justify-between shadow-inner">
+                    <div className="text-left">
+                      <span className="text-xs uppercase font-extrabold tracking-widest text-blue-400 block">
+                        {scoringMethod === 'Flags' ? 'Total WKF Flags' : 'Total Kata Score'}
+                      </span>
+                      <span className="text-[11px] font-bold text-blue-300/70">
+                        {scoringMethod === 'Flags' ? 'Flags Awarded' : 'WKF Calculated'}
+                      </span>
+                    </div>
+                    <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-blue-400 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] flex items-center gap-3">
+                      {scoringMethod === 'Flags' ? (
+                        <>
+                          <span>{judgeScoresA.length > 0 ? judgeScoresA.filter(s => s === 0).length : Math.round(scoreAo)}</span>
+                          <Flag className="h-9 w-9 text-blue-500 fill-blue-500 inline-block drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                        </>
+                      ) : (
+                        scoreAo.toFixed(2)
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* STANDARD WKF KUMITE SCOREBOARD DISPLAY (Preserved baseline setup) */}
+      {currentSlideType === 'live_scoreboard' && !isKata && (
         <>
           {/* Top Details bar (Projector optimized size) */}
           <div className="flex justify-between items-center border-b-2 border-white/10 pb-4 mb-4 shrink-0 mt-8">

@@ -457,7 +457,7 @@ export const db = {
         const { error } = await supabase.from('participants').delete().in('id', ids);
         if (error) throw error;
 
-        await db.activityLogs.log('system', operator, 'Bulk Delete', `Cleared ${ids.length} participants from database`);
+        await db.activityLogs.log(null, operator, 'Bulk Delete', `Cleared ${ids.length} participants from database`);
         return ids.length;
       }
       // Mock store: clear all
@@ -487,13 +487,16 @@ export const db = {
       if (supabase) {
         const categories = await db.categories.list();
         const age = mockStore.helpers.calculateAge(p.dob);
+        const pGenderNorm = (p.gender || '').toLowerCase().startsWith('f') ? 'Female' : (p.gender || '').toLowerCase().startsWith('m') ? 'Male' : 'Mixed';
+
         const matched = categories.find(c => {
-          return (
-            c.gender === p.gender &&
-            age >= c.min_age && age <= c.max_age &&
-            p.weight >= c.min_weight && p.weight <= c.max_weight &&
-            c.status !== 'Closed'
-          );
+          const cGenderNorm = c.gender || 'Male';
+          const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+          const ageMatches = age >= c.min_age && age <= c.max_age;
+          const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || c.name.toLowerCase().includes('kata');
+          const weightMatches = isKataOrOpenWeight || (p.weight >= c.min_weight && p.weight <= c.max_weight);
+
+          return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
         });
 
         if (matched) {
@@ -527,6 +530,16 @@ export const db = {
         return;
       }
       return mockStore.participants.assignCategoryManually(participantId, categoryId, operator);
+    },
+    removeCategoryMapping: async (participantId: string, categoryId: string): Promise<void> => {
+      if (supabase) {
+        await supabase.from('participant_categories')
+          .delete()
+          .eq('participant_id', participantId)
+          .eq('category_id', categoryId);
+        return;
+      }
+      return mockStore.participants.removeCategoryMapping(participantId, categoryId);
     },
     getAssignedCategory: async (participantId: string): Promise<Category | undefined> => {
       if (supabase) {
@@ -645,6 +658,8 @@ export const db = {
   activityLogs: {
     list: async (participantId: string): Promise<ActivityLog[]> => {
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        if (!isUuid) return [];
         const { data, error } = await supabase
           .from('activity_logs')
           .select('*')
@@ -655,11 +670,13 @@ export const db = {
       }
       return mockStore.activityLogs.list(participantId);
     },
-    log: async (participantId: string, operatorName: string, action: string, details: string): Promise<ActivityLog> => {
+    log: async (participantId: string | null, operatorName: string, action: string, details: string): Promise<ActivityLog> => {
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        const validParticipantId = isUuid ? participantId : null;
         const { data, error } = await supabase
           .from('activity_logs')
-          .insert([{ participant_id: participantId, operator_name: operatorName, action, details }])
+          .insert([{ participant_id: validParticipantId, operator_name: operatorName, action, details }])
           .select()
           .single();
         if (error) throw error;
@@ -890,39 +907,55 @@ export const db = {
     updateBoutState: async (id: string, updates: Partial<Bout>): Promise<Bout> => {
       if (supabase) {
         try {
+          let updatedBout: Bout | null = null;
           const { data, error } = await supabase.from('bouts').update(updates).eq('id', id).select().single();
-          if (error) throw error;
           
-          const updatedBout = data as Bout;
-          if (updatedBout.status === 'Completed' && updatedBout.winner_id) {
-            const winnerId = updatedBout.winner_id;
-            const { data: dbBouts, error: boutsErr } = await supabase.from('bouts').select('*');
-            if (!boutsErr && dbBouts) {
-              const bout = dbBouts.find(b => b.id === id);
-              if (bout) {
-                if (bout.round_no === 98) {
-                  const nextBoutNo = bout.bout_no + 1;
-                  const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === 98 && b.bout_no === nextBoutNo);
-                  if (nextBout) {
-                    await supabase.from('bouts').update({ participant_a_id: winnerId }).eq('id', nextBout.id);
-                  }
-                } else if (bout.round_no !== 99 && bout.round_no < 7) {
-                  const nextRoundNo = bout.round_no + 1;
-                  const nextBoutNo = Math.ceil(bout.bout_no / 2);
-                  const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
-                  if (nextBout) {
-                    const isSlotA = bout.bout_no % 2 !== 0;
-                    const updateData = isSlotA 
-                      ? { participant_a_id: winnerId } 
-                      : { participant_b_id: winnerId };
+          if (error) {
+            // Schema fallback: if custom columns fail, update core fields
+            const coreUpdates: Record<string, any> = {};
+            if (updates.score_a !== undefined) coreUpdates.score_a = updates.score_a;
+            if (updates.score_b !== undefined) coreUpdates.score_b = updates.score_b;
+            if (updates.status !== undefined) coreUpdates.status = updates.status;
+            if (updates.winner_id !== undefined) coreUpdates.winner_id = updates.winner_id;
+            
+            const { data: coreData, error: coreErr } = await supabase.from('bouts').update(coreUpdates).eq('id', id).select().single();
+            if (coreErr) throw coreErr;
+            if (coreData) updatedBout = { ...coreData, ...updates } as Bout;
+          } else if (data) {
+            updatedBout = data as Bout;
+          }
 
-                    await supabase.from('bouts').update(updateData).eq('id', nextBout.id);
+          if (updatedBout) {
+            if (updatedBout.status === 'Completed' && updatedBout.winner_id) {
+              const winnerId = updatedBout.winner_id;
+              const { data: dbBouts, error: boutsErr } = await supabase.from('bouts').select('*');
+              if (!boutsErr && dbBouts) {
+                const bout = dbBouts.find(b => b.id === id);
+                if (bout) {
+                  if (bout.round_no === 98) {
+                    const nextBoutNo = bout.bout_no + 1;
+                    const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === 98 && b.bout_no === nextBoutNo);
+                    if (nextBout) {
+                      await supabase.from('bouts').update({ participant_a_id: winnerId }).eq('id', nextBout.id);
+                    }
+                  } else if (bout.round_no !== 99 && bout.round_no < 7) {
+                    const nextRoundNo = bout.round_no + 1;
+                    const nextBoutNo = Math.ceil(bout.bout_no / 2);
+                    const nextBout = dbBouts.find(b => b.category_id === bout.category_id && b.round_no === nextRoundNo && b.bout_no === nextBoutNo);
+                    if (nextBout) {
+                      const isSlotA = bout.bout_no % 2 !== 0;
+                      const updateData = isSlotA 
+                        ? { participant_a_id: winnerId } 
+                        : { participant_b_id: winnerId };
+
+                      await supabase.from('bouts').update(updateData).eq('id', nextBout.id);
+                    }
                   }
                 }
               }
             }
+            return updatedBout;
           }
-          return updatedBout;
         } catch (e: unknown) {
           console.warn('Supabase bouts table update error, falling back to mockStore:', describeError(e));
         }
@@ -993,6 +1026,16 @@ export const db = {
         }
       }
       return mockStore.bouts.resetBoutResult(boutId, matchDuration);
+    },
+    clearAllDraws: async (): Promise<void> => {
+      mockStore.bouts.clearAllDraws();
+      if (supabase) {
+        try {
+          await supabase.from('bouts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        } catch (e: unknown) {
+          console.warn('Supabase delete all bouts error:', describeError(e));
+        }
+      }
     }
   },
 

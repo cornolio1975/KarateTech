@@ -28,7 +28,7 @@ export default function BracketSystemPage() {
         <div className="mb-8 flex items-center justify-between border-b border-gray-800 pb-4">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0">
-              <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+              <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div className="flex flex-col leading-none">
               <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.15rem', lineHeight: 1, letterSpacing: '0.01em' }}>
@@ -201,7 +201,7 @@ export default function BracketSystemPage() {
     <div className="hidden print:block text-black bg-white p-4">
       <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-6" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" style={{ height: '50px', width: '50px', objectFit: 'cover', borderRadius: '50%' }} />
+          <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" style={{ height: '50px', width: '50px', objectFit: 'cover', borderRadius: '50%' }} />
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
             <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.15rem', lineHeight: 1, letterSpacing: '0.01em' }}>
               <span style={{ color: '#b91c2e' }}>Karate</span>

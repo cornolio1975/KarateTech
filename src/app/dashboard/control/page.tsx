@@ -1324,7 +1324,7 @@ export default function ScoreboardControlPage() {
                     return (
                       <button
                         key={level}
-                        onClick={() => handleUpdatePenalty('aka', level)}
+                        onClick={() => handleTogglePenalty('aka', level)}
                         disabled={bout.status === 'Completed'}
                         className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-[clamp(14px,2vh,24px)] lg:text-[clamp(20px,3.5vh,36px)] font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
                             ? 'bg-red-500 text-black border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
@@ -1546,7 +1546,7 @@ export default function ScoreboardControlPage() {
                     return (
                       <button
                         key={level}
-                        onClick={() => handleUpdatePenalty('ao', level)}
+                        onClick={() => handleTogglePenalty('ao', level)}
                         disabled={bout.status === 'Completed'}
                         className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-[clamp(14px,2vh,24px)] lg:text-[clamp(20px,3.5vh,36px)] font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
                             ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]'

@@ -845,15 +845,17 @@ export const mockStore = {
     autoAssignCategory: (p: Participant): Category | null => {
       const categories = mockStore.categories.list();
       const age = mockStore.helpers.calculateAge(p.dob);
-      
+      const pGenderNorm = (p.gender || '').toLowerCase().startsWith('f') ? 'Female' : (p.gender || '').toLowerCase().startsWith('m') ? 'Male' : 'Mixed';
+
       // Find matching category based on age, weight, and gender
       const matched = categories.find(c => {
-        return (
-          c.gender === p.gender &&
-          age >= c.min_age && age <= c.max_age &&
-          p.weight >= c.min_weight && p.weight <= c.max_weight &&
-          c.status !== 'Closed'
-        );
+        const cGenderNorm = c.gender || 'Male';
+        const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+        const ageMatches = age >= c.min_age && age <= c.max_age;
+        const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || c.name.toLowerCase().includes('kata');
+        const weightMatches = isKataOrOpenWeight || (p.weight >= c.min_weight && p.weight <= c.max_weight);
+
+        return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
       });
 
       if (matched) {
@@ -863,7 +865,7 @@ export const mockStore = {
         const filtered = mappings.filter(m => m.participant_id !== p.id);
         
         filtered.push({
-          id: `pc-${Date.now()}`,
+          id: `pc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           participant_id: p.id,
           category_id: matched.id,
           manual_override: false,
@@ -895,6 +897,11 @@ export const mockStore = {
         'Category Moved (Manual)', 
         `Moved category manually to: ${cat ? cat.name : 'Unknown Category'}`
       );
+    },
+    removeCategoryMapping: (participantId: string, categoryId: string): void => {
+      const mappings = getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
+      const filtered = mappings.filter(m => !(m.participant_id === participantId && m.category_id === categoryId));
+      saveStoreData('ts_participant_categories', filtered);
     },
     getAssignedCategory: (participantId: string): Category | undefined => {
       const mappings = getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
@@ -1001,7 +1008,7 @@ export const mockStore = {
         return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
       });
     },
-    log: (participantId: string, operator: string, action: string, details: string): ActivityLog => {
+    log: (participantId: string | null, operator: string, action: string, details: string): ActivityLog => {
       const list = getStoreData('ts_activity_logs', SEED_ACTIVITY_LOGS);
       const newLog: ActivityLog = {
         id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -1054,6 +1061,9 @@ export const mockStore = {
       const list = getStoreData<Bout>('ts_bouts', []);
       const filtered = list.filter(b => b.category_id !== catId);
       saveStoreData('ts_bouts', filtered);
+    },
+    clearAllDraws: (): void => {
+      saveStoreData('ts_bouts', []);
     },
     saveBouts: (catId: string, newBouts: Bout[]): void => {
       const list = getStoreData<Bout>('ts_bouts', []).filter(b => b.category_id !== catId);
@@ -1324,8 +1334,23 @@ export const mockStore = {
     },
     updateBoutResult: (boutId: string, winnerId: string, scoreA: number, scoreB: number): Bout => {
       const list = getStoreData<Bout>('ts_bouts', []);
-      const idx = list.findIndex(b => b.id === boutId);
-      if (idx === -1) throw new Error('Bout not found');
+      let idx = list.findIndex(b => b.id === boutId);
+      if (idx === -1) {
+        const dummy: Bout = {
+          id: boutId,
+          category_id: '',
+          bout_no: 1,
+          round_no: 1,
+          participant_a_id: null,
+          participant_b_id: null,
+          score_a: scoreA,
+          score_b: scoreB,
+          status: 'Completed',
+          winner_id: winnerId
+        };
+        list.push(dummy);
+        idx = list.length - 1;
+      }
 
       const bout = list[idx];
       const updatedBout = {
@@ -1421,8 +1446,24 @@ export const mockStore = {
     },
     updateBoutState: (id: string, updates: Partial<Bout>): Bout => {
       const list = getStoreData<Bout>('ts_bouts', []);
-      const idx = list.findIndex(b => b.id === id);
-      if (idx === -1) throw new Error('Bout not found');
+      let idx = list.findIndex(b => b.id === id);
+      if (idx === -1) {
+        const dummy: Bout = {
+          id,
+          category_id: updates.category_id || '',
+          bout_no: updates.bout_no || 1,
+          round_no: updates.round_no || 1,
+          participant_a_id: updates.participant_a_id ?? null,
+          participant_b_id: updates.participant_b_id ?? null,
+          score_a: updates.score_a || 0,
+          score_b: updates.score_b || 0,
+          status: updates.status || 'Scheduled',
+          winner_id: updates.winner_id ?? null,
+          ...updates
+        };
+        list.push(dummy);
+        idx = list.length - 1;
+      }
       
       const oldBout = list[idx];
       const updated = { ...oldBout, ...updates };
@@ -1479,8 +1520,23 @@ export const mockStore = {
     },
     resetBoutResult: (boutId: string, matchDuration: number): Bout => {
       const list = getStoreData<Bout>('ts_bouts', []);
-      const idx = list.findIndex(b => b.id === boutId);
-      if (idx === -1) throw new Error('Bout not found');
+      let idx = list.findIndex(b => b.id === boutId);
+      if (idx === -1) {
+        const dummy: Bout = {
+          id: boutId,
+          category_id: '',
+          bout_no: 1,
+          round_no: 1,
+          participant_a_id: null,
+          participant_b_id: null,
+          score_a: 0,
+          score_b: 0,
+          status: 'Scheduled',
+          winner_id: null
+        };
+        list.push(dummy);
+        idx = list.length - 1;
+      }
 
       const bout = list[idx];
       const currentWinnerId = bout.winner_id;

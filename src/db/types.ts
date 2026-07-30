@@ -133,7 +133,7 @@ export interface Document {
 
 export interface ActivityLog {
   id: string;
-  participant_id: string;
+  participant_id: string | null;
   operator_name: string;
   action: string;
   details?: string;

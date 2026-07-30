@@ -19,7 +19,7 @@ const MENU_ITEMS = [
   { name: 'Categories', icon: Tags, path: '/categories' },
   { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'Draft' },
   { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
-  { name: 'Bouts', icon: Sword, path: '/bouts' },
+  { name: 'Scoring Management', icon: Sword, path: '/bouts' },
   { name: 'Kumite S-Board', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF', isYellow: true },
   { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-control', badge: 'WKF', isYellow: true },
   { name: 'Officials', icon: ShieldCheck, path: '/officials' },
@@ -66,7 +66,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         title="Open Corporate Home Showcase (spsportdatasolution.org/karatetech)"
       >
         <div className="h-10 w-10 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-primary transition-all">
-          <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+          <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
         </div>
         <div className="flex flex-col leading-none">
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.95rem', lineHeight: 1, letterSpacing: '0.01em' }}>

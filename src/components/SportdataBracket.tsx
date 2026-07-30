@@ -68,7 +68,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
       >
         {/* Header */}
         <div
-          className="flex items-stretch justify-between px-3 py-2 shrink-0 border-b relative"
+          className="sportdata-header flex items-stretch justify-between px-3 py-2 shrink-0 border-b relative"
           style={{
             height: '45px',
             borderColor: theme === 'dark' ? '#1f2937' : '#cbd5e1',
@@ -95,7 +95,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
           {/* Right Side */}
           <div className="flex items-center gap-2 mt-0.5 leading-none select-none shrink-0" style={{ maxWidth: '160px' }}>
             <div className="h-7 w-7 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
-              <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+              <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div className="flex flex-col items-start leading-none">
               <span className="font-extrabold text-[8px] tracking-tight text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
@@ -412,7 +412,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
     >
       {/* 1. Header Information Block */}
       <div
-        className="flex items-stretch justify-between px-3 py-2 shrink-0 border-b relative z-10"
+        className="sportdata-header flex items-stretch justify-between px-3 py-2 shrink-0 border-b relative z-10"
         style={{
           height: '45px',
           borderColor: theme === 'dark' ? '#1f2937' : '#cbd5e1',
@@ -459,7 +459,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
           {/* Rebranded Logo */}
           <div className="flex items-center gap-2 mt-0.5 leading-none select-none shrink-0" style={{ maxWidth: '160px' }}>
             <div className="h-7 w-7 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
-              <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+              <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div className="flex flex-col items-start leading-none">
               <span className="font-extrabold text-[8px] tracking-tight text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>

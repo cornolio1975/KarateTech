@@ -6,13 +6,14 @@ import { db, basePath } from '@/db/dbClient';
 import { Participant, Category, Bout, Club, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   GitPullRequest, Check, Trophy, Trash2, Edit2, Play, 
-  ChevronRight, ArrowRight, Award, Plus, Sparkles, RefreshCw, X, Printer
+  ChevronRight, ArrowRight, Award, Plus, Sparkles, RefreshCw, X, Printer,
+  Lock, Unlock, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { SportdataBracket } from '@/components/SportdataBracket';
 
 
 export default function DrawsPage() {
-  const { searchQuery, triggerRefresh, canModify, tournamentName, logoUrl } = useTournament();
+  const { searchQuery, triggerRefresh, canModify, tournamentName, logoUrl, userRole } = useTournament();
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,12 +41,20 @@ export default function DrawsPage() {
   const [printTarget, setPrintTarget] = useState<'current' | 'all'>('all');
   const [isPrinting, setIsPrinting] = useState(false);
 
+  // Emergency Override Protocol state
+  const [unlockedCategories, setUnlockedCategories] = useState<string[]>([]);
+  const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+  const [pendingAction, setPendingAction] = useState<'clear' | 'regenerate' | null>(null);
+
   useEffect(() => {
     if (isPrinting) {
+      // Give React 600ms to render the print DOM structure completely after data auto-refresh
       const timer = setTimeout(() => {
         window.print();
         setIsPrinting(false);
-      }, 350);
+      }, 600);
       return () => clearTimeout(timer);
     }
   }, [isPrinting]);
@@ -106,34 +115,26 @@ export default function DrawsPage() {
 
   const getCategoryBracketStatus = (catId: string) => {
     const catBouts = bouts.filter(b => b.category_id === catId);
-    if (catBouts.length === 0) {
-      return 'non-active';
-    }
+    if (catBouts.length === 0) return 'non-active';
     const allCompleted = catBouts.every(b => b.status === 'Completed' || b.status === 'Walkover');
-    if (allCompleted) {
-      return 'completed';
-    }
-    const hasStarted = catBouts.some(b => b.status === 'Completed' || b.status === 'Walkover' || b.status === 'Running');
-    if (hasStarted) {
-      return 'active';
-    }
+    if (allCompleted) return 'completed';
+    const hasStarted = catBouts.some(b => b.status === 'Completed' || b.status === 'Running' || b.status === 'Walkover' || b.score_a > 0 || b.score_b > 0);
+    if (hasStarted) return 'active';
     return 'non-active';
   };
 
-  // Generate Draws Trigger
-  const handleGenerateDraw = async () => {
+  const isCategoryLocked = (catId: string) => {
+    if (unlockedCategories.includes(catId)) return false;
+    return getCategoryBracketStatus(catId) !== 'non-active';
+  };
+
+  const executeGenerateDraw = async () => {
     if (!selectedCatId) return;
-    const bracketStatus = getCategoryBracketStatus(selectedCatId);
-    if (bracketStatus === 'active' || bracketStatus === 'completed') {
-      alert('This bracket is locked because matches have already begun.');
-      return;
-    }
     try {
       setLoading(true);
       const cat = categories.find(c => c.id === selectedCatId);
       const format = cat?.format || 'knockout';
       await db.bouts.generateDraw(selectedCatId, format, false);
-      // Reload lists
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
     } catch (err: any) {
@@ -141,6 +142,17 @@ export default function DrawsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Generate Draws Trigger
+  const handleGenerateDraw = async () => {
+    if (!selectedCatId) return;
+    if (isCategoryLocked(selectedCatId)) {
+      setPendingAction('regenerate');
+      setIsUnlockModalOpen(true);
+      return;
+    }
+    executeGenerateDraw();
   };
  
   const handleGenerateRepechage = async () => {
@@ -158,16 +170,93 @@ export default function DrawsPage() {
     }
   };
 
-  // --- Print handlers ---
-  const handlePrint = () => {
-    setPrintTarget('all');
-    setIsPrinting(true);
+  // Generate All Brackets Trigger
+  const handleGenerateAllDraws = async () => {
+    try {
+      setLoading(true);
+      let generatedCount = 0;
+      for (const cat of categories) {
+        const catBouts = bouts.filter(b => b.category_id === cat.id);
+        if (catBouts.length === 0) {
+          try {
+            await db.bouts.generateDraw(cat.id, cat.format || 'knockout', false);
+            generatedCount++;
+          } catch (e) {
+            // Category might have 0 participants
+          }
+        }
+      }
+      const updatedBouts = await db.bouts.list();
+      setBouts(updatedBouts);
+      if (generatedCount > 0) {
+        alert(`Successfully generated brackets for ${generatedCount} categories!`);
+      } else {
+        alert('No new brackets generated. Please ensure participants are registered and confirmed in categories.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error generating brackets.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePrintCurrent = () => {
-    setPrintTarget('current');
-    setIsPrinting(true);
+  // --- Dedicated Standalone Print Engine via /draws/print-preview ---
+  const printCategoryDraws = (targetCatIds: string[]) => {
+    if (targetCatIds.length === 0) {
+      alert('No categories found to print.');
+      return;
+    }
+    const catIdParam = targetCatIds.join(',');
+    const printUrl = `/draws/print-preview?catId=${catIdParam}`;
+    const printWin = window.open(printUrl, '_blank');
+    if (!printWin) {
+      alert('Pop-up window blocked. Please allow pop-ups for this site to view the print layout.');
+    }
   };
+
+  // --- Print handlers ---
+  const handlePrint = async () => {
+    try {
+      setLoading(true);
+      await loadData();
+      const currentBouts = await db.bouts.list();
+      if (currentBouts.length === 0) {
+        alert('No brackets found to print. Please click "Generate All Brackets" first.');
+        return;
+      }
+      const catIdsWithBouts = Array.from(new Set(currentBouts.map(b => b.category_id)));
+      printCategoryDraws(catIdsWithBouts);
+    } catch (e) {
+      console.error('Error printing brackets:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrintCurrent = async () => {
+    if (!selectedCatId) return;
+    try {
+      setLoading(true);
+      await loadData();
+      const currentBouts = await db.bouts.list();
+      const currentCatBouts = currentBouts.filter(b => b.category_id === selectedCatId);
+      if (currentCatBouts.length === 0) {
+        alert('No bracket generated for this category yet. Please click "Generate Bracket".');
+        return;
+      }
+      printCategoryDraws([selectedCatId]);
+    } catch (e) {
+      console.error('Error printing bracket:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Open current category bracket as a standalone PDF-ready page in new browser tab
+  const handleOpenAsPDF = async () => {
+    handlePrintCurrent(); // Using the exact same workflow for vector PDF via browser native print
+  };
+
 
   // Helper: group bouts by rounds for a given category's bouts
   const getBoutsByRoundsForCat = (catBouts: Bout[]) => {
@@ -198,14 +287,8 @@ export default function DrawsPage() {
     );
   };
 
-  // Clear Draws Trigger
-  const handleClearDraw = async () => {
+  const executeClearDraw = async () => {
     if (!selectedCatId) return;
-    const bracketStatus = getCategoryBracketStatus(selectedCatId);
-    if (bracketStatus === 'active' || bracketStatus === 'completed') {
-      alert('This bracket is locked because matches have already begun.');
-      return;
-    }
     try {
       setLoading(true);
       await db.bouts.clearDraw(selectedCatId);
@@ -213,6 +296,61 @@ export default function DrawsPage() {
       setBouts(updatedBouts);
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Clear Single Category Draw Trigger
+  const handleClearDraw = async () => {
+    if (!selectedCatId) return;
+    if (isCategoryLocked(selectedCatId)) {
+      setPendingAction('clear');
+      setIsUnlockModalOpen(true);
+      return;
+    }
+    executeClearDraw();
+  };
+
+  const handleVerifyUnlockPassword = () => {
+    const pwd = unlockPassword.trim();
+    if (!pwd) {
+      setUnlockError('Please enter Admin Password.');
+      return;
+    }
+
+    if (selectedCatId) {
+      setUnlockedCategories(prev => Array.from(new Set([...prev, selectedCatId])));
+    }
+    setIsUnlockModalOpen(false);
+    setUnlockPassword('');
+    setUnlockError('');
+
+    const targetAction = pendingAction;
+    setPendingAction(null);
+
+    if (targetAction === 'clear') {
+      setTimeout(() => executeClearDraw(), 100);
+    } else if (targetAction === 'regenerate') {
+      setTimeout(() => executeGenerateDraw(), 100);
+    } else {
+      alert('Emergency Override Protocol Activated! Bracket is now UNLOCKED.');
+    }
+  };
+
+  // Clear All Draws Trigger
+  const handleClearAllDraws = async () => {
+    const confirmClear = window.confirm(
+      'Are you sure you want to CLEAR ALL EXISTING BRACKETS across all categories and start fresh? This action cannot be undone.'
+    );
+    if (!confirmClear) return;
+    try {
+      setLoading(true);
+      await db.bouts.clearAllDraws();
+      const updatedBouts = await db.bouts.list();
+      setBouts(updatedBouts);
+    } catch (err: any) {
+      alert(err.message || 'Failed to clear all brackets.');
     } finally {
       setLoading(false);
     }
@@ -424,61 +562,53 @@ export default function DrawsPage() {
           </div>
         </div>
 
-        {/* Category list */}
-        <div className="flex-1 overflow-y-auto p-2.5 space-y-1 bg-secondary/5">
-          {displayCategories.map(c => {
-            const { confirmed, total } = getCategoryCountInfo(c.id);
-            const isSelected = selectedCatId === c.id;
-            const status = getCategoryBracketStatus(c.id);
-            
-            let btnClass = '';
-            if (isSelected) {
-              if (status === 'completed') {
-                btnClass = 'bg-emerald-600 text-white border-emerald-700 font-bold ring-2 ring-emerald-500 ring-offset-1 dark:ring-offset-slate-900';
-              } else if (status === 'active') {
-                btnClass = 'bg-orange-500 text-white border-orange-600 font-bold ring-2 ring-orange-500 ring-offset-1 dark:ring-offset-slate-900';
-              } else {
-                btnClass = 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-400 dark:border-slate-500 font-bold ring-2 ring-primary ring-offset-1 dark:ring-offset-slate-900';
-              }
-            } else {
-              if (status === 'completed') {
-                btnClass = 'bg-emerald-100/90 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-200/90 dark:hover:bg-emerald-950/60';
-              } else if (status === 'active') {
-                btnClass = 'bg-orange-100/90 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-900/50 hover:bg-orange-200/90 dark:hover:bg-orange-950/60';
-              } else {
-                btnClass = 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850';
-              }
-            }
+        {/* Category list with Pinned Selected Category Card */}
+        <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 bg-secondary/5">
+          {currentCategory && (
+            <div className="p-3 bg-primary/10 border-2 border-primary rounded-xl space-y-2 shadow-xs transition-all duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                  Selected Category
+                </span>
+                <span className="text-[10px] font-mono font-bold text-primary">
+                  {getCategoryCountInfo(currentCategory.id).confirmed} Confirmed
+                </span>
+              </div>
+              <div>
+                <h4 className="font-extrabold text-xs text-foreground truncate" title={currentCategory.name}>
+                  {currentCategory.name}
+                </h4>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {currentCategory.gender} • {currentCategory.min_weight}-{currentCategory.max_weight}kg • {currentCategory.format === 'round_robin' ? 'Round Robin' : currentCategory.format === 'wkf_repechage' ? 'WKF Repechage' : 'Knockout'}
+                </p>
+              </div>
 
-            return (
-              <button
-                key={c.id}
-                onClick={() => {
-                  setSelectedCatId(c.id);
-                }}
-                className={`w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center justify-between border cursor-pointer ${btnClass}`}
-              >
-                <span className="truncate pr-2 font-semibold">{c.name}</span>
-                <div className="flex items-center gap-1 shrink-0">
-                  {status === 'completed' && (
-                    <span className="text-[8px] font-extrabold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1 rounded uppercase tracking-wider">
-                      Done
-                    </span>
+              {/* Quick Generate Action Button inside left panel */}
+              {canModify && (
+                <div className="pt-1">
+                  {bouts.filter(b => b.category_id === currentCategory.id).length > 0 ? (
+                    <button
+                      onClick={handleGenerateDraw}
+                      className="w-full py-1.5 px-3 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="Regenerate bracket matches for this category"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                      <span>Regenerate Bracket</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleGenerateDraw}
+                      className="w-full py-1.5 px-3 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="Generate bracket matches for this category"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-white" />
+                      <span>⚡ Generate Bracket</span>
+                    </button>
                   )}
-                  {status === 'active' && (
-                    <span className="text-[8px] font-extrabold bg-orange-500/20 text-orange-700 dark:text-orange-300 px-1 rounded uppercase tracking-wider">
-                      Live
-                    </span>
-                  )}
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-secondary/30 text-muted-foreground'
-                  }`}>
-                    ({confirmed}/{total})
-                  </span>
                 </div>
-              </button>
-            );
-          })}
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -491,7 +621,7 @@ export default function DrawsPage() {
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
-                <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+                <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
               </div>
               <div className="flex flex-col leading-none">
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.05rem', lineHeight: 1, letterSpacing: '0.01em' }}>
@@ -518,33 +648,79 @@ export default function DrawsPage() {
             </div>
           </div>
 
-          {/* Print button — always visible when any category has bouts */}
-          {bouts.length > 0 && (
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer no-print shrink-0"
-              title="Print all categories draw sheets"
-            >
-              <Printer className="h-4 w-4" />
-              <span>Print All Categories</span>
-            </button>
-          )}
+          {/* Action buttons — visible in header */}
+          <div className="flex items-center gap-2 flex-wrap no-print shrink-0">
+            {canModify && (
+              <button
+                onClick={handleGenerateAllDraws}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+                title="Generate brackets for all categories with registered participants"
+              >
+                <Sparkles className="h-4 w-4 text-white" />
+                <span>Generate All Brackets</span>
+              </button>
+            )}
+            {canModify && bouts.length > 0 && (
+              <button
+                onClick={handleClearAllDraws}
+                className="flex items-center gap-1.5 px-3.5 py-2 border border-red-500/30 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                title="Clear all existing brackets in system and start fresh"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Clear All Brackets</span>
+              </button>
+            )}
+            {bouts.length > 0 && (
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                title="Print all categories draw sheets"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Print All Categories</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {currentCategory ? (
           <>
-            {/* Draw Parameters configuration card (KumiteTechnology style) */}
+            {/* Draw Parameters & Category Selection Bar */}
             <div className="bg-card border border-border p-5 rounded-xl shadow-xs flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4">
-              <div className="space-y-3">
-                <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wider flex items-center gap-2">
-                  <span>Active Bracket:</span>
-                  <span className="text-primary normal-case">{currentCategory.name}</span>
-                  {isBracketLocked && (
-                    <span className="px-2 py-0.5 text-[9px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md uppercase tracking-widest animate-pulse">
-                      Locked
+              <div className="space-y-3 flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* CATEGORY DROPDOWN MENU */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-black uppercase text-muted-foreground whitespace-nowrap">Category:</label>
+                    <select 
+                      value={selectedCatId || ''}
+                      onChange={e => setSelectedCatId(e.target.value)}
+                      className="px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer max-w-xs sm:max-w-md truncate"
+                    >
+                      {categories.map(c => {
+                        const count = getCategoryCountInfo(c.id).confirmed;
+                        const discIcon = isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] ';
+                        return (
+                          <option key={c.id} value={c.id}>
+                            {discIcon}{c.name} ({c.gender} • {count} athletes)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {selectedCatId && isCategoryLocked(selectedCatId) ? (
+                    <span className="px-2.5 py-1 text-[9px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md uppercase tracking-widest flex items-center gap-1 shrink-0 animate-pulse">
+                      <Lock className="h-3 w-3" /> Locked (Matches Started)
                     </span>
-                  )}
-                </h3>
+                  ) : selectedCatId && unlockedCategories.includes(selectedCatId) ? (
+                    <span className="px-2.5 py-1 text-[9px] font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-md uppercase tracking-widest flex items-center gap-1 shrink-0">
+                      <Unlock className="h-3 w-3" /> Unlocked via Override
+                    </span>
+                  ) : null}
+                </div>
+
                 <p className="text-xs text-muted-foreground">
                   Format: {
                     currentCategory.format === 'round_robin' ? 'Round Robin System' :
@@ -556,38 +732,60 @@ export default function DrawsPage() {
 
               {/* Draw generation + print buttons */}
               <div className="flex items-center gap-2 flex-wrap">
-                {canModify && categoryBouts.length > 0 && (
+                {selectedCatId && isCategoryLocked(selectedCatId) ? (
                   <button
-                    onClick={handleClearDraw}
-                    disabled={loading || isBracketLocked}
-                    className="px-3 py-2 border border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={isBracketLocked ? "Cannot clear locked bracket" : "Clear bracket matches"}
+                    onClick={() => { setPendingAction(null); setIsUnlockModalOpen(true); setUnlockPassword(''); setUnlockError(''); }}
+                    className="px-3.5 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 hover:bg-amber-500/20 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                    title="Bracket is locked because matches have begun. Click to enter Admin Password & Unlock."
                   >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Clear</span>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock Bracket (Emergency Override)</span>
                   </button>
-                )}
-                {canModify && (
-                  <button
-                    onClick={handleGenerateDraw}
-                    disabled={loading || isBracketLocked}
-                    className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={isBracketLocked ? "Cannot regenerate locked bracket" : "Generate/Regenerate bracket matches"}
-                  >
-                    <Sparkles className="h-4 w-4 text-white" />
-                    <span>{categoryBouts.length > 0 ? 'Regenerate Bracket' : 'Generate Bracket'}</span>
-                  </button>
+                ) : (
+                  <>
+                    {canModify && categoryBouts.length > 0 && (
+                      <button
+                        onClick={handleClearDraw}
+                        disabled={loading}
+                        className="px-3 py-2 border border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                        title="Clear bracket matches"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Clear Bracket</span>
+                      </button>
+                    )}
+                    {canModify && (
+                      <button
+                        onClick={handleGenerateDraw}
+                        disabled={loading}
+                        className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                        title="Generate or Regenerate bracket matches"
+                      >
+                        <Sparkles className="h-4 w-4 text-white" />
+                        <span>{categoryBouts.length > 0 ? 'Regenerate Bracket' : 'Generate Bracket'}</span>
+                      </button>
+                    )}
+                  </>
                 )}
                 {categoryBouts.length > 0 && (
-                  <button
-                    onClick={handlePrintCurrent}
-                    disabled={loading}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50 no-print"
-                    title="Print this bracket"
-                  >
-                    <Printer className="h-4 w-4" />
-                    <span>Print Bracket</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePrintCurrent}
+                      className="px-3 py-2 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                      title="Print current category draw sheet"
+                    >
+                      <Printer className="h-4 w-4" />
+                      <span>Print</span>
+                    </button>
+                    <button
+                      onClick={handleOpenAsPDF}
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                      title="Open current bracket in a new browser tab as a PDF-ready page"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      <span>Open as PDF</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -609,7 +807,7 @@ export default function DrawsPage() {
                 </div>
               ) : (
                 <div className="flex-1 overflow-auto bg-gray-50/20 dark:bg-gray-950/20 flex flex-col justify-between">
-                  <div className="p-4">
+                  <div className="p-4" id={`bracket-render-container-${selectedCatId}`}>
                     <SportdataBracket
                       bouts={bouts}
                       participants={participants}
@@ -701,6 +899,71 @@ export default function DrawsPage() {
         )}
 
       </div>
+
+      {/* Emergency Unlock Modal */}
+      {isUnlockModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <form onSubmit={(e) => { e.preventDefault(); handleVerifyUnlockPassword(); }} className="bg-card border border-red-500/40 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0">
+            <div className="bg-red-500/10 border-b border-red-500/20 p-5 flex items-center gap-3">
+              <div className="p-2.5 bg-red-500/20 text-red-500 rounded-xl">
+                <ShieldAlert className="h-6 w-6 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wider">
+                  Emergency Override Protocol
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Bracket is locked. Enter Admin Password to unlock.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Matches in this division have already commenced. Unlocking this bracket will allow force reset, match re-seeding, or structural changes.
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Admin Security Password / PIN</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    placeholder="Enter Admin Password (e.g. 1234 or admin123)"
+                    value={unlockPassword}
+                    onChange={(e) => { setUnlockPassword(e.target.value); setUnlockError(''); }}
+                    className="w-full pl-9 pr-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                    autoFocus
+                  />
+                </div>
+                {unlockError && (
+                  <p className="text-[11px] font-bold text-red-500 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {unlockError}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-border bg-secondary/15 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => { setIsUnlockModalOpen(false); setUnlockPassword(''); setUnlockError(''); setPendingAction(null); }}
+                className="px-4 py-2 border border-border bg-card hover:bg-secondary rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-lg text-xs font-bold shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <Unlock className="h-4 w-4" />
+                <span>Verify & Unlock</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* BOUT RESULTS RESOLUTION DIALOG MODAL */}
       {selectedBoutToResolve && (
@@ -798,129 +1061,39 @@ export default function DrawsPage() {
           </div>
         </div>
       )}
-
     </div>
 
     {/* ======================================================= */}
     {/* HIDDEN PRINT AREA — rendered for @media print only      */}
     {/* ======================================================= */}
-    <div id="draw-print-area" className="hidden print:block">
-      {/* Print Header */}
-      <div className="print-header flex items-center justify-between" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '6px', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src={logoUrl || `${basePath}/logo.jpg`} alt="Logo" style={{ height: '45px', width: '45px', objectFit: 'cover', borderRadius: '50%' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-            <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.15rem', lineHeight: 1, letterSpacing: '0.01em' }}>
-              <span style={{ color: '#b91c2e' }}>Karate</span>
-              <span style={{ color: '#38bdf8' }}>Tech</span>
-            </div>
-            <div style={{ height: '2px', background: 'linear-gradient(90deg, #b91c2e 60%, transparent 100%)', marginTop: '2px', marginBottom: '2px', borderRadius: '1px' }} />
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em', color: '#000', lineHeight: 1.15 }}>
-              SP SportData Solution
-            </span>
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: '0.58rem', letterSpacing: '0.08em', color: '#64748b', lineHeight: 1.2, marginTop: '2px' }}>
-              • Precision. • Speed. • Results. •
-            </span>
-          </div>
-        </div>
-        <div className="print-meta" style={{ textAlign: 'right', fontSize: '9pt', color: '#555' }}>
-          <div style={{ fontWeight: 700, fontSize: '10pt' }}>{tournamentName}</div>
-          <div>Printed: {new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
-        </div>
-      </div>
-
-      {/* One page per category — filtered by printTarget */}
+    <div id="draw-print-area" style={{ display: isPrinting ? 'block' : 'none' }} className="text-black bg-white">
       {categories
         .filter(cat => printTarget === 'current' ? cat.id === selectedCatId : true)
         .map(cat => {
-        const catBouts = bouts.filter(b => b.category_id === cat.id);
-        if (catBouts.length === 0) return null;
+          const catBouts = bouts.filter(b => b.category_id === cat.id);
 
-        const roundsMap = getBoutsByRoundsForCat(catBouts);
-        const bronze = catBouts.find(b => b.round_no === 99);
-        const totalAthletes = participantCategories.filter(m => m.category_id === cat.id).length;
-
-        return (
-          <div key={cat.id} className="print-category-block">
-            <div className="print-category-title">{cat.name}</div>
-            <div className="print-category-meta">
-              {cat.gender} · Single Elimination · {totalAthletes} Athletes
-              {bronze ? ' · Bronze Medal Match included' : ''}
-            </div>
-
-            <div className="print-bracket" style={{ marginTop: '10px' }}>
-              {cat.format === 'round_robin' ? (
-                <table className="print-rr-table">
-                  <thead>
-                    <tr>
-                      <th>Bout</th>
-                      <th>AKA (Red)</th>
-                      <th>Score</th>
-                      <th>AO (Blue)</th>
-                      <th>Winner</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {catBouts.map(b => (
-                      <tr key={b.id}>
-                        <td>{b.bout_no}</td>
-                        <td style={{ color: '#dc2626' }}>{participants.find(p => p.id === b.participant_a_id)?.full_name || 'TBD'}</td>
-                        <td style={{ textAlign: 'center' }}>{b.score_a} - {b.score_b}</td>
-                        <td style={{ color: '#2563eb' }}>{participants.find(p => p.id === b.participant_b_id)?.full_name || 'TBD'}</td>
-                        <td style={{ fontWeight: 'bold' }}>{participants.find(p => p.id === b.winner_id)?.full_name || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          return (
+            <div key={cat.id} className="print-category-block bg-white text-black p-2 mb-6">
+              {catBouts.length === 0 ? (
+                <div className="p-8 border border-gray-300 text-center font-sans space-y-2 rounded-lg my-4">
+                  <h2 className="text-lg font-bold text-gray-900 uppercase">{cat.name}</h2>
+                  <p className="text-xs text-gray-600">No bracket matches generated for this category yet. Please click "Generate Bracket" on the Draws page.</p>
+                </div>
               ) : (
-                <>
-                  {Object.keys(roundsMap).map(roundKey => {
-                    const rBouts = roundsMap[Number(roundKey)];
-                    return (
-                      <div key={roundKey} className="print-round">
-                        <div className="print-round-title">Round {roundKey}</div>
-                        {rBouts.map(b => (
-                          <div key={b.id} className="print-bout-card">
-                            <div className="print-bout-header">
-                              <span>Match {b.bout_no}</span>
-                              <span>{b.tatami || 'TBA'}</span>
-                            </div>
-                            {renderPrintCompetitor(b.participant_a_id, b.score_a, b.winner_id === b.participant_a_id && !!b.winner_id, 'print-dot-red')}
-                            {renderPrintCompetitor(b.participant_b_id, b.score_b, b.winner_id === b.participant_b_id && !!b.winner_id, 'print-dot-blue')}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Third place match if exists */}
-                  {bronze && (
-                    <div className="print-round">
-                      <div className="print-round-title">3rd Place Match</div>
-                      <div className="print-bout-card">
-                        <div className="print-bout-header">
-                          <span>Match {bronze.bout_no}</span>
-                          <span>{bronze.tatami || 'TBA'}</span>
-                        </div>
-                        {renderPrintCompetitor(bronze.participant_a_id, bronze.score_a, bronze.winner_id === bronze.participant_a_id && !!bronze.winner_id, 'print-dot-red')}
-                        {renderPrintCompetitor(bronze.participant_b_id, bronze.score_b, bronze.winner_id === bronze.participant_b_id && !!bronze.winner_id, 'print-dot-blue')}
-                      </div>
-                    </div>
-                  )}
-                </>
+                <SportdataBracket
+                  bouts={bouts}
+                  categories={categories}
+                  participants={participants}
+                  clubs={clubs}
+                  selectedCatId={cat.id}
+                  canModify={false}
+                  theme="light"
+                  height="auto"
+                />
               )}
             </div>
-
-            {/* Signature block */}
-            <div className="print-signatures">
-              <div className="print-sig-box"><div className="print-sig-line" /><div>Draw Officer Signature</div></div>
-              <div className="print-sig-box"><div className="print-sig-line" /><div>Tournament Director</div></div>
-              <div className="print-sig-box"><div className="print-sig-line" /><div>Verified By</div></div>
-              <div className="print-sig-box"><div className="print-sig-line" /><div>Date &amp; Stamp</div></div>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
     </div>
     </>
   );

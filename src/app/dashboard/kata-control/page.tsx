@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { db } from '@/db/dbClient';
+import { useSearchParams } from 'next/navigation';
+import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
@@ -20,8 +21,14 @@ const OFFICIAL_WKF_KATAS = [
   'Sochin', 'Suparinpei', 'Unshu', 'Unsu', 'Useishi', 'Wankan', 'Wanshu'
 ].sort();
 
-export default function KataControlPanelPage() {
+export function KataControlPanelContent() {
+  const searchParams = useSearchParams();
+  const urlBoutId = searchParams.get('boutId');
   const { tournamentName } = useTournament();
+  
+  const spectatorWindowRef = React.useRef<Window | null>(null);
+  const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
+  const scoringConsoleRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [bouts, setBouts] = useState<Bout[]>([]);
@@ -32,17 +39,30 @@ export default function KataControlPanelPage() {
   // Selection state
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
   const [selectedBoutId, setSelectedBoutId] = useState<string>('');
-  const [panelSize, setPanelSize] = useState<7 | 5>(7); // 7-judge standard or 5-judge panel
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [panelSize, setPanelSize] = useState<7 | 5>(5); // 5-judge panel standard
 
   // Current active bout state
   const [currentBout, setCurrentBout] = useState<Bout | null>(null);
   const [kataA, setKataA] = useState<string>('Suparinpei');
   const [kataB, setKataB] = useState<string>('Anan Dai');
-  const [judgeScoresA, setJudgeScoresA] = useState<number[]>([8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
-  const [judgeScoresB, setJudgeScoresB] = useState<number[]>([8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
+  const [judgeScoresA, setJudgeScoresA] = useState<number[]>([1, 1, 1, 0, 0]);
+  const [judgeScoresB, setJudgeScoresB] = useState<number[]>([0, 0, 0, 0, 0]);
   const [activeScoringTab, setActiveScoringTab] = useState<'AKA' | 'AO'>('AKA');
-  const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Points');
+  const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Flags');
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
+  const [isWinnerRevealed, setIsWinnerRevealed] = useState<boolean>(false);
+
+  const openSpectatorWindow = (targetBoutId?: string, targetMode: 'new-tab' | 'new-window' = 'new-tab') => {
+    const bId = targetBoutId || selectedBoutId || currentBout?.id;
+    if (!bId) return;
+    const specUrl = `${window.location.origin}${basePath}/display?boutId=${bId}&mode=${scoringMethod}&panelSize=${panelSize}`;
+    if (targetMode === 'new-window') {
+      spectatorWindowRef.current = window.open(specUrl, 'SpectatorDisplay', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
+    } else {
+      spectatorWindowRef.current = window.open(specUrl, '_blank');
+    }
+  };
 
   // Modal state
   const [isResultBookOpen, setIsResultBookOpen] = useState(false);
@@ -69,19 +89,45 @@ export default function KataControlPanelPage() {
       setCategories(catList);
       setClubs(clList);
 
-      // Auto-select first active bout if available
+      // Filter for Kata bouts only when auto-selecting default bout
+      const kataOnlyBouts = bList.filter(b => {
+        const cat = catList.find(c => c.id === b.category_id);
+        return isKataCategory(cat);
+      });
+
       if (bList.length > 0) {
-        const activeBout = bList.find(b => b.status === 'Running') || bList[0];
+        const targetBout = urlBoutId ? bList.find(b => b.id === urlBoutId) : null;
+        const activeBout = targetBout || kataOnlyBouts.find(b => b.status === 'Running') || kataOnlyBouts[0] || bList[0];
         if (activeBout) {
           selectBout(activeBout);
         }
       }
     } catch (err) {
       console.error('Error loading Kata control data:', err);
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      broadcastChannelRef.current = new BroadcastChannel('karate_tatami_display');
+    }
+    return () => {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (urlBoutId && bouts.length > 0) {
+      const targetBout = bouts.find(b => b.id === urlBoutId);
+      if (targetBout && targetBout.id !== selectedBoutId) {
+        selectBout(targetBout);
+      }
+    }
+  }, [urlBoutId, bouts]);
 
   const selectBout = (bout: Bout) => {
     setCurrentBout(bout);
@@ -93,10 +139,10 @@ export default function KataControlPanelPage() {
 
     const defaultScoresA = bout.judge_scores_a && bout.judge_scores_a.length > 0 
       ? bout.judge_scores_a 
-      : (scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
+      : (scoringMethod === 'Flags' ? [1, 1, 1, 0, 0] : [8.2, 8.4, 8.1, 8.3, 8.5]);
     const defaultScoresB = bout.judge_scores_b && bout.judge_scores_b.length > 0 
       ? bout.judge_scores_b 
-      : (scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
+      : (scoringMethod === 'Flags' ? [0, 0, 0, 0, 0] : [8.0, 8.2, 8.3, 8.1, 8.4]);
 
     setJudgeScoresA(defaultScoresA.slice(0, panelSize));
     setJudgeScoresB(defaultScoresB.slice(0, panelSize));
@@ -111,6 +157,7 @@ export default function KataControlPanelPage() {
       }
     }
     setSelectedWinnerId(bout.winner_id || null);
+    setIsWinnerRevealed(bout.status === 'Completed' || !!bout.winner_id);
   };
 
   // Helper to trim High (MAX) and Low (MIN) scores and calculate Total Score
@@ -144,18 +191,44 @@ export default function KataControlPanelPage() {
   const totalScoreA = calculateTotalScore(judgeScoresA, scoringMethod);
   const totalScoreB = calculateTotalScore(judgeScoresB, scoringMethod);
 
-  // Auto recommend winner
+  // Participant & Category lookups
+  const participantA = participants.find(p => p.id === currentBout?.participant_a_id);
+  const participantB = participants.find(p => p.id === currentBout?.participant_b_id);
+  const clubA = clubs.find(c => c.id === participantA?.club_id);
+  const clubB = clubs.find(c => c.id === participantB?.club_id);
+  const category = categories.find(c => c.id === currentBout?.category_id);
+
+  // Broadcast state updates in real-time for spectator display
+  const broadcastKataState = React.useCallback(() => {
+    if (!broadcastChannelRef.current || !currentBout) return;
+    broadcastChannelRef.current.postMessage({
+      boutId: currentBout.id,
+      isKata: true,
+      akaName: participantA?.full_name || 'AKA 🔴',
+      akaClub: clubA?.name || 'Senshi Club',
+      aoName: participantB?.full_name || 'AO 🔵',
+      aoClub: clubB?.name || 'Goju-Ryu Club',
+      scoreAka: totalScoreA,
+      scoreAo: totalScoreB,
+      kataA,
+      kataB,
+      judgeScoresA,
+      judgeScoresB,
+      panelSize,
+      scoringMethod,
+      winner: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'aka' : selectedWinnerId === participantB?.id ? 'ao' : null) : null,
+      winMethod: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'AKA WIN' : selectedWinnerId === participantB?.id ? 'AO WIN' : 'TIE') : ''
+    });
+  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId]);
+
   useEffect(() => {
-    if (currentBout?.participant_a_id && currentBout?.participant_b_id) {
-      if (totalScoreA > totalScoreB) {
-        setSelectedWinnerId(currentBout.participant_a_id);
-      } else if (totalScoreB > totalScoreA) {
-        setSelectedWinnerId(currentBout.participant_b_id);
-      }
+    if (mounted && currentBout) {
+      broadcastKataState();
     }
-  }, [totalScoreA, totalScoreB, currentBout]);
+  }, [mounted, currentBout, judgeScoresA, judgeScoresB, kataA, kataB, panelSize, scoringMethod, totalScoreA, totalScoreB, isWinnerRevealed, selectedWinnerId, broadcastKataState]);
 
   const updateJudgeScore = (athlete: 'AKA' | 'AO', idx: number, val: number) => {
+    setIsWinnerRevealed(false);
     const clamped = Math.max(5.0, Math.min(10.0, Math.round(val * 10) / 10));
     if (athlete === 'AKA') {
       const copy = [...judgeScoresA];
@@ -169,9 +242,73 @@ export default function KataControlPanelPage() {
   };
 
   const setAllJudgeScores = (athlete: 'AKA' | 'AO', presetVal: number) => {
+    setIsWinnerRevealed(false);
     const arr = Array(panelSize).fill(presetVal);
     if (athlete === 'AKA') setJudgeScoresA(arr);
     else setJudgeScoresB(arr);
+  };
+
+  const handleSaveResult = async () => {
+    if (!currentBout) return;
+    try {
+      setIsSaving(true);
+      let winnerId = selectedWinnerId;
+      if (totalScoreA > totalScoreB) {
+        winnerId = currentBout.participant_a_id || null;
+      } else if (totalScoreB > totalScoreA) {
+        winnerId = currentBout.participant_b_id || null;
+      }
+      setSelectedWinnerId(winnerId);
+      setIsWinnerRevealed(true);
+
+      const updated = await db.bouts.update(currentBout.id, {
+        kata_a: kataA,
+        kata_b: kataB,
+        judge_scores_a: judgeScoresA,
+        judge_scores_b: judgeScoresB,
+        score_a: totalScoreA,
+        score_b: totalScoreB,
+        winner_id: winnerId,
+        status: currentBout.status === 'Scheduled' ? 'Running' : currentBout.status
+      });
+
+      if (updated) {
+        setCurrentBout(updated);
+      }
+
+      // Broadcast saved result & winner reveal immediately to spectator view
+      if (broadcastChannelRef.current) {
+        const participantA = participants.find(p => p.id === currentBout.participant_a_id);
+        const participantB = participants.find(p => p.id === currentBout.participant_b_id);
+        const clubA = clubs.find(c => c.id === participantA?.club_id);
+        const clubB = clubs.find(c => c.id === participantB?.club_id);
+        const winnerSide = winnerId === currentBout.participant_a_id ? 'aka' : winnerId === currentBout.participant_b_id ? 'ao' : null;
+
+        broadcastChannelRef.current.postMessage({
+          boutId: currentBout.id,
+          isKata: true,
+          akaName: participantA?.full_name || 'AKA 🔴',
+          akaClub: clubA?.name || 'Senshi Club',
+          aoName: participantB?.full_name || 'AO 🔵',
+          aoClub: clubB?.name || 'Goju-Ryu Club',
+          scoreAka: totalScoreA,
+          scoreAo: totalScoreB,
+          kataA,
+          kataB,
+          judgeScoresA,
+          judgeScoresB,
+          panelSize,
+          scoringMethod,
+          winner: winnerSide,
+          winMethod: winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'
+        });
+      }
+    } catch (err) {
+      console.error('Error saving result:', err);
+      alert('Failed to save result.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveAndCompleteBout = async () => {
@@ -198,6 +335,34 @@ export default function KataControlPanelPage() {
       
       // Refresh list
       await loadData();
+
+      // Broadcast completion & winner reveal to spectator view
+      if (broadcastChannelRef.current) {
+        const participantA = participants.find(p => p.id === currentBout.participant_a_id);
+        const participantB = participants.find(p => p.id === currentBout.participant_b_id);
+        const clubA = clubs.find(c => c.id === participantA?.club_id);
+        const clubB = clubs.find(c => c.id === participantB?.club_id);
+        const winnerSide = winner === currentBout.participant_a_id ? 'aka' : winner === currentBout.participant_b_id ? 'ao' : null;
+
+        broadcastChannelRef.current.postMessage({
+          boutId: currentBout.id,
+          isKata: true,
+          akaName: participantA?.full_name || 'AKA 🔴',
+          akaClub: clubA?.name || 'Senshi Club',
+          aoName: participantB?.full_name || 'AO 🔵',
+          aoClub: clubB?.name || 'Goju-Ryu Club',
+          scoreAka: totalScoreA,
+          scoreAo: totalScoreB,
+          kataA,
+          kataB,
+          judgeScoresA,
+          judgeScoresB,
+          panelSize,
+          scoringMethod,
+          winner: winnerSide,
+          winMethod: winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'
+        });
+      }
       
       // Open Result Book Modal
       setIsResultBookOpen(true);
@@ -233,14 +398,43 @@ export default function KataControlPanelPage() {
       // Update local state directly so we don't need a full reload
       setKataA('Suparinpei');
       setKataB('Anan Dai');
-      setJudgeScoresA(scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
-      setJudgeScoresB(scoringMethod === 'Flags' ? [0,0,0,0,0,0,0] : [8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
+      const resetScoresA = scoringMethod === 'Flags' ? Array(panelSize).fill(1).map((_, i) => i < Math.ceil(panelSize/2) ? 1 : 0) : Array(panelSize).fill(8.0);
+      const resetScoresB = scoringMethod === 'Flags' ? Array(panelSize).fill(0) : Array(panelSize).fill(8.0);
+      setJudgeScoresA(resetScoresA);
+      setJudgeScoresB(resetScoresB);
       setSelectedWinnerId(null);
+      setIsWinnerRevealed(false);
       setCurrentBout(updatedBout);
       
       // Refresh list
       await loadData();
-      
+
+      // Immediately broadcast match reset to Spectator Display
+      if (broadcastChannelRef.current) {
+        const participantA = participants.find(p => p.id === updatedBout.participant_a_id);
+        const participantB = participants.find(p => p.id === updatedBout.participant_b_id);
+        const clubA = clubs.find(c => c.id === participantA?.club_id);
+        const clubB = clubs.find(c => c.id === participantB?.club_id);
+
+        broadcastChannelRef.current.postMessage({
+          boutId: updatedBout.id,
+          isKata: true,
+          akaName: participantA?.full_name || 'AKA 🔴',
+          akaClub: clubA?.name || 'Senshi Club',
+          aoName: participantB?.full_name || 'AO 🔵',
+          aoClub: clubB?.name || 'Goju-Ryu Club',
+          scoreAka: 0,
+          scoreAo: 0,
+          kataA: 'Suparinpei',
+          kataB: 'Anan Dai',
+          judgeScoresA: resetScoresA,
+          judgeScoresB: resetScoresB,
+          panelSize,
+          scoringMethod,
+          winner: null,
+          winMethod: ''
+        });
+      }
     } catch (err) {
       console.error('Error resetting bout:', err);
       alert('Failed to reset match.');
@@ -254,13 +448,6 @@ export default function KataControlPanelPage() {
   // Kata-only categories
   const kataCategories = categories.filter(isKataCategory);
   const kataCatIds = new Set(kataCategories.map(c => c.id));
-
-  // Participant lookups
-  const participantA = participants.find(p => p.id === currentBout?.participant_a_id);
-  const participantB = participants.find(p => p.id === currentBout?.participant_b_id);
-  const clubA = clubs.find(c => c.id === participantA?.club_id);
-  const clubB = clubs.find(c => c.id === participantB?.club_id);
-  const category = categories.find(c => c.id === currentBout?.category_id);
 
   // Helper for max/min score indices
   const getScoreStatusIndex = (scores: number[], index: number) => {
@@ -276,9 +463,12 @@ export default function KataControlPanelPage() {
   };
 
   const filteredBouts = bouts.filter(b => {
-    if (b.status === 'Walkover') return false;
-    if (!kataCatIds.has(b.category_id)) return false;
-    return selectedCatId === 'ALL' || b.category_id === selectedCatId;
+    const cat = categories.find(c => c.id === b.category_id);
+    const isKata = kataCatIds.has(b.category_id) || isKataCategory(cat);
+    if (!isKata) return false;
+    const matchesCat = selectedCatId === 'ALL' || b.category_id === selectedCatId;
+    const matchesStatus = selectedStatus === 'ALL' || b.status === selectedStatus;
+    return matchesCat && matchesStatus;
   });
 
   return (
@@ -291,16 +481,25 @@ export default function KataControlPanelPage() {
             <div className="flex items-center gap-2 mb-1.5">
               <Zap className="h-5 w-5 text-yellow-400 animate-pulse" />
               <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
-                WKF KATA SCOREBOARD & CONTROL MODULE
+                MATCH CONSOLE HUB (KATA)
               </span>
             </div>
             <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-              WKF Kata Control Panel
+              Match Console Hub (Kata)
             </h1>
             <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
           
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => openSpectatorWindow()}
+              disabled={!currentBout}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 hover:border-blue-400/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+            >
+              <Tv className="h-4 w-4" />
+              Spectator Display
+            </button>
+
             <button
               onClick={loadData}
               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl text-xs font-bold transition cursor-pointer"
@@ -327,21 +526,31 @@ export default function KataControlPanelPage() {
         {/* Left Panel: Category & Bout Selector */}
         <div className="lg:col-span-1 bg-white/[0.02] border border-white/5 rounded-2xl p-6 backdrop-blur-md h-fit">
           <h2 className="text-base font-black tracking-wider uppercase mb-6 text-gray-300">
-            Tournament Selection
+            Kata Filters
           </h2>
 
           <div className="space-y-5">
-            {/* Category Select */}
+            {/* 1st Filter: Kata Category Select */}
             <div>
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Kata Category</label>
               <select
                 value={selectedCatId}
                 onChange={e => {
-                  setSelectedCatId(e.target.value);
-                  const firstInCat = bouts.find(b => e.target.value === 'ALL' || b.category_id === e.target.value);
-                  if (firstInCat) selectBout(firstInCat);
+                  const catId = e.target.value;
+                  setSelectedCatId(catId);
+                  const nextFiltered = bouts.filter(b => {
+                    const cat = categories.find(c => c.id === b.category_id);
+                    const isKata = kataCatIds.has(b.category_id) || isKataCategory(cat);
+                    if (!isKata) return false;
+                    const matchesCat = catId === 'ALL' || b.category_id === catId;
+                    const matchesStatus = selectedStatus === 'ALL' || b.status === selectedStatus;
+                    return matchesCat && matchesStatus;
+                  });
+                  if (nextFiltered.length > 0) {
+                    selectBout(nextFiltered[0]);
+                  }
                 }}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition"
+                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value="ALL">All Kata Categories ({kataCategories.length})</option>
                 {kataCategories.map(cat => (
@@ -350,7 +559,7 @@ export default function KataControlPanelPage() {
               </select>
             </div>
 
-            {/* Bout Select */}
+            {/* 2nd Filter: Match / Bout Select */}
             <div>
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Match / Bout</label>
               <select
@@ -359,17 +568,37 @@ export default function KataControlPanelPage() {
                   const b = bouts.find(item => item.id === e.target.value);
                   if (b) selectBout(b);
                 }}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition font-mono"
+                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition font-mono text-ellipsis overflow-hidden cursor-pointer"
               >
-                {filteredBouts.map(b => {
-                  const pA = participants.find(p => p.id === b.participant_a_id)?.full_name || 'AKA';
-                  const pB = participants.find(p => p.id === b.participant_b_id)?.full_name || 'AO';
-                  return (
-                    <option key={b.id} value={b.id}>
-                      Bout #{b.bout_no} (R{b.round_no}): {pA} vs {pB}
-                    </option>
-                  );
-                })}
+                {filteredBouts.length === 0 ? (
+                  <option value="">No matches found</option>
+                ) : (
+                  filteredBouts.map(b => {
+                    const pA = participants.find(p => p.id === b.participant_a_id)?.full_name || 'AKA';
+                    const pB = participants.find(p => p.id === b.participant_b_id)?.full_name || 'AO';
+                    return (
+                      <option key={b.id} value={b.id}>
+                        Bout #{b.bout_no || b.id.slice(0, 4)} (R{b.round_no}): {pA} vs {pB}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+            </div>
+
+            {/* 3rd Filter: Status Select */}
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Status</label>
+              <select
+                value={selectedStatus}
+                onChange={e => setSelectedStatus(e.target.value)}
+                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
+              >
+                <option value="ALL">All States</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Running">Running / Live</option>
+                <option value="Completed">Completed</option>
+                <option value="Walkover">Walkover</option>
               </select>
             </div>
 
@@ -378,14 +607,11 @@ export default function KataControlPanelPage() {
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Judge Panel Standard</label>
               <div className="grid grid-cols-2 gap-2 p-1 bg-[#101015] rounded-xl border border-white/10">
                 <button
-                  onClick={() => {
-                    setPanelSize(7);
-                    setJudgeScoresA(prev => prev.length === 7 ? prev : [8.2, 8.4, 8.1, 8.3, 8.5, 8.2, 8.4]);
-                    setJudgeScoresB(prev => prev.length === 7 ? prev : [8.0, 8.2, 8.3, 8.1, 8.4, 8.2, 8.3]);
-                  }}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition ${panelSize === 7 ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
+                  disabled
+                  title="7 Judges option is disabled. 5 Judges panel is standard."
+                  className="py-1.5 text-xs font-bold rounded-lg transition text-gray-600 bg-white/5 cursor-not-allowed border border-white/5 opacity-50"
                 >
-                  7 Judges (Standard)
+                  7 Judges (Disabled)
                 </button>
                 <button
                   onClick={() => {
@@ -395,7 +621,7 @@ export default function KataControlPanelPage() {
                   }}
                   className={`py-1.5 text-xs font-bold rounded-lg transition ${panelSize === 5 ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
                 >
-                  5 Judges Panel
+                  5 Judges Panel (Standard)
                 </button>
               </div>
             </div>
@@ -405,35 +631,33 @@ export default function KataControlPanelPage() {
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Scoring Method</label>
               <div className="grid grid-cols-2 gap-2 p-1 bg-[#101015] rounded-xl border border-white/10">
                 <button
-                  onClick={() => {
-                    setScoringMethod('Points');
-                    setJudgeScoresA(prev => prev.map(s => s === 0 || s === 1 ? 8.0 : s));
-                    setJudgeScoresB(prev => prev.map(s => s === 0 || s === 1 ? 8.0 : s));
-                  }}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition ${scoringMethod === 'Points' ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
+                  disabled
+                  title="WKF Points option is disabled. WKF Flags is the active standard."
+                  className="py-1.5 text-xs font-bold rounded-lg transition text-gray-600 bg-white/5 cursor-not-allowed border border-white/5 opacity-50"
                 >
-                  WKF Points
+                  WKF Points (Disabled)
                 </button>
                 <button
                   onClick={() => {
                     setScoringMethod('Flags');
-                    setJudgeScoresA(prev => prev.map(() => 0));
-                    setJudgeScoresB(prev => prev.map(() => 0));
+                    const defaultFlags = Array(panelSize).fill(1).map((_, i) => i < Math.ceil(panelSize / 2) ? 1 : 0);
+                    setJudgeScoresA(defaultFlags);
+                    setJudgeScoresB(Array(panelSize).fill(0));
                   }}
                   className={`py-1.5 text-xs font-bold rounded-lg transition ${scoringMethod === 'Flags' ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
                 >
-                  WKF Flags
+                  WKF Flags (Standard)
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Main Panel: Athletes & Judge Matrix */}
+        {/* Right Main Panel: Kata S-Board (Scoring Console) */}
         <div className="lg:col-span-3 space-y-6">
           
           {/* Match Banner Header */}
-          <div className="p-5 bg-gradient-to-r from-[#10111a] via-[#141522] to-[#10111a] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+          <div ref={scoringConsoleRef} className="p-5 bg-gradient-to-r from-[#10111a] via-[#141522] to-[#10111a] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-4 scroll-mt-6">
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
                 {category?.name || 'Kata Division'} • {currentBout?.tatami || 'Tatami 1'}
@@ -734,12 +958,16 @@ export default function KataControlPanelPage() {
                   DECISION / WINNER DETERMINATION
                 </span>
                 <h3 className="text-xl font-black text-white">
-                  Winner: {selectedWinnerId === participantA?.id ? (
-                    <span className="text-red-400">{participantA?.full_name} (AKA 🔴)</span>
-                  ) : selectedWinnerId === participantB?.id ? (
-                    <span className="text-blue-400">{participantB?.full_name} (AO 🔵)</span>
+                  {isWinnerRevealed || currentBout?.status === 'Completed' ? (
+                    selectedWinnerId === participantA?.id ? (
+                      <span className="text-red-400">{participantA?.full_name} (AKA 🔴)</span>
+                    ) : selectedWinnerId === participantB?.id ? (
+                      <span className="text-blue-400">{participantB?.full_name} (AO 🔵)</span>
+                    ) : (
+                      'Tied Score'
+                    )
                   ) : (
-                    'Tied Score'
+                    <span className="text-gray-400 font-semibold text-base italic">Press "Save Result" to calculate & reveal winner</span>
                   )}
                 </h3>
               </div>
@@ -748,20 +976,36 @@ export default function KataControlPanelPage() {
             {/* Primary Action Buttons */}
             <div className="flex flex-wrap items-center gap-3">
               <button
+                onClick={() => openSpectatorWindow()}
+                disabled={!currentBout}
+                className="flex items-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-purple-600/20 disabled:opacity-50"
+              >
+                <Tv className="h-4 w-4" />
+                Spectator View
+              </button>
+              <button
                 onClick={handleRematch}
                 disabled={isSaving || !currentBout}
-                className="flex items-center gap-2 px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50"
               >
-                <RefreshCw className="h-5 w-5" />
+                <RefreshCw className="h-4 w-4" />
                 Reset Match
+              </button>
+              <button
+                onClick={handleSaveResult}
+                disabled={isSaving || !currentBout}
+                className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-blue-600/20 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Result'}
               </button>
               <button
                 onClick={handleSaveAndCompleteBout}
                 disabled={isSaving || !currentBout}
-                className="flex items-center gap-2 px-6 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-yellow-400/20 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-yellow-400/20 disabled:opacity-50"
               >
-                <CheckCircle2 className="h-5 w-5" />
-                {isSaving ? 'Saving...' : 'Complete Match & Advance Bracket'}
+                <CheckCircle2 className="h-4 w-4" />
+                {isSaving ? 'Completing...' : 'Complete Match & Advance Bracket'}
               </button>
             </div>
 
@@ -792,5 +1036,17 @@ export default function KataControlPanelPage() {
       />
 
     </div>
+  );
+}
+
+export default function KataControlPanelPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#07070a] flex items-center justify-center text-white/40 font-bold uppercase tracking-widest text-xs">
+        Loading Kata Control Panel...
+      </div>
+    }>
+      <KataControlPanelContent />
+    </Suspense>
   );
 }

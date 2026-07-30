@@ -362,7 +362,7 @@ export default function PublicRegistrationPage() {
         <div className="text-center md:text-left space-y-1.5 border-b border-white/5 pb-6">
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
-              <img src={`${basePath}/logo.jpg`} alt="Logo" className="h-full w-full object-cover" />
+              <img src={`${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div className="flex flex-col leading-none">
               <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.05rem', lineHeight: 1, letterSpacing: '0.01em' }}>

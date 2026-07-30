@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/db/dbClient';
-import { Bout, Participant, Category, Club, isKumiteCategory } from '@/db/types';
+import { Bout, Participant, Category, Club, isKumiteCategory, isKataCategory } from '@/db/types';
 import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
@@ -19,7 +19,7 @@ export default function ScoreboardDashboardPage() {
   // Filters
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [selectedTatami, setSelectedTatami] = useState<string>('ALL');
+  const [selectedBoutIdFilter, setSelectedBoutIdFilter] = useState<string>('ALL');
 
   useEffect(() => {
     setMounted(true);
@@ -70,8 +70,13 @@ export default function ScoreboardDashboardPage() {
   const kumiteCategories = categories.filter(isKumiteCategory);
   const kumiteCatIds = new Set(kumiteCategories.map(c => c.id));
 
-  // Extract unique Tatamis
-  const tatamis = Array.from(new Set(bouts.map(b => b.tatami || 'Tatami 1').filter(Boolean))).sort();
+  // Available bouts for 2nd filter (Match / Bout)
+  const availableBoutOptions = bouts.filter(b => {
+    if (b.status === 'Walkover') return false;
+    if (!kumiteCatIds.has(b.category_id)) return false;
+    if (selectedCatId !== 'ALL' && b.category_id !== selectedCatId) return false;
+    return true;
+  });
 
   // Filter bouts for Kumite categories strictly
   const filteredBouts = bouts.filter(b => {
@@ -79,8 +84,8 @@ export default function ScoreboardDashboardPage() {
     if (!kumiteCatIds.has(b.category_id)) return false;
     const matchesCat = selectedCatId === 'ALL' || b.category_id === selectedCatId;
     const matchesStatus = selectedStatus === 'ALL' || b.status === selectedStatus;
-    const matchesTatami = selectedTatami === 'ALL' || (b.tatami || 'Tatami 1') === selectedTatami;
-    return matchesCat && matchesStatus && matchesTatami;
+    const matchesBout = selectedBoutIdFilter === 'ALL' || b.id === selectedBoutIdFilter;
+    return matchesCat && matchesStatus && matchesBout;
   });
 
   return (
@@ -127,12 +132,15 @@ export default function ScoreboardDashboardPage() {
           </h2>
 
           <div className="space-y-4">
-            {/* Category Filter */}
+            {/* 1st Filter: Kumite Category */}
             <div>
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Kumite Category</label>
               <select
                 value={selectedCatId}
-                onChange={e => setSelectedCatId(e.target.value)}
+                onChange={e => {
+                  setSelectedCatId(e.target.value);
+                  setSelectedBoutIdFilter('ALL');
+                }}
                 className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition"
               >
                 <option value="ALL">All Kumite Categories ({kumiteCategories.length})</option>
@@ -142,28 +150,36 @@ export default function ScoreboardDashboardPage() {
               </select>
             </div>
 
-            {/* Tatami Filter */}
+            {/* 2nd Filter: Match / Bout */}
             <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Tatami / Ring</label>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Match / Bout</label>
               <select
-                value={selectedTatami}
-                onChange={e => setSelectedTatami(e.target.value)}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition"
+                value={selectedBoutIdFilter}
+                onChange={e => setSelectedBoutIdFilter(e.target.value)}
+                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
-                <option value="ALL">All Tatamis</option>
-                {tatamis.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                <option value="ALL">All Matches / Bouts ({availableBoutOptions.length})</option>
+                {availableBoutOptions.map(b => {
+                  const pA = participants.find(p => p.id === b.participant_a_id);
+                  const pB = participants.find(p => p.id === b.participant_b_id);
+                  const akaName = pA ? pA.full_name : 'TBD';
+                  const aoName = pB ? pB.full_name : 'TBD';
+                  return (
+                    <option key={b.id} value={b.id}>
+                      Bout #{b.bout_no || b.id.slice(0, 4)}: {akaName} vs {aoName}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
-            {/* Status Filter */}
+            {/* 3rd Filter: Status */}
             <div>
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Status</label>
               <select
                 value={selectedStatus}
                 onChange={e => setSelectedStatus(e.target.value)}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition"
+                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value="ALL">All States</option>
                 <option value="Scheduled">Scheduled</option>
@@ -262,7 +278,7 @@ export default function ScoreboardDashboardPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
                       <Link
-                        href={`/dashboard/control?boutId=${bout.id}`}
+                        href={isKataCategory(category) ? `/dashboard/kata-control?boutId=${bout.id}` : `/dashboard/control?boutId=${bout.id}`}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
                       >
                         <Play className="h-3.5 w-3.5 fill-black" />

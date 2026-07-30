@@ -180,7 +180,7 @@ export default function LandingPage() {
           title="Open Corporate Showcase (spsportdatasolution.org/karatetech)"
         >
           <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-indigo-400 transition-all">
-            <img src={`${basePath}/logo.jpg`} alt="Tournament Logo" className="h-full w-full object-cover" />
+            <img src={`${basePath}/karatetech-logo.png`} alt="Tournament Logo" className="h-full w-full object-cover" />
           </div>
           {/* Brand Logo — KarateTech */}
           <div className="flex flex-col leading-none">

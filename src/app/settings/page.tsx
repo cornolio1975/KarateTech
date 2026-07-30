@@ -628,7 +628,7 @@ export default function SettingsPage() {
             <div className="flex flex-col items-center space-y-2">
               <span className="text-xs font-semibold text-muted-foreground block text-center sm:text-left w-full">Current Logo</span>
               <div className="h-24 w-24 rounded-full flex items-center justify-center overflow-hidden border border-border shadow-md bg-neutral-50 dark:bg-neutral-900 shrink-0">
-                <img src={localLogo || `${basePath}/logo.jpg`} alt="Tournament Logo" className="h-full w-full object-cover" />
+                <img src={localLogo || `${basePath}/karatetech-logo.png`} alt="Tournament Logo" className="h-full w-full object-cover" />
               </div>
             </div>
             {/* Upload fields */}
@@ -647,7 +647,7 @@ export default function SettingsPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setLocalLogo(`${basePath}/logo.jpg`)}
+                  onClick={() => setLocalLogo(`${basePath}/karatetech-logo.png`)}
                   disabled={!canModify}
                   className="px-4 py-2 border border-red-500/20 hover:border-red-500/40 text-red-500 hover:bg-red-500/5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                 >

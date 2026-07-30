@@ -424,7 +424,7 @@ export default function BoutsAdminPage() {
                           </button>
                         ) : (
                           <Link
-                            href={`/dashboard/control?boutId=${b.id}`}
+                            href={isKataCategory(category) ? `/dashboard/kata-control?boutId=${b.id}` : `/dashboard/control?boutId=${b.id}`}
                             className="px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/95 text-[10px] font-bold rounded-md cursor-pointer transition-all flex items-center gap-1 mx-auto"
                           >
                             <Sword className="h-3 w-3" />

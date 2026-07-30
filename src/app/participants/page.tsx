@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
 import { Participant, Club, Country, Category, Coach, isKataCategory, isKumiteCategory } from '@/db/types';
@@ -41,6 +41,18 @@ export default function ParticipantsPage() {
   
   // Active states
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollTable = (direction: 'left' | 'right') => {
+    if (tableContainerRef.current) {
+      const scrollAmount = 350;
+      tableContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
   const [activeCategoryTab, setActiveCategoryTab] = useState<'ALL' | 'KUMITE' | 'KATA' | 'CONFIRMED'>('ALL');
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
@@ -152,18 +164,23 @@ export default function ParticipantsPage() {
     }
   };
 
-  // Quick Action: Activate All (Mark Confirmed)
+  // Quick Action: Activate All (Mark Confirmed & Auto-Assign Categories)
   const handleActivateAll = async () => {
     if (filteredParticipants.length === 0) return;
-    if (confirm(`Confirm and activate all ${filteredParticipants.length} matching participants?`)) {
+    if (confirm(`Confirm and activate all ${filteredParticipants.length} matching participants and auto-assign their categories?`)) {
       try {
+        setLoading(true);
         for (const p of filteredParticipants) {
           await db.participants.update(p.id, { status: 'Confirmed' }, 'Admin Bulk Operation');
+          await db.participants.autoAssignCategory(p);
         }
-        alert('All matching participants activated.');
+        alert(`Activated and auto-assigned categories for ${filteredParticipants.length} participants.`);
         triggerRefresh();
+        loadData();
       } catch (err: any) {
         alert(err.message);
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -564,19 +581,44 @@ export default function ParticipantsPage() {
             </div>
           )}
 
-          <button
-            onClick={handleExportCSV}
-            disabled={filteredParticipants.length === 0}
-            className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
-          >
-            <Download className="h-4 w-4" /> Export CSV
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Scroll Left / Right controls */}
+            <div className="flex items-center gap-1 bg-card border border-border p-1 rounded-lg shadow-2xs">
+              <button
+                type="button"
+                onClick={() => scrollTable('left')}
+                className="px-2 py-1 bg-secondary hover:bg-primary hover:text-primary-foreground text-muted-foreground font-bold text-xs rounded transition-colors flex items-center gap-1 cursor-pointer"
+                title="Scroll Table Left"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                <span>Left</span>
+              </button>
+              <span className="text-[10px] font-extrabold text-muted-foreground uppercase px-1">Scroll</span>
+              <button
+                type="button"
+                onClick={() => scrollTable('right')}
+                className="px-2 py-1 bg-secondary hover:bg-primary hover:text-primary-foreground text-muted-foreground font-bold text-xs rounded transition-colors flex items-center gap-1 cursor-pointer"
+                title="Scroll Table Right"
+              >
+                <span>Right</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <button
+              onClick={handleExportCSV}
+              disabled={filteredParticipants.length === 0}
+              className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" /> Export CSV
+            </button>
+          </div>
         </div>
 
         {/* Participant Data Table (Split layout right side) */}
-        <div className="flex-1 border border-border bg-card rounded-xl shadow-xs overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left border-collapse text-xs">
+        <div className="flex-1 border border-border bg-card rounded-xl shadow-xs overflow-hidden flex flex-col min-w-0">
+          <div ref={tableContainerRef} className="flex-1 overflow-x-auto overflow-y-auto scroll-smooth">
+            <table className="w-full min-w-[1200px] text-left border-collapse text-xs">
               <thead className="bg-secondary/40 sticky top-0 border-b border-border z-10">
                 <tr>
                   <th className="p-3 w-10 text-center">
@@ -610,7 +652,7 @@ export default function ParticipantsPage() {
               <tbody className="divide-y divide-border/60">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-xs text-muted-foreground">
+                    <td colSpan={13} className="text-center py-12 text-xs text-muted-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw className="h-4 w-4 animate-spin text-primary" />
                         <span>Loading athlete records...</span>
@@ -619,7 +661,7 @@ export default function ParticipantsPage() {
                   </tr>
                 ) : paginatedParticipants.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-xs text-muted-foreground">
+                    <td colSpan={13} className="text-center py-12 text-xs text-muted-foreground">
                       No participants match the selected filter/search parameters.
                     </td>
                   </tr>

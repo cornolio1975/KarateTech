@@ -7,7 +7,7 @@ import { db } from '@/db/dbClient';
 import { Category, Participant, Club, Bout, isKumiteCategory, isKataCategory } from '@/db/types';
 import { basePath } from '@/db/dbClient';
 import { 
-  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload
+  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save
 } from 'lucide-react';
 import ImportCategoryModal from '@/components/ImportCategoryModal';
 
@@ -48,6 +48,26 @@ export default function CategoriesPage() {
     eligible: boolean;
     reason: string;
   } | null>(null);
+
+  // Add Participants to Category modal state
+  const [selectedCatForAdd, setSelectedCatForAdd] = useState<Category | null>(null);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [participantModalSearch, setParticipantModalSearch] = useState<string>('');
+  const [autoMatchCount, setAutoMatchCount] = useState<number>(0);
+  const [showOnlyEligible, setShowOnlyEligible] = useState<boolean>(true);
+
+  // Manage Participants (Add/Delete/Modify) modal state
+  const [manageCat, setManageCat] = useState<Category | null>(null);
+  const [manageSearch, setManageSearch] = useState<string>('');
+  const [manageSelected, setManageSelected] = useState<string[]>([]);
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+  const [editParticipantForm, setEditParticipantForm] = useState<Partial<Participant>>({});
+
+  // Category Filtering states
+  const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('');
+  const [genderFilter, setGenderFilter] = useState<'ALL' | 'Male' | 'Female' | 'Mixed'>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -328,6 +348,182 @@ export default function CategoriesPage() {
     }
   };
 
+  // Categories for dropdown list (filtered by discipline)
+  const dropdownCategories = categories.filter(c => {
+    if (disciplineFilter === 'KUMITE') return isKumiteCategory(c);
+    if (disciplineFilter === 'KATA') return isKataCategory(c);
+    return true;
+  });
+
+  // Categories filtered for display grid
+  const filteredCategories = categories.filter(c => {
+    if (disciplineFilter === 'KUMITE' && !isKumiteCategory(c)) return false;
+    if (disciplineFilter === 'KATA' && !isKataCategory(c)) return false;
+    if (genderFilter !== 'ALL' && c.gender !== genderFilter) return false;
+    if (selectedCategoryFilter && c.id !== selectedCategoryFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchesName = c.name.toLowerCase().includes(q);
+      const matchesGender = c.gender.toLowerCase().includes(q);
+      const matchesWeight = `${c.min_weight}-${c.max_weight}kg`.toLowerCase().includes(q);
+      if (!matchesName && !matchesGender && !matchesWeight) return false;
+    }
+    return true;
+  });
+
+  const calculateAge = (dobString: string): number => {
+    if (!dobString) return 0;
+    let birthDate: Date | null = null;
+    const str = String(dobString).trim();
+
+    // Parse DD/MM/YYYY format (e.g. 15/08/2014)
+    if (str.includes('/')) {
+      const parts = str.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          birthDate = new Date(year, month, day);
+        }
+      }
+    }
+
+    if (!birthDate || isNaN(birthDate.getTime())) {
+      birthDate = new Date(str);
+    }
+
+    if (!birthDate || isNaN(birthDate.getTime())) {
+      return 0;
+    }
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return Math.max(0, age);
+  };
+
+  const getGenderNorm = (genderStr?: string, nameStr?: string): string => {
+    const g = (genderStr || '').trim().toLowerCase();
+    const n = (nameStr || '').trim().toLowerCase();
+    if (g === 'female' || g === 'f' || g === 'girl' || g === 'women' || g === 'woman' || n.includes('female') || n.includes('girl') || n.includes('women')) return 'Female';
+    if (g === 'male' || g === 'm' || g === 'boy' || g === 'men' || g === 'man' || n.includes('male') || n.includes('boy') || n.includes('men')) return 'Male';
+    return 'Mixed';
+  };
+
+  const getMatchingParticipantIds = (cat: Category) => {
+    const autoMatchedIds: string[] = [];
+    participants.forEach(p => {
+      const age = calculateAge(p.dob);
+      const pGenderNorm = getGenderNorm(p.gender);
+      const cGenderNorm = (cat.gender as any) === 'Mixed' ? 'Mixed' : getGenderNorm(cat.gender, cat.name);
+      const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+      const ageMatches = age >= cat.min_age && age <= cat.max_age;
+      const isKataOrOpenWeight = (cat.min_weight === 0 && (cat.max_weight === 0 || cat.max_weight >= 100)) || cat.name.toLowerCase().includes('kata');
+      const weightMatches = isKataOrOpenWeight || (p.weight >= cat.min_weight && p.weight <= cat.max_weight);
+
+      if (genderMatches && ageMatches && weightMatches) {
+        autoMatchedIds.push(p.id);
+      }
+    });
+    return autoMatchedIds;
+  };
+
+  const handleOpenAddParticipantsModal = (cat: Category) => {
+    setSelectedCatForAdd(cat);
+    setParticipantModalSearch('');
+    setShowOnlyEligible(true);
+
+    const autoMatchedIds = getMatchingParticipantIds(cat);
+    setSelectedParticipantIds(autoMatchedIds);
+    setAutoMatchCount(autoMatchedIds.length);
+  };
+
+  const handleConfirmAddParticipants = async () => {
+    if (!selectedCatForAdd) return;
+    if (selectedParticipantIds.length === 0) {
+      alert('No participants selected.');
+      return;
+    }
+
+    const confirmMsg = `Confirm adding ${selectedParticipantIds.length} selected participant(s) to category "${selectedCatForAdd.name}"?`;
+    if (window.confirm(confirmMsg)) {
+      try {
+        setLoading(true);
+        for (const pId of selectedParticipantIds) {
+          await db.participants.assignCategoryManually(pId, selectedCatForAdd.id, 'Admin');
+        }
+        alert(`Successfully assigned ${selectedParticipantIds.length} participant(s) to "${selectedCatForAdd.name}".`);
+        setSelectedCatForAdd(null);
+        setSelectedParticipantIds([]);
+        await loadData();
+        triggerRefresh();
+      } catch (err: any) {
+        alert(err.message || 'Failed to assign participants.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleExportCSV = () => {
+    const targetCategories = filteredCategories.length > 0 ? filteredCategories : categories;
+    if (targetCategories.length === 0) {
+      alert('No categories available to export.');
+      return;
+    }
+
+    const headers = [
+      'Category ID',
+      'Name',
+      'Discipline',
+      'Gender',
+      'Min Age',
+      'Max Age',
+      'Min Weight (kg)',
+      'Max Weight (kg)',
+      'Format',
+      'Status',
+      'Registered Athletes',
+      'Total Bouts'
+    ];
+
+    const rows = targetCategories.map(cat => {
+      const isKata = isKataCategory(cat);
+      const isKumite = isKumiteCategory(cat);
+      const discipline = isKata ? 'Kata' : isKumite ? 'Kumite' : 'Open';
+      const count = mappings.filter(m => m.category_id === cat.id).length;
+      const boutCount = bouts.filter(b => b.category_id === cat.id).length;
+
+      return [
+        `"${cat.id}"`,
+        `"${cat.name.replace(/"/g, '""')}"`,
+        `"${discipline}"`,
+        `"${cat.gender}"`,
+        cat.min_age ?? 0,
+        cat.max_age ?? 99,
+        cat.min_weight ?? 0,
+        cat.max_weight ?? 999,
+        `"${cat.format || 'knockout'}"`,
+        `"${cat.status || 'Open'}"`,
+        count,
+        boutCount
+      ].join(',');
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `KarateTech_Categories_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-6 space-y-6 text-foreground w-full h-full overflow-y-auto">
       {/* Title Header */}
@@ -344,6 +540,14 @@ export default function CategoriesPage() {
             >
               <Upload className="h-4 w-4 text-muted-foreground" />
               <span>Import CSV</span>
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
+              title="Export current categories to CSV file"
+            >
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <span>Export CSV</span>
             </button>
             <button
               onClick={handleDeleteAllCategories}
@@ -384,15 +588,123 @@ export default function CategoriesPage() {
         )}
       </div>
 
+      {/* Filter & Search Bar */}
+      <div className="bg-card border border-border p-4 rounded-xl shadow-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+        
+        {/* Discipline Filter (ALL / KUMITE / KATA) */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Discipline</span>
+          <div className="grid grid-cols-3 bg-secondary/40 p-1 rounded-lg border border-border gap-1 text-xs">
+            <button
+              type="button"
+              onClick={() => { setDisciplineFilter('ALL'); setSelectedCategoryFilter(''); }}
+              className={`py-1.5 px-2 rounded-md font-bold text-center cursor-pointer transition-colors ${
+                disciplineFilter === 'ALL'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              ALL
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDisciplineFilter('KUMITE'); setSelectedCategoryFilter(''); }}
+              className={`py-1.5 px-2 rounded-md font-bold text-center cursor-pointer transition-colors ${
+                disciplineFilter === 'KUMITE'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              🥋 KUMITE
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDisciplineFilter('KATA'); setSelectedCategoryFilter(''); }}
+              className={`py-1.5 px-2 rounded-md font-bold text-center cursor-pointer transition-colors ${
+                disciplineFilter === 'KATA'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              🏆 KATA
+            </button>
+          </div>
+        </div>
+
+        {/* Categories Dropdown List */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Select Category</span>
+          <select
+            value={selectedCategoryFilter}
+            onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+          >
+            <option value="">All Categories ({dropdownCategories.length})</option>
+            {dropdownCategories.map(c => (
+              <option key={c.id} value={c.id}>
+                {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name} ({getParticipantsForCategory(c.id).length} athletes)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Gender Filter */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Gender</span>
+          <select
+            value={genderFilter}
+            onChange={(e) => setGenderFilter(e.target.value as any)}
+            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+          >
+            <option value="ALL">All Genders</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Mixed">Mixed</option>
+          </select>
+        </div>
+
+        {/* Category Search Input */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Search</span>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Filter category / weight..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            />
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
           <span className="text-xs">Syncing categories telemetry...</span>
         </div>
+      ) : filteredCategories.length === 0 ? (
+        <div className="text-center py-12 border border-dashed border-border rounded-xl bg-card">
+          <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm font-semibold text-foreground">No categories found matching your filters</p>
+          <p className="text-xs text-muted-foreground mt-1">Try resetting or switching discipline filters to view all brackets.</p>
+          <button
+            onClick={() => {
+              setDisciplineFilter('ALL');
+              setSelectedCategoryFilter('');
+              setGenderFilter('ALL');
+              setSearchQuery('');
+            }}
+            className="mt-3 px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-secondary/80 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+          >
+            Reset Filters
+          </button>
+        </div>
       ) : (
         /* Visual Category Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeCategories.map((cat) => {
+          {filteredCategories.map((cat) => {
             const list = getParticipantsForCategory(cat.id);
             const count = list.length;
             const cap = cat.capacity || 32;
@@ -506,17 +818,44 @@ export default function CategoriesPage() {
 
 
 
-                {/* Match Console Hub button — opens bout picker modal */}
-                {bouts.some(b => b.category_id === cat.id) && (
-                  <button
-                    onClick={() => setConsoleCat(cat)}
-                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer border bg-slate-800/10 hover:bg-slate-800/20 dark:bg-white/5 dark:hover:bg-white/10 border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300"
-                  >
-                    <Monitor className="h-3.5 w-3.5" />
-                    <span>Match Console Hub</span>
-                    <ChevronRight className="h-3 w-3 ml-0.5" />
-                  </button>
-                )}
+                {/* Action buttons on Category Card Box */}
+                <div className="mt-3 space-y-1.5 pt-2 border-t border-border/40">
+                  {canModify && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenAddParticipantsModal(cat)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary transition cursor-pointer"
+                        title="Auto-select & add matching participants to this category"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        <span>+ Add</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setManageCat(cat);
+                          setManageSearch('');
+                          setManageSelected([]);
+                          setEditingParticipant(null);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold border border-secondary bg-card hover:bg-secondary text-foreground transition cursor-pointer"
+                        title="View, modify or remove participants enrolled in this category"
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                        <span>Manage</span>
+                      </button>
+                    </div>
+                  )}
+                  {bouts.some(b => b.category_id === cat.id) && (
+                    <button
+                      onClick={() => setConsoleCat(cat)}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[11px] font-bold border bg-card hover:bg-secondary border-border text-foreground transition cursor-pointer"
+                      title="Open match console hub for this category"
+                    >
+                      <Monitor className="h-3.5 w-3.5" />
+                      <span>Console</span>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -582,7 +921,8 @@ export default function CategoriesPage() {
                         key={bout.id}
                         onClick={() => {
                           setConsoleCat(null);
-                          router.push(`/dashboard/control?boutId=${bout.id}&catId=${consoleCat.id}`);
+                          const targetControl = isKataCategory(consoleCat) ? '/dashboard/kata-control' : '/dashboard/control';
+                          router.push(`${targetControl}?boutId=${bout.id}&catId=${consoleCat.id}`);
                         }}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 cursor-pointer text-left group ${
                           isRunning
@@ -608,18 +948,30 @@ export default function CategoriesPage() {
                         <div className="w-px h-8 bg-border/60" />
 
                         {/* Fighters */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black text-red-500 uppercase">AKA</span>
-                            <span className="text-xs font-semibold text-foreground truncate">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
+                            <span className="text-[9px] font-black text-red-500 uppercase tracking-wider w-7">AKA</span>
+                            <span className="text-xs font-bold text-foreground truncate">
                               {compA?.full_name || 'TBD'}
                             </span>
+                            {clubs.find(c => c.id === compA?.club_id) && (
+                              <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">
+                                ({clubs.find(c => c.id === compA?.club_id)?.name})
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[10px] font-black text-blue-500 uppercase">AO</span>
-                            <span className="text-xs font-semibold text-foreground truncate">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                            <span className="text-[9px] font-black text-blue-500 uppercase tracking-wider w-7">AO</span>
+                            <span className="text-xs font-bold text-foreground truncate">
                               {compB?.full_name || 'TBD'}
                             </span>
+                            {clubs.find(c => c.id === compB?.club_id) && (
+                              <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">
+                                ({clubs.find(c => c.id === compB?.club_id)?.name})
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -1247,6 +1599,537 @@ export default function CategoriesPage() {
         isOpen={isImportOpen} 
         onClose={() => setIsImportOpen(false)} 
       />
+
+      {/* ADD PARTICIPANTS TO CATEGORY MODAL */}
+      {selectedCatForAdd && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-card border border-border rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-border bg-secondary/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wider">
+                    Add Participants to Category
+                  </h3>
+                  <p className="text-xs text-primary font-bold">
+                    {selectedCatForAdd.name} ({selectedCatForAdd.gender} • {selectedCatForAdd.min_age}-{selectedCatForAdd.max_age} yrs • {selectedCatForAdd.min_weight}-{selectedCatForAdd.max_weight} kg)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedCatForAdd(null)}
+                className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Auto-selection Notice & Filter Bar */}
+            <div className="px-5 pt-4 pb-2 space-y-3">
+              <div className="p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-start gap-2.5 text-xs">
+                <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-bold text-foreground block">
+                    System pre-selected {autoMatchCount} matching participant(s)
+                  </span>
+                  <span className="text-muted-foreground text-[11px] block">
+                    Participants matching Age ({selectedCatForAdd.min_age}-{selectedCatForAdd.max_age}), Gender ({selectedCatForAdd.gender}), and Weight criteria were automatically checked below. You may manually check or uncheck any participants before saving.
+                  </span>
+                </div>
+              </div>
+
+              {/* Search input & Select All / Deselect All controls */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search by participant name, club, or reg no..."
+                    value={participantModalSearch}
+                    onChange={(e) => setParticipantModalSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-xs shrink-0">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-muted-foreground hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showOnlyEligible}
+                      onChange={(e) => setShowOnlyEligible(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded text-primary focus:ring-primary"
+                    />
+                    <span>
+                      Show Only Matching Athletes (
+                      {getGenderNorm(selectedCatForAdd.gender, selectedCatForAdd.name) === 'Female'
+                        ? 'Female / Age & Weight'
+                        : getGenderNorm(selectedCatForAdd.gender, selectedCatForAdd.name) === 'Male'
+                          ? 'Male / Age & Weight'
+                          : 'Age & Weight'}
+                      )
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedCatForAdd) {
+                        setSelectedParticipantIds(getMatchingParticipantIds(selectedCatForAdd));
+                      }
+                    }}
+                    className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-bold rounded-md cursor-pointer text-[10px]"
+                    title="Select only system pre-selected matching participants"
+                  >
+                    Select All Matching ({autoMatchCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedParticipantIds([])}
+                    className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground font-bold rounded-md cursor-pointer text-[10px]"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Participants Roster */}
+            <div className="flex-1 overflow-y-auto px-5 py-2 divide-y divide-border/50">
+              {participants
+                .filter(p => {
+                  const age = calculateAge(p.dob);
+                  const pGenderNorm = getGenderNorm(p.gender);
+                  const cGenderNorm = (selectedCatForAdd.gender as any) === 'Mixed' ? 'Mixed' : getGenderNorm(selectedCatForAdd.gender, selectedCatForAdd.name);
+                  const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+                  const ageMatches = age >= selectedCatForAdd.min_age && age <= selectedCatForAdd.max_age;
+                  const isKataOrOpenWeight = (selectedCatForAdd.min_weight === 0 && (selectedCatForAdd.max_weight === 0 || selectedCatForAdd.max_weight >= 100)) || selectedCatForAdd.name.toLowerCase().includes('kata');
+                  const weightMatches = isKataOrOpenWeight || (p.weight >= selectedCatForAdd.min_weight && p.weight <= selectedCatForAdd.max_weight);
+                  const isCriteriaMatched = genderMatches && ageMatches && weightMatches;
+
+                  if (showOnlyEligible && !isCriteriaMatched) {
+                    return false;
+                  }
+
+                  if (!participantModalSearch.trim()) return true;
+                  const q = participantModalSearch.toLowerCase();
+                  const clubName = clubs.find(c => c.id === p.club_id)?.name || '';
+                  return p.full_name.toLowerCase().includes(q) || (p.registration_no || '').toLowerCase().includes(q) || clubName.toLowerCase().includes(q);
+                })
+                .map(p => {
+                  const age = calculateAge(p.dob);
+                  const club = clubs.find(c => c.id === p.club_id);
+                  const isSelected = selectedParticipantIds.includes(p.id);
+
+                  // Check eligibility
+                  const pGenderNorm = getGenderNorm(p.gender);
+                  const cGenderNorm = (selectedCatForAdd.gender as any) === 'Mixed' ? 'Mixed' : getGenderNorm(selectedCatForAdd.gender, selectedCatForAdd.name);
+                  const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+                  const ageMatches = age >= selectedCatForAdd.min_age && age <= selectedCatForAdd.max_age;
+                  const isKataOrOpenWeight = (selectedCatForAdd.min_weight === 0 && (selectedCatForAdd.max_weight === 0 || selectedCatForAdd.max_weight >= 100)) || selectedCatForAdd.name.toLowerCase().includes('kata');
+                  const weightMatches = isKataOrOpenWeight || (p.weight >= selectedCatForAdd.min_weight && p.weight <= selectedCatForAdd.max_weight);
+                  const isCriteriaMatched = genderMatches && ageMatches && weightMatches;
+
+                  // Current category
+                  const currentMapping = mappings.find(m => m.participant_id === p.id);
+                  const currentCat = currentMapping ? categories.find(c => c.id === currentMapping.category_id) : null;
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedParticipantIds(selectedParticipantIds.filter(id => id !== p.id));
+                        } else {
+                          setSelectedParticipantIds([...selectedParticipantIds, p.id]);
+                        }
+                      }}
+                      className={`py-3 px-3 rounded-lg flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-secondary/40 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="h-4 w-4 rounded text-primary focus:ring-primary cursor-pointer shrink-0"
+                        />
+                        <div className="truncate space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-xs text-foreground truncate">{p.full_name}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">({p.registration_no})</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span>Club: {club?.name || 'Independent'}</span>
+                            <span>•</span>
+                            <span>{p.gender}</span>
+                            <span>•</span>
+                            <span>{age} yrs</span>
+                            <span>•</span>
+                            <span>{p.weight} kg</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isCriteriaMatched ? (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md">
+                            Matches Criteria
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-md">
+                            Criteria Mismatch
+                          </span>
+                        )}
+                        {currentCat && (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-secondary text-muted-foreground border border-border rounded-md truncate max-w-[110px]" title={currentCat.name}>
+                            Current: {currentCat.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Modal Footer & Confirmation / Done Trigger */}
+            <div className="p-4 border-t border-border bg-secondary/15 flex items-center justify-between gap-3">
+              <div className="text-xs font-bold text-foreground">
+                Selected: <span className="text-primary font-black">{selectedParticipantIds.length}</span> participant(s)
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCatForAdd(null);
+                    setSelectedParticipantIds([]);
+                    loadData();
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-sm cursor-pointer flex items-center gap-1.5 transition-colors"
+                  title="Close modal and return to Category Management"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Done</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAddParticipants}
+                  disabled={selectedParticipantIds.length === 0}
+                  className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Assign Selected Participants</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ─── Manage Participants Modal (Add / Delete / Modify) ─── */}
+      {manageCat && (() => {
+        const manageMappings = mappings.filter(m => m.category_id === manageCat.id);
+        const enrolledParticipants = manageMappings
+          .map(m => participants.find(p => p.id === m.participant_id))
+          .filter(Boolean) as Participant[];
+
+        const getClubName = (p: Participant) =>
+          clubs.find(c => c.id === p.club_id)?.name || '—';
+
+        const filtered = enrolledParticipants.filter(p =>
+          !manageSearch.trim() ||
+          p.full_name.toLowerCase().includes(manageSearch.toLowerCase()) ||
+          (p.registration_no || '').toLowerCase().includes(manageSearch.toLowerCase()) ||
+          getClubName(p).toLowerCase().includes(manageSearch.toLowerCase())
+        );
+
+        // Selection state for bulk remove
+        const toggleManageSelect = (id: string) =>
+          setManageSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+        const handleRemoveFromCategory = async (participantId: string) => {
+          if (!confirm('Remove this participant from the category?')) return;
+          try {
+            await db.participants.removeCategoryMapping(participantId, manageCat.id);
+            await loadData();
+          } catch (e: any) {
+            alert(e.message || 'Failed to remove participant.');
+          }
+        };
+
+        const handleBulkRemove = async () => {
+          if (manageSelected.length === 0) return;
+          if (!confirm(`Remove ${manageSelected.length} selected participant(s) from this category?`)) return;
+          try {
+            for (const pId of manageSelected) {
+              await db.participants.removeCategoryMapping(pId, manageCat.id);
+            }
+            setManageSelected([]);
+            await loadData();
+          } catch (e: any) {
+            alert(e.message || 'Failed to remove participants.');
+          }
+        };
+
+        const handleSaveEdit = async () => {
+          if (!editingParticipant) return;
+          try {
+            await db.participants.update(editingParticipant.id, editParticipantForm);
+            setEditingParticipant(null);
+            setEditParticipantForm({});
+            await loadData();
+          } catch (e: any) {
+            alert(e.message || 'Failed to update participant.');
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-card border border-border rounded-2xl shadow-2xl flex flex-col w-full max-w-2xl max-h-[90vh] overflow-hidden">
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/20">
+                <div>
+                  <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-primary" />
+                    Manage Participants
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-sm" title={manageCat.name}>
+                    {manageCat.name} · {enrolledParticipants.length} enrolled
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddParticipantsModal(manageCat)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 cursor-pointer transition"
+                    title="Add more participants to this category"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Add Participants
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setManageCat(null); setManageSelected([]); setEditingParticipant(null); setEditParticipantForm({}); }}
+                    className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search + Select All / Deselect All */}
+              <div className="px-5 pt-3 pb-2 space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, reg no, or club..."
+                    value={manageSearch}
+                    onChange={e => setManageSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                {filtered.length > 0 && canModify && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setManageSelected(filtered.map(p => p.id))}
+                      className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-bold rounded-md cursor-pointer text-[10px]"
+                    >
+                      Select All ({filtered.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setManageSelected([])}
+                      className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground font-bold rounded-md cursor-pointer text-[10px]"
+                    >
+                      Deselect All
+                    </button>
+                    {manageSelected.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleBulkRemove}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-800 font-bold rounded-md cursor-pointer text-[10px] transition"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Remove Selected ({manageSelected.length})
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Participant List */}
+              <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-2">
+                {filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <Users className="h-8 w-8 mb-2 opacity-30" />
+                    <span className="text-xs font-bold">No participants enrolled in this category yet.</span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddParticipantsModal(manageCat)}
+                      className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Add Participants
+                    </button>
+                  </div>
+                ) : (
+                  filtered.map(p => {
+                    const isEditing = editingParticipant?.id === p.id;
+                    const age = calculateAge(p.dob);
+                    const isSelected = manageSelected.includes(p.id);
+                    const clubName = getClubName(p);
+                    return (
+                      <div key={p.id} className={`rounded-xl border transition-all ${isEditing ? 'border-primary bg-primary/5' : isSelected ? 'border-red-400 bg-red-500/5' : 'border-border bg-card'}`}>
+                        {isEditing ? (
+                          /* Edit Form */
+                          <div className="p-3 space-y-2">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Edit2 className="h-3.5 w-3.5 text-primary" />
+                              <span className="text-xs font-extrabold text-primary">Editing: {p.full_name}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Full Name</label>
+                                <input
+                                  type="text"
+                                  value={editParticipantForm.full_name ?? p.full_name}
+                                  onChange={e => setEditParticipantForm(prev => ({ ...prev, full_name: e.target.value }))}
+                                  className="w-full mt-0.5 px-2 py-1 bg-secondary border border-border rounded-md text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Weight (kg)</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={editParticipantForm.weight ?? p.weight}
+                                  onChange={e => setEditParticipantForm(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
+                                  className="w-full mt-0.5 px-2 py-1 bg-secondary border border-border rounded-md text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Gender</label>
+                                <select
+                                  value={editParticipantForm.gender ?? p.gender}
+                                  onChange={e => setEditParticipantForm(prev => ({ ...prev, gender: e.target.value as any }))}
+                                  className="w-full mt-0.5 px-2 py-1 bg-secondary border border-border rounded-md text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                                >
+                                  <option value="Male">Male</option>
+                                  <option value="Female">Female</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Registration No</label>
+                                <input
+                                  type="text"
+                                  value={editParticipantForm.registration_no ?? p.registration_no}
+                                  onChange={e => setEditParticipantForm(prev => ({ ...prev, registration_no: e.target.value }))}
+                                  className="w-full mt-0.5 px-2 py-1 bg-secondary border border-border rounded-md text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={handleSaveEdit}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-extrabold cursor-pointer transition"
+                              >
+                                <Save className="h-3.5 w-3.5" />
+                                Save Changes
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setEditingParticipant(null); setEditParticipantForm({}); }}
+                                className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-[11px] font-bold text-muted-foreground cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* View Row */
+                          <div className="flex items-center justify-between px-3 py-2.5 gap-2">
+                            {canModify && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleManageSelect(p.id)}
+                                className="h-3.5 w-3.5 rounded text-red-500 focus:ring-red-500 shrink-0 cursor-pointer"
+                                title="Select for bulk remove"
+                              />
+                            )}
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <span className="text-[10px] font-extrabold text-primary">{p.full_name.charAt(0)}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-foreground truncate">{p.full_name}</div>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  <span className="text-[10px] text-muted-foreground">{clubName}</span>
+                                  <span className="text-[9px] text-muted-foreground/60">•</span>
+                                  <span className="text-[10px] font-semibold text-foreground">{p.weight} kg</span>
+                                  <span className="text-[9px] text-muted-foreground/60">•</span>
+                                  <span className="text-[10px] text-muted-foreground">Age {age}</span>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${p.gender === 'Female' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>
+                                    {p.gender}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            {canModify && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingParticipant(p);
+                                    setEditParticipantForm({});
+                                  }}
+                                  className="p-1.5 rounded-lg bg-secondary hover:bg-amber-500/10 hover:text-amber-500 text-muted-foreground border border-border cursor-pointer transition"
+                                  title="Modify this participant's details"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFromCategory(p.id)}
+                                  className="p-1.5 rounded-lg bg-secondary hover:bg-red-500/10 hover:text-red-500 text-muted-foreground border border-border cursor-pointer transition"
+                                  title="Remove this participant from category"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-border bg-secondary/15 flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground font-semibold">{enrolledParticipants.length} participant(s) enrolled{manageSelected.length > 0 ? ` · ${manageSelected.length} selected` : ''}</span>
+                <button
+                  type="button"
+                  onClick={() => { setManageCat(null); setManageSelected([]); setEditingParticipant(null); setEditParticipantForm({}); loadData(); }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-sm cursor-pointer transition"
+                >
+                  <Check className="h-4 w-4" />
+                  Done
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
