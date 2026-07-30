@@ -260,13 +260,7 @@ export default function BoutsAdminPage() {
           <p className="text-sm text-muted-foreground">Admin scoring controller to run matches, track points, and advance competitor draws.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/kata-control"
-            className="px-3 py-2 bg-[#1a1810] hover:bg-[#252215] border border-yellow-500/30 text-yellow-400 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-          >
-            <Award className="h-3.5 w-3.5" />
-            <span>Open Kata S-Board</span>
-          </Link>
+
           <button
             onClick={loadData}
             disabled={loading}

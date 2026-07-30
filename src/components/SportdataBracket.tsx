@@ -448,11 +448,11 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
           >
             <div className="flex-1 flex flex-col border-r" style={{ borderColor: theme === 'dark' ? '#374151' : '#737373' }}>
               <div className="bg-gray-100 dark:bg-gray-800 p-0.5 border-b" style={{ borderColor: theme === 'dark' ? '#374151' : '#737373', color: '#525252' }}>Tatami</div>
-              <div className="p-1 dark:text-white text-gray-900">{mainBouts[0]?.tatami || 'Tatami 1'}</div>
+              <div className="p-1 bg-gray-900 text-white">{mainBouts.find(b => b.tatami)?.tatami ? mainBouts.find(b => b.tatami)!.tatami!.replace(/Tatami\s+/i, '') : 'TBA'}</div>
             </div>
             <div className="flex-1 flex flex-col">
               <div className="bg-gray-100 dark:bg-gray-800 p-0.5 border-b" style={{ borderColor: theme === 'dark' ? '#374151' : '#737373', color: '#525252' }}>Pool</div>
-              <div className="p-1 dark:text-white text-gray-900">1/1</div>
+              <div className="p-1 bg-gray-900 text-white">1/1</div>
             </div>
           </div>
 
@@ -667,13 +667,13 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                           position: 'absolute',
                           left: `${xStart + 0.5}%`,
                           top: `${yMid}%`,
-                          transform: 'translateY(-100%)',
+                          transform: 'translateY(-50%)',
                         }}
-                        className={`text-[7px] font-bold font-mono tracking-tighter select-none ${
-                          theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                        className={`text-[8.5px] font-bold font-mono tracking-tight select-none px-1 py-[1px] rounded-[3px] border z-10 ${
+                          theme === 'dark' ? 'text-white border-gray-600 bg-gray-900' : 'text-white border-black bg-gray-900'
                         }`}
                       >
-                        BOUT {bout.bout_no}
+                        R{bout.round_no}-B{bout.bout_no}
                       </div>
                     )}
                   </React.Fragment>
