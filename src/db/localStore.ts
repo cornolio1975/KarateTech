@@ -19,20 +19,23 @@ export const localStore = {
     
     // Always update last modified before saving
     db.tournament.last_modified = new Date().toISOString();
-    
-    // 1. Save to Local IndexedDB (fast, synchronous-feeling, offline capability)
-    await dbStore.setItem(`ktournament_${db.tournament.id}`, db);
+
+    // Resolve the canonical UUID to use for both IndexedDB key and Supabase
+    let syncId = db.tournament.id;
+    const isProperUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(syncId);
+    if (!isProperUUID) {
+      // Legacy tr_... IDs: derive a deterministic UUID so both stores use the same key
+      syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
+      // Promote the id in the object so future saves use the UUID
+      db.tournament.id = syncId;
+    }
+
+    // 1. Save to Local IndexedDB using the canonical UUID key
+    await dbStore.setItem(`ktournament_${syncId}`, db);
 
     // 2. Sync to Supabase Cloud
     if (supabase) {
       try {
-        // Ensure valid UUID format for Supabase if needed
-        let syncId = db.tournament.id;
-        if (!syncId.includes('-') || syncId.length < 32) {
-          // Format deterministic UUID for legacy non-UUID string IDs
-          syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
-        }
-
         const nowIso = new Date().toISOString();
         const payload: Record<string, any> = {
           id: syncId,
@@ -156,8 +159,16 @@ export const localStore = {
       }
     }
     
+    // Final deduplication by id (handles cases where same tournament is stored under multiple keys)
+    const seenIds = new Set<string>();
+    const deduped = allTournaments.filter(t => {
+      if (seenIds.has(t.id)) return false;
+      seenIds.add(t.id);
+      return true;
+    });
+
     // Filter out any locally marked deleted records & sort by last_modified descending
-    return allTournaments
+    return deduped
       .filter(t => t.status !== 'Deleted')
       .sort((a, b) => {
         const dateA = new Date(a.last_modified || a.created_at || 0).getTime();

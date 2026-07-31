@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   FolderPlus, FolderOpen, Download, Upload, Trash2, 
-  Archive, MoreVertical, Calendar, MapPin, Search, Plus, Cloud
+  Calendar, MapPin, Search, Plus, Cloud
 } from 'lucide-react';
 import { dbManager, supabase } from '@/db/dbClient';
 import { localStore } from '@/db/localStore';
@@ -56,6 +56,24 @@ export default function TournamentManager() {
       alert('Error opening tournament.');
       setLoading(false);
     }
+  };
+
+  const handlePurgeAndResync = async () => {
+    if (!confirm('This will clear all local tournament data from this browser and re-fetch from Supabase Cloud. Continue?')) return;
+    setLoading(true);
+    try {
+      // Drop the entire KarateTechDB IndexedDB database
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.deleteDatabase('KarateTechDB');
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => resolve(); // proceed anyway
+      });
+    } catch (e) {
+      console.warn('Could not drop IndexedDB, trying localforage clear', e);
+    }
+    // Reload page so everything re-initialises from Supabase
+    window.location.reload();
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -112,7 +130,7 @@ export default function TournamentManager() {
     if (!newName.trim()) return;
 
     setLoading(true);
-    const newId = `tr_${Date.now()}`;
+    const newId = crypto.randomUUID(); // proper UUID — same key in IndexedDB AND Supabase
     const newDb: TournamentDatabase = {
       tournament: {
         id: newId,
@@ -249,6 +267,15 @@ export default function TournamentManager() {
             >
               <Upload size={16} /> <span className="hidden md:inline">Import</span>
             </button>
+            {!!supabase && (
+              <button
+                onClick={handlePurgeAndResync}
+                title="Clear local cache & re-fetch from Supabase Cloud"
+                className="bg-slate-800/80 hover:bg-sky-700 border border-slate-700 hover:border-sky-500 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition cursor-pointer"
+              >
+                <Cloud size={16} /> <span className="hidden md:inline">Resync Cloud</span>
+              </button>
+            )}
             <button 
               onClick={() => setShowNewModal(true)}
               className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-red-950/60 cursor-pointer"
