@@ -185,9 +185,10 @@ export default function TournamentManager() {
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-black text-white tracking-tight font-sans flex items-center gap-1.5">
+                <h1 className="text-3xl font-black text-white tracking-tight font-sans flex items-center gap-0.5">
                   <span className="text-red-600">Karate</span>
                   <span className="text-sky-400">Tech</span>
+                  <sup className="text-xs font-bold text-slate-400 -mt-2 ml-0.5 select-none">©</sup>
                 </h1>
                 <span className="bg-red-500/10 text-red-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-red-500/20">
                   WKF Standard
