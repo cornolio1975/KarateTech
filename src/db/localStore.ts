@@ -26,13 +26,36 @@ export const localStore = {
     // 2. Sync to Supabase Cloud
     if (supabase) {
       try {
-        await supabase.from('tournaments').upsert({
-          id: db.tournament.id,
-          name: db.tournament.name,
-          status: db.tournament.status,
+        // Ensure valid UUID format for Supabase if needed
+        let syncId = db.tournament.id;
+        if (!syncId.includes('-') || syncId.length < 32) {
+          // Format deterministic UUID for legacy non-UUID string IDs
+          syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
+        }
+
+        const nowIso = new Date().toISOString();
+        const payload: Record<string, any> = {
+          id: syncId,
+          name: db.tournament.name || 'Untitled Tournament',
+          status: db.tournament.status || 'Draft',
+          organizer: db.tournament.organizer || 'KarateTech Organizer',
+          venue: db.tournament.venue || 'Main Stadium',
+          city: db.tournament.city || 'Local City',
+          date: db.tournament.date || new Date().toLocaleDateString(),
+          date_iso: db.tournament.date_iso || nowIso,
+          registration_close: db.tournament.registration_close || new Date().toLocaleDateString(),
+          registration_close_iso: db.tournament.registration_close_iso || nowIso,
           data: db,
-          last_modified: db.tournament.last_modified
-        }, { onConflict: 'id' });
+          last_modified: db.tournament.last_modified || nowIso
+        };
+
+        const { error } = await supabase.from('tournaments').upsert(payload, { onConflict: 'id' });
+        
+        if (error) {
+          console.warn('Supabase Cloud Sync Error:', error.message || error);
+        } else {
+          console.log('✅ Successfully synced tournament to Supabase Cloud:', db.tournament.name);
+        }
       } catch (e) {
         console.warn('Cloud sync failed, data is saved locally.', e);
       }
