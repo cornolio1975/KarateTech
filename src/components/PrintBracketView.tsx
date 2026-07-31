@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Bout, Participant, Club, Category } from '@/db/types';
 import { SportdataBracket } from './SportdataBracket';
-import { calculatePrintDimensions } from '@/utils/printScaling';
+import { calculatePrintDimensions, Orientation, FitMode, MarginSize } from '@/utils/printScaling';
 import { basePath } from '@/db/dbClient';
 import { useTournament } from '@/context/TournamentContext';
 
@@ -11,6 +11,9 @@ interface PrintBracketViewProps {
   clubs: Club[];
   categories: Category[];
   selectedCatId: string | null;
+  orientation?: Orientation;
+  fitMode?: FitMode;
+  marginSize?: MarginSize;
 }
 
 export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
@@ -19,6 +22,9 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
   clubs,
   categories,
   selectedCatId,
+  orientation = 'auto',
+  fitMode = 'auto',
+  marginSize = 'normal'
 }) => {
   const { tournamentName, logoUrl } = useTournament();
 
@@ -45,8 +51,8 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
     
     const competitorCount = compIds.size || 8; // fallback
     
-    return calculatePrintDimensions(competitorCount, maxRound, isRoundRobin);
-  }, [categoryBouts, selectedCategory]);
+    return calculatePrintDimensions(competitorCount, maxRound, isRoundRobin, orientation, fitMode, marginSize);
+  }, [categoryBouts, selectedCategory, orientation, fitMode, marginSize]);
 
   if (!selectedCategory || !dimensions) {
     return <div>No category selected or missing data.</div>;
@@ -56,13 +62,11 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
   const printCss = `
     @page { 
       size: ${dimensions.paperSize} ${dimensions.orientation}; 
-      margin: 5mm; 
-    }
-    .print-bracket-page, .print-bracket-page * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
+      margin: ${dimensions.marginMm}mm; 
     }
     @media print {
+      body { margin: 0; overflow: hidden; }
+      .print-container { width: 100%; display: flex; justify-content: center; align-items: flex-start; }
       .print-bracket-page {
         min-height: 0 !important;
         height: auto !important;
@@ -70,52 +74,60 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
       .sportdata-header {
         display: none !important;
       }
-      /* Compensate for scale factor so sub-pixel borders don't disappear in Chrome print engine */
-      .print-bracket-page .origin-top-left .border,
-      .print-bracket-page .origin-top-left .border-l,
-      .print-bracket-page .origin-top-left .border-r,
-      .print-bracket-page .origin-top-left .border-b,
-      .print-bracket-page .origin-top-left .border-t {
-        border-width: ${Math.max(1.5, 1.2 / dimensions.scaleFactor).toFixed(2)}px !important;
-      }
-      .print-bracket-page .origin-top-left svg path {
-        stroke-width: ${Math.max(2, 1.5 / dimensions.scaleFactor).toFixed(2)}px !important;
-      }
+    }
+    .print-bracket-page, .print-bracket-page * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    /* Compensate for scale factor so sub-pixel borders don't disappear in Chrome print engine AND on-screen preview */
+    .print-bracket-page .origin-top-left .border,
+    .print-bracket-page .origin-top-left .border-l,
+    .print-bracket-page .origin-top-left .border-r,
+    .print-bracket-page .origin-top-left .border-b,
+    .print-bracket-page .origin-top-left .border-t {
+      border-width: ${Math.max(1.5, 1.2 / dimensions.scaleFactor).toFixed(2)}px !important;
+      border-style: solid !important;
+      border-color: #000 !important;
+    }
+    .print-bracket-page .origin-top-left svg path,
+    .print-bracket-page .origin-top-left svg line {
+      stroke-width: ${Math.max(2, 1.5 / dimensions.scaleFactor).toFixed(2)}px !important;
     }
   `;
 
   return (
-    <div className="print-bracket-page bg-white text-black min-h-screen p-2 flex flex-col w-full h-full">
+    <div className="print-bracket-page print-container bg-white text-black min-h-screen p-2 flex flex-col w-full h-full">
       <style dangerouslySetInnerHTML={{ __html: printCss }} />
 
       {/* 1. Header (Fixed Size, doesn't scale with bracket) */}
-      <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 mb-2 shrink-0">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 mb-1 shrink-0">
+        <div className="flex items-center gap-2">
           <img 
             src={logoUrl || `${basePath}/karatetech-logo.png`} 
             alt="Logo" 
-            className="h-[60px] w-[60px] object-cover rounded-full border border-gray-300"
+            className="h-[40px] w-[40px] object-cover rounded-full border border-gray-300"
           />
           <div className="flex flex-col">
-            <div className="text-2xl font-black tracking-tight leading-none">
+            <div className="text-xl font-black tracking-tight leading-none">
               <span className="text-[#b91c2e]">Karate</span>
               <span className="text-[#0284c7]">Tech</span>
             </div>
-            <div className="text-xs font-bold text-slate-900 mt-1">SP SportData Solution</div>
-            <div className="text-[10px] text-slate-500 tracking-widest mt-0.5">• Precision. • Speed. • Results. •</div>
+            <div className="text-[10px] font-bold text-slate-900 mt-0">SP SportData Solution</div>
+            <div className="text-[9px] text-slate-500 tracking-widest mt-0">• Precision. • Speed. • Results. •</div>
           </div>
         </div>
         
         <div className="text-right">
-          <div className="text-lg font-black uppercase text-slate-900">{tournamentName || 'Karate Championship'}</div>
-          <div className="text-xs text-slate-500 font-semibold mt-1">Official Draw Sheet • Printed {new Date().toLocaleDateString()}</div>
+          <div className="text-base font-black uppercase text-slate-900">{tournamentName || 'Karate Championship'}</div>
+          <div className="text-[10px] text-slate-500 font-semibold mt-0">Official Draw Sheet • Printed {new Date().toLocaleDateString()}</div>
         </div>
       </div>
 
       {/* 2. Category Banner */}
-      <div className="bg-slate-50 border border-slate-200 border-l-[6px] border-l-blue-600 px-4 py-2 rounded mb-3 flex justify-between items-center shrink-0">
-        <div className="text-lg font-black uppercase text-slate-900">{selectedCategory.name}</div>
-        <div className="text-sm font-bold text-slate-600">
+      <div className="bg-slate-50 border border-slate-200 border-l-[6px] border-l-blue-600 px-3 py-1 rounded mb-2 flex justify-between items-center shrink-0">
+        <div className="text-base font-black uppercase text-slate-900">{selectedCategory.name}</div>
+        <div className="text-xs font-bold text-slate-600">
           {selectedCategory.gender} • {selectedCategory.format === 'round_robin' ? 'Round Robin' : selectedCategory.format === 'wkf_repechage' ? 'WKF Repechage' : 'Single Elimination'}
         </div>
       </div>
@@ -152,22 +164,22 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
       </div>
 
       {/* 4. Footer */}
-      <div className="mt-4 pt-4 border-t border-slate-300 flex justify-between shrink-0">
+      <div className="mt-2 pt-2 border-t border-slate-300 flex justify-between shrink-0">
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-8 mb-2"></div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Draw Officer Signature</div>
+          <div className="border-b border-slate-400 h-6 mb-1"></div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase">Draw Officer Signature</div>
         </div>
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-8 mb-2"></div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Tournament Director</div>
+          <div className="border-b border-slate-400 h-6 mb-1"></div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase">Tournament Director</div>
         </div>
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-8 mb-2"></div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Chief Referee</div>
+          <div className="border-b border-slate-400 h-6 mb-1"></div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase">Chief Referee</div>
         </div>
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-8 mb-2"></div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Date & Official Stamp</div>
+          <div className="border-b border-slate-400 h-6 mb-1"></div>
+          <div className="text-[9px] font-bold text-slate-500 uppercase">Date & Official Stamp</div>
         </div>
       </div>
     </div>

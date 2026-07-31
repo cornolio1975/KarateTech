@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { PrintBracketView } from '@/components/PrintBracketView';
 import { db } from '@/db/dbClient';
 import { Bout, Participant, Club, Category } from '@/db/types';
+import { Orientation, FitMode, MarginSize } from '@/utils/printScaling';
 
 function PrintPreviewContent() {
   const searchParams = useSearchParams();
@@ -15,6 +16,11 @@ function PrintPreviewContent() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Print settings
+  const [fitMode, setFitMode] = useState<FitMode>('auto');
+  const [orientation, setOrientation] = useState<Orientation>('auto');
+  const [marginSize, setMarginSize] = useState<MarginSize>('normal');
 
   // Parse multiple categories if comma-separated
   const selectedCatIds = catIdParam ? catIdParam.split(',') : [];
@@ -61,9 +67,40 @@ function PrintPreviewContent() {
     <div className="min-h-screen bg-gray-200 print:bg-white pb-10 print:pb-0">
       
       {/* Floating Toolbar (Hidden during actual printing) */}
-      <div className="print:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-slate-900 text-white px-6 py-3 shadow-lg">
-        <div className="font-bold">
-          📄 Tournament Print Preview
+      <div className="print:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-slate-900 text-white px-6 py-3 shadow-lg overflow-x-auto">
+        <div className="flex items-center gap-6">
+          <div className="font-bold whitespace-nowrap">
+            📄 Tournament Print Preview
+          </div>
+          
+          <div className="flex items-center gap-4 text-sm bg-slate-800 p-2 rounded shrink-0">
+            <div className="flex items-center gap-2">
+              <label className="text-slate-300">Fit:</label>
+              <select value={fitMode} onChange={e => setFitMode(e.target.value as FitMode)} className="bg-slate-700 text-white rounded p-1 border-none focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="auto">Auto Fit A4</option>
+                <option value="width">Fit Width</option>
+                <option value="actual">Actual Size</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-slate-300">Orientation:</label>
+              <select value={orientation} onChange={e => setOrientation(e.target.value as Orientation)} className="bg-slate-700 text-white rounded p-1 border-none focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="auto">Auto</option>
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-slate-300">Margins:</label>
+              <select value={marginSize} onChange={e => setMarginSize(e.target.value as MarginSize)} className="bg-slate-700 text-white rounded p-1 border-none focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="narrow">Narrow (10mm)</option>
+                <option value="normal">Normal (15mm)</option>
+                <option value="wide">Wide (20mm)</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div className="flex gap-3">
           <button 
@@ -98,6 +135,9 @@ function PrintPreviewContent() {
               clubs={clubs}
               categories={categories}
               selectedCatId={catId}
+              orientation={orientation}
+              fitMode={fitMode}
+              marginSize={marginSize}
             />
           </div>
         ))}
