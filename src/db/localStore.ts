@@ -170,27 +170,40 @@ export const localStore = {
    * Delete a tournament from IndexedDB and Supabase.
    */
   async deleteTournament(id: string): Promise<void> {
-    // Format deterministic UUID fallback for Supabase
+    if (!id) return;
+
     let syncId = id;
     if (!syncId.includes('-') || syncId.length < 32) {
       syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
     }
 
-    // 1. Remove from Local IndexedDB (both raw id and prefixed keys)
-    await dbStore.removeItem(`ktournament_${id}`);
-    await dbStore.removeItem(`ktournament_${syncId}`);
+    // 1. Remove all matching keys from Local IndexedDB
+    try {
+      const keys = await dbStore.keys();
+      for (const key of keys) {
+        if (key.startsWith('ktournament_')) {
+          if (key === `ktournament_${id}` || key === `ktournament_${syncId}`) {
+            await dbStore.removeItem(key);
+          } else {
+            const item = await dbStore.getItem<TournamentDatabase>(key);
+            if (item?.tournament?.id === id || item?.tournament?.id === syncId) {
+              await dbStore.removeItem(key);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error purging IndexedDB keys:', e);
+    }
 
     // 2. Remove from Supabase Cloud
     if (supabase) {
       try {
-        // Delete using valid UUID syncId
-        const { error } = await supabase.from('tournaments').delete().eq('id', syncId);
-        if (error) {
-          console.warn('Cloud hard delete failed, marking deleted_at soft delete:', error);
-          await supabase.from('tournaments').update({ 
-            status: 'Deleted', 
-            deleted_at: new Date().toISOString() 
-          }).eq('id', syncId);
+        // Attempt deletion by syncId first
+        await supabase.from('tournaments').delete().eq('id', syncId);
+        // Attempt deletion by raw id if valid
+        if (id !== syncId && id.includes('-')) {
+          await supabase.from('tournaments').delete().eq('id', id);
         }
       } catch (e) {
         console.warn('Cloud delete failed', e);

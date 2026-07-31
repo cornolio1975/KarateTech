@@ -314,29 +314,26 @@ export default function TournamentManager() {
                   <div className="flex items-center gap-2 mt-auto">
                     <button 
                       onClick={() => handleOpenTournament(t.id)}
-                      className="flex-1 bg-white/10 hover:bg-indigo-600 border border-white/10 hover:border-indigo-500 py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition"
+                      className="flex-1 bg-white/10 hover:bg-indigo-600 border border-white/10 hover:border-indigo-500 py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition cursor-pointer"
                     >
                       <FolderOpen size={16} /> Open
                     </button>
                     
-                    <div className="relative group/menu">
-                      <button className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition">
-                        <MoreVertical size={18} />
-                      </button>
-                      
-                      <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-800 border border-white/10 rounded-xl shadow-xl overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all origin-bottom-right z-10">
-                        <button onClick={() => handleExport(t.id, t.name)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-3">
-                          <Download size={14} className="text-slate-400" /> Export Backup
-                        </button>
-                        <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-3">
-                          <Archive size={14} className="text-slate-400" /> Archive Project
-                        </button>
-                        <div className="h-px bg-white/10 my-1"></div>
-                        <button onClick={() => handleDelete(t.id, t.name)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-3">
-                          <Trash2 size={14} /> Delete
-                        </button>
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => handleDelete(t.id, t.name)}
+                      title="Delete Tournament Profile"
+                      className="p-2.5 rounded-lg bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 hover:border-red-500 transition cursor-pointer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+
+                    <button
+                      onClick={() => handleExport(t.id, t.name)}
+                      title="Export Backup (.ktournament)"
+                      className="p-2.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 transition cursor-pointer"
+                    >
+                      <Download size={16} />
+                    </button>
                   </div>
                 </div>
               </div>
