@@ -212,7 +212,7 @@ export interface Tournament {
   location?: string;
   registration_close: string;
   registration_close_iso: string;
-  status: 'Draft' | 'Active' | 'Closing Soon' | 'Full' | 'Completed' | 'Archived' | 'Open';
+  status: 'Draft' | 'Active' | 'Closing Soon' | 'Full' | 'Completed' | 'Archived' | 'Open' | 'Deleted';
   banner_gradient?: string;
   featured?: boolean;
   deleted_at?: string;

@@ -104,12 +104,18 @@ export const localStore = {
     
     const allTournaments = [...localTournaments];
 
-    // Merge cloud tournaments
+    // Merge cloud tournaments (excluding deleted ones)
     if (supabase && typeof navigator !== 'undefined' && navigator.onLine) {
       try {
-        const { data, error } = await supabase.from('tournaments').select('id, name, status, last_modified');
+        const { data, error } = await supabase.from('tournaments')
+          .select('id, name, status, last_modified, deleted_at')
+          .is('deleted_at', null)
+          .neq('status', 'Deleted');
+
         if (!error && data) {
           for (const c of data) {
+            if (c.status === 'Deleted' || c.deleted_at) continue;
+            
             const existingIdx = allTournaments.findIndex(t => t.id === c.id);
             if (existingIdx >= 0) {
               const localT = allTournaments[existingIdx];
@@ -142,22 +148,40 @@ export const localStore = {
       }
     }
     
-    // Sort by last_modified descending
-    return allTournaments.sort((a, b) => {
-      const dateA = new Date(a.last_modified || a.created_at || 0).getTime();
-      const dateB = new Date(b.last_modified || b.created_at || 0).getTime();
-      return dateB - dateA;
-    });
+    // Filter out any locally marked deleted records & sort by last_modified descending
+    return allTournaments
+      .filter(t => t.status !== 'Deleted')
+      .sort((a, b) => {
+        const dateA = new Date(a.last_modified || a.created_at || 0).getTime();
+        const dateB = new Date(b.last_modified || b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
   },
 
   /**
    * Delete a tournament from IndexedDB and Supabase.
    */
   async deleteTournament(id: string): Promise<void> {
+    // 1. Remove from Local IndexedDB
     await dbStore.removeItem(`ktournament_${id}`);
+    
+    // Format deterministic UUID fallback for Supabase
+    let syncId = id;
+    if (!syncId.includes('-') || syncId.length < 32) {
+      syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
+    }
+
+    // 2. Remove from Supabase Cloud
     if (supabase) {
       try {
-        await supabase.from('tournaments').delete().eq('id', id);
+        const { error } = await supabase.from('tournaments').delete().or(`id.eq.${id},id.eq.${syncId}`);
+        if (error) {
+          // If hard delete is restricted, update status to Deleted & set deleted_at
+          await supabase.from('tournaments').update({ 
+            status: 'Deleted', 
+            deleted_at: new Date().toISOString() 
+          }).or(`id.eq.${id},id.eq.${syncId}`);
+        }
       } catch (e) {
         console.warn('Cloud delete failed', e);
       }
