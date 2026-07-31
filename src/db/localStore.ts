@@ -116,7 +116,15 @@ export const localStore = {
           for (const c of data) {
             if (c.status === 'Deleted' || c.deleted_at) continue;
             
-            const existingIdx = allTournaments.findIndex(t => t.id === c.id);
+            const existingIdx = allTournaments.findIndex(t => {
+              if (t.id === c.id) return true;
+              let tSyncId = t.id;
+              if (!tSyncId.includes('-') || tSyncId.length < 32) {
+                tSyncId = '00000000-0000-4000-8000-' + tSyncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
+              }
+              return tSyncId === c.id;
+            });
+
             if (existingIdx >= 0) {
               const localT = allTournaments[existingIdx];
               const localTime = new Date(localT.last_modified || 0).getTime();
@@ -162,25 +170,27 @@ export const localStore = {
    * Delete a tournament from IndexedDB and Supabase.
    */
   async deleteTournament(id: string): Promise<void> {
-    // 1. Remove from Local IndexedDB
-    await dbStore.removeItem(`ktournament_${id}`);
-    
     // Format deterministic UUID fallback for Supabase
     let syncId = id;
     if (!syncId.includes('-') || syncId.length < 32) {
       syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
     }
 
+    // 1. Remove from Local IndexedDB (both raw id and prefixed keys)
+    await dbStore.removeItem(`ktournament_${id}`);
+    await dbStore.removeItem(`ktournament_${syncId}`);
+
     // 2. Remove from Supabase Cloud
     if (supabase) {
       try {
-        const { error } = await supabase.from('tournaments').delete().or(`id.eq.${id},id.eq.${syncId}`);
+        // Delete using valid UUID syncId
+        const { error } = await supabase.from('tournaments').delete().eq('id', syncId);
         if (error) {
-          // If hard delete is restricted, update status to Deleted & set deleted_at
+          console.warn('Cloud hard delete failed, marking deleted_at soft delete:', error);
           await supabase.from('tournaments').update({ 
             status: 'Deleted', 
             deleted_at: new Date().toISOString() 
-          }).or(`id.eq.${id},id.eq.${syncId}`);
+          }).eq('id', syncId);
         }
       } catch (e) {
         console.warn('Cloud delete failed', e);
