@@ -14,6 +14,7 @@ interface SportdataBracketProps {
   onBoutClick?: (bout: Bout) => void;
   theme?: 'light' | 'dark';
   height?: string;
+  hideZoomControls?: boolean;
 }
 
 const flagMap: Record<string, string> = {
@@ -37,6 +38,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
   onBoutClick,
   theme = 'light',
   height = '650px',
+  hideZoomControls = false,
 }) => {
   const { tournamentName, logoUrl } = useTournament();
   const [zoom, setZoom] = React.useState(100);
@@ -477,7 +479,8 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
       </div>
 
       {/* Floating Zoom Controls */}
-      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-xs border border-white/10 px-2 py-1.5 rounded-lg shadow-lg no-print">
+      {!hideZoomControls && (
+        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-xs border border-white/10 px-2 py-1.5 rounded-lg shadow-lg no-print">
         <button
           type="button"
           onClick={() => setZoom(prev => Math.max(50, prev - 10))}
@@ -505,6 +508,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
           Reset
         </button>
       </div>
+      )}
 
       {/* Scrollable Zoom Wrapper */}
       <div className="w-full overflow-auto absolute inset-0" style={{ top: '45px', height: 'calc(100% - 45px)' }}>

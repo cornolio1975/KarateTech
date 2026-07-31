@@ -159,6 +159,7 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
             theme="light"
             canModify={false}
             height={`${dimensions.bracketBaseHeightPx}px`}
+            hideZoomControls={true}
           />
         </div>
       </div>
