@@ -209,9 +209,10 @@ export interface Tournament {
   date_iso: string;
   venue: string;
   city: string;
+  location?: string;
   registration_close: string;
   registration_close_iso: string;
-  status: 'Open' | 'Closing Soon' | 'Full' | 'Completed';
+  status: 'Draft' | 'Active' | 'Closing Soon' | 'Full' | 'Completed' | 'Archived' | 'Open';
   banner_gradient?: string;
   featured?: boolean;
   deleted_at?: string;
@@ -224,6 +225,11 @@ export interface Tournament {
   poster_emoji?: string;
   pdf_url?: string;
   created_at?: string;
+  last_modified?: string;
+  rules_version?: string;
+  competition_type?: string;
+  logo_url?: string;
+  settings?: Record<string, any>;
 }
 
 export interface DisplayPlaylistSlide {
@@ -248,5 +254,21 @@ export interface DisplayPlaylist {
   updated_at?: string;
 }
 
-
-
+export interface TournamentDatabase {
+  tournament: Tournament;
+  participants: Participant[];
+  categories: Category[];
+  clubs: Club[];
+  coaches: Coach[];
+  bouts: Bout[];
+  payments: Payment[];
+  medical: MedicalRecord[];
+  documents: Document[];
+  teams: Team[];
+  team_members: TeamMember[];
+  participant_categories: ParticipantCategory[];
+  activity_logs: ActivityLog[];
+  audit_logs: AuditLog[];
+  officials: Official[];
+  display_playlists: DisplayPlaylist[];
+}

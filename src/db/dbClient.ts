@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/client';
 import { mockStore } from './mockStore';
 import { 
   Country, Club, Coach, Category, Team, Participant, 
@@ -7,7 +7,7 @@ import {
 
 // Read Supabase credentials
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
@@ -23,19 +23,65 @@ const toAuditRecord = (value: unknown): Record<string, unknown> | null => {
   return { value };
 };
 
-export let supabase: SupabaseClient | null = null;
-if (isSupabaseConfigured) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-  } catch (error) {
-    console.error('Failed to initialize Supabase client:', error);
-  }
-}
+export const supabase = isSupabaseConfigured ? createClient() : null;
 
 const isDev = process.env.NODE_ENV === 'development';
 export const basePath = isDev ? '' : (process.env.NEXT_PUBLIC_BASE_PATH ?? '');
 
 // Global DB client interface
+import { localStore } from './localStore';
+import { TournamentDatabase } from './types';
+import { setActiveTournamentDb, activeTournamentDb } from './mockStore';
+
+export const dbManager = {
+  async setActiveTournament(id: string): Promise<boolean> {
+    const db = await localStore.loadTournament(id);
+    if (db) {
+      setActiveTournamentDb(db);
+      return true;
+    }
+    return false;
+  },
+  
+  getActiveTournament(): TournamentDatabase | null {
+    return activeTournamentDb;
+  },
+
+  closeTournament() {
+    setActiveTournamentDb(null);
+  },
+  
+  async createNewTournament(tournamentDetails: any): Promise<string> {
+    const id = `tourn-${Date.now()}`;
+    const newDb: TournamentDatabase = {
+      tournament: {
+        id,
+        status: 'Draft',
+        created_at: new Date().toISOString(),
+        ...tournamentDetails
+      },
+      participants: [],
+      categories: [],
+      clubs: [],
+      coaches: [],
+      bouts: [],
+      payments: [],
+      medical: [],
+      documents: [],
+      teams: [],
+      team_members: [],
+      participant_categories: [],
+      activity_logs: [],
+      audit_logs: [],
+      officials: [],
+      display_playlists: []
+    };
+    await localStore.saveTournament(newDb);
+    setActiveTournamentDb(newDb);
+    return id;
+  }
+};
+
 export const db = {
   isSupabase: (): boolean => !!supabase,
 

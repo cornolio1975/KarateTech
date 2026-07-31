@@ -108,11 +108,14 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         <Link
           href="/"
           prefetch={false}
+          onClick={() => {
+            import('@/db/dbClient').then(({ dbManager }) => dbManager.closeTournament());
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-border hover:bg-secondary rounded-lg text-xs font-bold transition text-muted-foreground hover:text-foreground cursor-pointer"
-          title="Back to App Dashboard"
+          title="Back to Projects Manager"
         >
           <Home className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Home</span>
+          <span className="hidden sm:inline">Projects</span>
         </Link>
         <div className="flex items-center gap-1 bg-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground border border-border">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>

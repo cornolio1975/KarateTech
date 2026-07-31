@@ -66,12 +66,7 @@ export default function SettingsPage() {
     legibilityFont: 'standard'
   });
 
-  const [upcomingName, setUpcomingName] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
-  const [upcomingDate, setUpcomingDate] = useState('2026-08-15');
-  const [upcomingTime, setUpcomingTime] = useState('08:00');
-  const [upcomingRegClose, setUpcomingRegClose] = useState('2026-07-31');
-  const [upcomingVenue, setUpcomingVenue] = useState('Dewan Serbaguna Petaling Jaya');
-  const [upcomingCity, setUpcomingCity] = useState('Petaling Jaya, Selangor');
+
 
   const [showPointHistoryReferee, setShowPointHistoryReferee] = useState(false);
   const [showPointHistoryPublic, setShowPointHistoryPublic] = useState(false);
@@ -79,18 +74,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedName = localStorage.getItem('ts_upcoming_name');
-      if (storedName !== null) setUpcomingName(storedName);
-      const storedDate = localStorage.getItem('ts_upcoming_date');
-      if (storedDate !== null) setUpcomingDate(storedDate);
-      const storedTime = localStorage.getItem('ts_upcoming_time');
-      if (storedTime !== null) setUpcomingTime(storedTime);
-      const storedRegClose = localStorage.getItem('ts_upcoming_reg_close');
-      if (storedRegClose !== null) setUpcomingRegClose(storedRegClose);
-      const storedVenue = localStorage.getItem('ts_upcoming_venue');
-      if (storedVenue !== null) setUpcomingVenue(storedVenue);
-      const storedCity = localStorage.getItem('ts_upcoming_city');
-      if (storedCity !== null) setUpcomingCity(storedCity);
+
 
       setShowPointHistoryReferee(localStorage.getItem('ts_show_point_history_referee') === 'true');
       setShowPointHistoryPublic(localStorage.getItem('ts_show_point_history_public') === 'true');
@@ -147,12 +131,7 @@ export default function SettingsPage() {
 
       // Save upcoming tournament configs
       if (typeof window !== 'undefined') {
-        localStorage.setItem('ts_upcoming_name', upcomingName);
-        localStorage.setItem('ts_upcoming_date', upcomingDate);
-        localStorage.setItem('ts_upcoming_time', upcomingTime);
-        localStorage.setItem('ts_upcoming_reg_close', upcomingRegClose);
-        localStorage.setItem('ts_upcoming_venue', upcomingVenue);
-        localStorage.setItem('ts_upcoming_city', upcomingCity);
+
 
         localStorage.setItem('ts_show_point_history_referee', String(showPointHistoryReferee));
         localStorage.setItem('ts_show_point_history_public', String(showPointHistoryPublic));
@@ -179,54 +158,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveUpcoming = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('ts_upcoming_name', upcomingName);
-        localStorage.setItem('ts_upcoming_date', upcomingDate);
-        localStorage.setItem('ts_upcoming_time', upcomingTime);
-        localStorage.setItem('ts_upcoming_reg_close', upcomingRegClose);
-        localStorage.setItem('ts_upcoming_venue', upcomingVenue);
-        localStorage.setItem('ts_upcoming_city', upcomingCity);
-      }
 
-      // Keep context-wide active tournament name in sync
-      setTournamentName(upcomingName);
-
-      // Sync upcoming tournament configurations to Supabase
-      if (supabase) {
-        const { data: tList } = await supabase.from('tournaments').select('*');
-        const featured = tList?.find((t: any) => t.featured && !t.deleted_at) || tList?.find((t: any) => !t.deleted_at);
-        if (featured) {
-          const parseIso = (dateStr: string, timeStr: string = '08:00') => {
-            const parsed = new Date(`${dateStr}T${timeStr}`);
-            return !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date().toISOString();
-          };
-          
-          await supabase
-            .from('tournaments')
-            .update({
-              name: upcomingName,
-              date: upcomingDate,
-              date_iso: parseIso(upcomingDate, upcomingTime),
-              venue: upcomingVenue,
-              city: upcomingCity,
-              registration_close: upcomingRegClose,
-              registration_close_iso: parseIso(upcomingRegClose, '23:59:59'),
-            })
-            .eq('id', featured.id);
-        }
-      }
-
-      setMessage({ type: 'success', text: 'Upcoming tournament settings saved successfully.' });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to save settings.' });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleResetDatabase = async () => {
     const doubleConfirm = window.confirm(
@@ -538,87 +470,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Upcoming Tournament Details Configuration */}
-        <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            Upcoming Tournament Configuration
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground block">Event Name</label>
-              <input
-                type="text"
-                value={upcomingName}
-                onChange={(e) => setUpcomingName(e.target.value)}
-                disabled={!canModify}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground block">Venue</label>
-              <input
-                type="text"
-                value={upcomingVenue}
-                onChange={(e) => setUpcomingVenue(e.target.value)}
-                disabled={!canModify}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground block">Event Date</label>
-              <input
-                type="date"
-                value={upcomingDate}
-                onChange={(e) => setUpcomingDate(e.target.value)}
-                disabled={!canModify}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground block">Start Time</label>
-              <input
-                type="time"
-                value={upcomingTime}
-                onChange={(e) => setUpcomingTime(e.target.value)}
-                disabled={!canModify}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground block">Registration Deadline</label>
-              <input
-                type="date"
-                value={upcomingRegClose}
-                onChange={(e) => setUpcomingRegClose(e.target.value)}
-                disabled={!canModify}
-                className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground block">City / State</label>
-            <input
-              type="text"
-              value={upcomingCity}
-              onChange={(e) => setUpcomingCity(e.target.value)}
-              disabled={!canModify}
-              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50 font-sans"
-            />
-          </div>
-          <div className="flex justify-end pt-2">
-            <button
-              type="button"
-              onClick={handleSaveUpcoming}
-              disabled={saving || !canModify}
-              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 disabled:opacity-50 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
-            >
-              <Save className="h-4 w-4 text-white" />
-              <span>{saving ? 'Saving...' : 'Save Upcoming Settings'}</span>
-            </button>
-          </div>
-        </div>
+
 
         {/* Branding Config */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">

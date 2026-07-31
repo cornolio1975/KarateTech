@@ -26,7 +26,7 @@ const MENU_ITEMS = [
   { name: 'Public Scoreboard', icon: Tv, path: '/public', badge: 'Live' },
   { name: 'Upcoming Tournaments', icon: CalendarCheck, path: '/public/tournaments', badge: 'New' },
   { name: 'Past Tournaments', icon: History, path: '/public/past-tournaments' },
-  { name: 'Tournaments Admin', icon: Trophy, path: '/admin/tournaments', badge: 'Admin' },
+  { name: 'Project Config', icon: Trophy, path: '/admin/tournaments', badge: 'Active' },
   { name: 'Reports', icon: FileText, path: '/reports' },
   { name: 'Settings', icon: Settings, path: '/settings' },
 ];
@@ -77,8 +77,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
             SP SportData Solution <ExternalLink className="inline h-2.5 w-2.5 opacity-70" />
           </span>
-          <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: '0.45rem', letterSpacing: '0.08em', color: '#64748b', lineHeight: 1.2, marginTop: '1.5px' }}>
-            • Precision. • Speed. • Results. •
+          <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.45rem', letterSpacing: '0.08em', color: '#94a3b8', lineHeight: 1.2, marginTop: '1.5px' }}>
+            • PRECISION. • SPEED. • RESULTS. •
           </span>
         </div>
       </a>

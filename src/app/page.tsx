@@ -1,578 +1,404 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
-  Trophy, Flame, Users, Calendar, MapPin, ArrowRight, ShieldCheck, 
-  Tv, LogIn, ExternalLink, Activity, Info, Award, Clock, Globe, Sun, Moon
+  FolderPlus, FolderOpen, Download, Upload, Trash2, 
+  Archive, MoreVertical, Calendar, MapPin, Search, Plus, Cloud
 } from 'lucide-react';
-import { db, basePath } from '@/db/dbClient';
-import { Bout, Participant, Category, Club, Tournament } from '@/db/types';
+import { dbManager, supabase } from '@/db/dbClient';
+import { localStore } from '@/db/localStore';
+import { Tournament, TournamentDatabase } from '@/db/types';
 
-export default function LandingPage() {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [lang, setLang] = useState<'EN' | 'MS'>('EN');
+export default function TournamentManager() {
+  const router = useRouter();
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   
-  // Dynamic stats loaded from DB
-  const [stats, setStats] = useState({
-    clubs: 0,
-    athletes: 0,
-    categories: 0,
-    matches: 0,
-    tatamis: 2,
-    completed: 0,
-    upcoming: 0
-  });
-
-  const [liveBouts, setLiveBouts] = useState<Bout[]>([]);
-  const [upcomingBouts, setUpcomingBouts] = useState<Bout[]>([]);
-  const [medalClubs, setMedalClubs] = useState<any[]>([]);
-  const [featuredTournament, setFeaturedTournament] = useState<Tournament | null>(null);
-
-  // Metadata tournament defaults
-  const [tournamentName, setTournamentName] = useState('Karate Tech Open Championship 2026');
-  const [venue, setVenue] = useState('Dewan Serbaguna Petaling Jaya');
-  const [city, setCity] = useState('Petaling Jaya, Selangor');
-  const [country, setCountry] = useState('Malaysia');
-  const [eventDate, setEventDate] = useState('15 August 2026');
-  const [organizer, setOrganizer] = useState('Kelab Senshi Goju-Ryu Karate-Do');
-  const [wkfRules, setWkfRules] = useState('WKF Rules Edition 2026');
+  // New Tournament Modal
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newOrg, setNewOrg] = useState('');
+  const [newDate, setNewDate] = useState('');
+  
+  // Ref for file import
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setMounted(true);
-    loadTournamentData();
-    
-    // Retrieve custom metadata if set in localStorage (fallback overrides)
-    if (typeof window !== 'undefined') {
-      const storedName = localStorage.getItem('ts_upcoming_name');
-      if (storedName) setTournamentName(storedName);
-      const storedVenue = localStorage.getItem('ts_upcoming_venue');
-      if (storedVenue) setVenue(storedVenue);
-      const storedCity = localStorage.getItem('ts_upcoming_city');
-      if (storedCity) setCity(storedCity);
-      const storedDate = localStorage.getItem('ts_upcoming_date');
-      if (storedDate) setEventDate(storedDate);
-    }
+    loadTournaments();
   }, []);
 
-  const loadTournamentData = async () => {
+  const loadTournaments = async () => {
+    setLoading(true);
     try {
-      const [bList, pList, catList, clList, tList] = await Promise.all([
-        db.bouts.list(),
-        db.participants.list(),
-        db.categories.list(),
-        db.clubs.list(),
-        db.tournaments.list()
-      ]);
-
-      // Load featured tournament and populate hero section from DB
-      const featured = tList.find(t => t.featured && !t.deleted_at) || tList.find(t => !t.deleted_at) || null;
-      if (featured) {
-        setFeaturedTournament(featured);
-        setTournamentName(featured.name);
-        setOrganizer(featured.organizer);
-        setVenue(featured.venue || venue);
-        setCity(featured.city || city);
-        if (featured.date) setEventDate(featured.date);
-      }
-      const activeAthletes = pList.filter(p => !p.deleted_at);
-      const completedBouts = bList.filter(b => b.status === 'Completed' || b.status === 'Walkover');
-      const scheduledBouts = bList.filter(b => b.status === 'Scheduled');
-      const runningBouts = bList.filter(b => b.status === 'Running');
-
-      setStats({
-        clubs: clList.length || 4,
-        athletes: activeAthletes.length || 32,
-        categories: catList.length || 8,
-        matches: bList.length || 24,
-        tatamis: Array.from(new Set(bList.map(b => b.tatami).filter(Boolean))).length || 2,
-        completed: completedBouts.length,
-        upcoming: scheduledBouts.length
-      });
-
-      // Filter running or next scheduled bouts for Tatami cards
-      const tatamiMap: Record<string, Bout> = {};
-      bList.forEach(b => {
-        const tat = b.tatami || 'Tatami 1';
-        if (b.status === 'Running') {
-          tatamiMap[tat] = b;
-        } else if (!tatamiMap[tat] && b.status === 'Scheduled') {
-          tatamiMap[tat] = b;
-        }
-      });
-      setLiveBouts(Object.values(tatamiMap));
-
-      // Load next 10 upcoming matches
-      setUpcomingBouts(scheduledBouts.slice(0, 10));
-
-      // Calculate Medal Standings
-      // Rank clubs by counting resolved bout gold/silver/bronze winners
-      const medalCount: Record<string, { gold: number; silver: number; bronze: number; name: string }> = {};
-      clList.forEach(c => {
-        medalCount[c.id] = { gold: 0, silver: 0, bronze: 0, name: c.name };
-      });
-
-      // Process bouts to calculate medals (only final round_no for first/second/third)
-      catList.forEach(cat => {
-        const catBouts = bList.filter(b => b.category_id === cat.id);
-        const maxRound = Math.max(...catBouts.filter(b => b.round_no !== 99 && b.round_no !== 98).map(b => b.round_no), 0);
-        if (maxRound > 0) {
-          const finalBout = catBouts.find(b => b.round_no === maxRound && b.bout_no === 1);
-          if (finalBout && finalBout.status === 'Completed' && finalBout.winner_id) {
-            const goldWinner = activeAthletes.find(p => p.id === finalBout.winner_id);
-            const silverWinnerId = finalBout.winner_id === finalBout.participant_a_id ? finalBout.participant_b_id : finalBout.participant_a_id;
-            const silverWinner = silverWinnerId ? activeAthletes.find(p => p.id === silverWinnerId) : null;
-            
-            if (goldWinner?.club_id && medalCount[goldWinner.club_id]) {
-              medalCount[goldWinner.club_id].gold += 1;
-            }
-            if (silverWinner?.club_id && medalCount[silverWinner.club_id]) {
-              medalCount[silverWinner.club_id].silver += 1;
-            }
-          }
-        }
-        
-        // Bronze winners: from third place match or repechage pool finals
-        const bronzeBout = catBouts.find(b => b.round_no === 99);
-        if (bronzeBout && bronzeBout.status === 'Completed' && bronzeBout.winner_id) {
-          const bWinner = activeAthletes.find(p => p.id === bronzeBout.winner_id);
-          if (bWinner?.club_id && medalCount[bWinner.club_id]) {
-            medalCount[bWinner.club_id].bronze += 1;
-          }
-        }
-
-      });
-
-      const sortedClubs = Object.values(medalCount)
-        .sort((a, b) => {
-          if (b.gold !== a.gold) return b.gold - a.gold;
-          if (b.silver !== a.silver) return b.silver - a.silver;
-          return b.bronze - a.bronze;
-        });
-      setMedalClubs(sortedClubs);
-
+      const list = await localStore.listTournaments();
+      setTournaments(list);
     } catch (e) {
-      console.warn('Error loading stats/standings:', e);
+      console.error('Failed to load tournaments', e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatTime = (tenths: number) => {
-    const mins = Math.floor(tenths / 600);
-    const secs = Math.floor((tenths % 600) / 10);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const handleOpenTournament = async (id: string) => {
+    try {
+      setLoading(true);
+      const success = await dbManager.setActiveTournament(id);
+      if (success) {
+        router.push('/dashboard/scoreboard');
+      } else {
+        alert('Failed to open tournament project. The file might be corrupted.');
+        setLoading(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error opening tournament.');
+      setLoading(false);
+    }
   };
 
-  if (!mounted) return null;
+  const handleDelete = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to permanently delete "${name}"? This cannot be undone unless you have an exported backup.`)) {
+      await localStore.deleteTournament(id);
+      await loadTournaments();
+    }
+  };
 
-  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  const handleExport = async (id: string, name: string) => {
+    const db = await localStore.loadTournament(id);
+    if (!db) return;
+    
+    const blob = new Blob([JSON.stringify(db)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.ktournament`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const db = JSON.parse(content) as TournamentDatabase;
+        
+        if (!db.tournament || !db.tournament.id) {
+          throw new Error('Invalid .ktournament file format');
+        }
+
+        await localStore.saveTournament(db);
+        await loadTournaments();
+        alert('Tournament imported successfully!');
+      } catch (err) {
+        console.error(err);
+        alert('Failed to import tournament. The file might be corrupted or incompatible.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so the same file can be imported again if needed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCreateNew = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+
+    setLoading(true);
+    const newId = `tr_${Date.now()}`;
+    const newDb: TournamentDatabase = {
+      tournament: {
+        id: newId,
+        name: newName.trim(),
+        organizer: newOrg.trim() || 'New Organizer',
+        date: newDate ? new Date(newDate).toLocaleDateString() : new Date().toLocaleDateString(),
+        date_iso: new Date(newDate || Date.now()).toISOString(),
+        venue: 'Main Stadium',
+        city: 'Local City',
+        registration_close: '',
+        registration_close_iso: '',
+        status: 'Draft',
+        created_at: new Date().toISOString(),
+        last_modified: new Date().toISOString()
+      },
+      participants: [],
+      categories: [],
+      clubs: [],
+      coaches: [],
+      bouts: [],
+      payments: [],
+      medical: [],
+      documents: [],
+      teams: [],
+      team_members: [],
+      participant_categories: [],
+      activity_logs: [],
+      audit_logs: [],
+      officials: [],
+      display_playlists: []
+    };
+
+    await localStore.saveTournament(newDb);
+    setShowNewModal(false);
+    setNewName('');
+    setNewOrg('');
+    setNewDate('');
+    
+    // Automatically open it
+    await handleOpenTournament(newId);
+  };
+
+  const filteredTournaments = tournaments.filter(t => 
+    t.name.toLowerCase().includes(search.toLowerCase()) || 
+    t.city?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#070b15] text-slate-100' : 'bg-slate-50 text-slate-900'} font-sans overflow-x-hidden transition-colors duration-200`}>
-      
-      {/* 1. Header Bar */}
-      <header className={`relative z-10 border-b ${theme === 'dark' ? 'border-white/5 bg-[#0b0f19]' : 'border-slate-200 bg-white'} px-6 py-4 flex items-center justify-between`}>
-        <a 
-          href="https://spsportdatasolution.org/karatetech/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 group cursor-pointer"
-          title="Open Corporate Showcase (spsportdatasolution.org/karatetech)"
-        >
-          <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-indigo-400 transition-all">
-            <img src={`${basePath}/karatetech-logo.png`} alt="Tournament Logo" className="h-full w-full object-cover" />
-          </div>
-          {/* Brand Logo — KarateTech */}
-          <div className="flex flex-col leading-none">
-            {/* Line 1: KarateTech two-tone */}
-            <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.15rem', lineHeight: 1, letterSpacing: '0.01em' }}>
-              <span style={{ color: '#b91c2e' }}>Karate</span>
-              <span style={{ color: '#38bdf8' }}>Tech</span>
-            </div>
-            {/* Thin crimson divider */}
-            <div style={{ height: '2px', background: 'linear-gradient(90deg, #b91c2e 60%, transparent 100%)', marginTop: '2px', marginBottom: '2px', borderRadius: '1px' }} />
-            {/* Line 2: SP Sport Data Solution */}
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em', color: theme === 'dark' ? '#818cf8' : '#1a2744', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
-              SP SportData Solution <ExternalLink size={10} className="opacity-70" />
-            </span>
-            {/* Line 3: Tagline */}
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: '0.58rem', letterSpacing: '0.08em', color: theme === 'dark' ? '#64748b' : '#64748b', lineHeight: 1.2, marginTop: '2px' }}>
-              • Precision. • Speed. • Results. •
-            </span>
-          </div>
-        </a>
+    <div className="min-h-screen bg-slate-900 text-slate-200 p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Official Header with Dual Branding */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6 bg-slate-950/60 border border-slate-800 p-6 rounded-2xl backdrop-blur-md shadow-2xl relative overflow-hidden">
+          {/* Subtle metallic glow background */}
+          <div className="absolute -top-24 -left-24 w-60 h-60 bg-red-900/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-24 -right-24 w-60 h-60 bg-blue-900/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 text-xs font-semibold opacity-70">
-            <Clock size={14} className="text-indigo-400" />
-            <span>{new Date().toLocaleDateString(lang === 'EN' ? 'en-US' : 'ms-MY')} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setLang(lang === 'EN' ? 'MS' : 'EN')} 
-              className={`px-2.5 py-1 rounded-md text-[10px] font-bold border transition cursor-pointer ${
-                theme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-slate-100 border-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              <Globe size={11} className="inline mr-1" />
-              {lang}
-            </button>
-            <button 
-              onClick={toggleTheme} 
-              className={`p-2 rounded-lg transition cursor-pointer ${
-                theme === 'dark' ? 'bg-white/5 text-yellow-400 hover:bg-white/10' : 'bg-slate-100 text-amber-600 hover:bg-slate-200'
-              }`}
-            >
-              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* 2. Main Navigation Sub-Bar */}
-      <nav className={`border-b text-xs ${theme === 'dark' ? 'border-white/5 bg-[#090d16]/80' : 'border-slate-200 bg-slate-100'} sticky top-0 z-20 backdrop-blur-md overflow-x-auto`}>
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-6 whitespace-nowrap">
-          <Link href="/" className="font-extrabold text-indigo-400">Home</Link>
-          <Link href="/public/tournaments" className="font-bold hover:text-indigo-400 transition-colors">Tournament Info</Link>
-          <Link href="/public/past-tournaments" className="font-bold hover:text-indigo-400 transition-colors">Past Results</Link>
-          <Link href="/public" className="font-bold hover:text-indigo-400 transition-colors">Spectator Hub</Link>
-          
-          <div className="ml-auto flex items-center gap-5">
-            <a
-              href="https://tournamentdisplay.spsportdatasolution.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-bold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1.5"
-              title="Open Tournament Live Display"
-            >
-              <Tv size={13} className="text-amber-400" />
-              <span>T-LiveDisplay</span>
-              <ExternalLink size={10} className="opacity-60" />
-            </a>
-
-            <a
-              href="https://spsportdatasolution.org/karatetech/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-bold text-slate-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5"
-              title="SP SportData Solution Corporate Showcase"
-            >
-              <Globe size={13} className="text-indigo-400" />
-              <span>Corporate Home</span>
-              <ExternalLink size={10} className="opacity-60" />
-            </a>
-
-            <Link href="/login" className="font-bold text-slate-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-              <LogIn size={13} />
-              <span>Portal Login</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* 3. Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-8 pb-4">
-        <div className={`rounded-3xl border overflow-hidden p-8 sm:p-12 relative ${
-          theme === 'dark' 
-            ? 'bg-gradient-to-r from-slate-950 via-[#0d1222] to-slate-950 border-white/10' 
-            : 'bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-50 border-slate-200'
-        }`}>
-          {/* Decorative Glow */}
-          <div className="absolute top-[20%] right-[-10%] w-[35%] h-[35%] bg-indigo-500/10 rounded-full blur-[130px] pointer-events-none" />
-
-          <div className="max-w-3xl space-y-6">
-            {/* Status + WKF Badge */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-400 uppercase tracking-widest">
-                <Flame size={12} fill="currentColor" />
-                {wkfRules}
-              </span>
-              {featuredTournament && (
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border ${
-                  featuredTournament.status === 'Open' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
-                  featuredTournament.status === 'Completed' ? 'bg-slate-500/10 border-slate-500/30 text-slate-400' :
-                  'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full inline-block ${
-                    featuredTournament.status === 'Open' ? 'bg-emerald-400 animate-pulse' :
-                    featuredTournament.status === 'Completed' ? 'bg-slate-400' :
-                    'bg-yellow-400 animate-pulse'
-                  }`} />
-                  {featuredTournament.status}
-                </span>
-              )}
-              {featuredTournament?.featured && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border bg-yellow-500/10 border-yellow-500/30 text-yellow-400">
-                  ★ Featured
-                </span>
-              )}
+          <div className="flex items-center gap-5 z-10">
+            <div className="relative group shrink-0">
+              <div className="w-28 h-28 md:w-32 md:h-32 rounded-full p-1 bg-gradient-to-tr from-red-600 via-slate-300 to-blue-600 shadow-2xl overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                <img 
+                  src="/karatetech-logo.png" 
+                  alt="KarateTech Logo" 
+                  className="w-full h-full object-cover rounded-full bg-slate-900 drop-shadow" 
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
             </div>
 
-            <h2 className="font-display text-2xl sm:text-4xl font-black tracking-widest leading-snug uppercase">
-              {tournamentName}
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-bold opacity-80 pt-2">
+            <div>
               <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-indigo-400 shrink-0" />
-                <span>{venue}{city ? `, ${city}` : ''}{country ? `, ${country}` : ''}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-indigo-400 shrink-0" />
-                <span>Event Date: {eventDate}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users size={16} className="text-indigo-400 shrink-0" />
-                <span>Organizer: {organizer}</span>
-              </div>
-              {featuredTournament?.registration_close && (
-                <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-yellow-400 shrink-0" />
-                  <span>Registration Closes: {featuredTournament.registration_close}</span>
-                </div>
-              )}
-              {featuredTournament?.discipline && (
-                <div className="flex items-center gap-2">
-                  <Trophy size={16} className="text-indigo-400 shrink-0" />
-                  <span>Discipline: {featuredTournament.discipline}</span>
-                </div>
-              )}
-              {(featuredTournament?.total_participants ?? 0) > 0 && (
-                <div className="flex items-center gap-2">
-                  <Activity size={16} className="text-emerald-400 shrink-0" />
-                  <span>{featuredTournament!.total_participants} Participants · {featuredTournament!.total_clubs} Clubs</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 col-span-full">
-                <ShieldCheck size={16} className="text-indigo-400 shrink-0" />
-                <span>
-                  Developed by SP SportData Solution<br />
-                  (Professional Karate Tournament Management System)
+                <h1 className="text-3xl font-black text-white tracking-tight font-sans flex items-center gap-1.5">
+                  <span className="text-red-600">Karate</span>
+                  <span className="text-sky-400">Tech</span>
+                </h1>
+                <span className="bg-red-500/10 text-red-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-red-500/20">
+                  WKF Standard
                 </span>
               </div>
-            </div>
-
-            {/* Quick Action Navigation Grid */}
-            <div className="flex flex-wrap gap-3 pt-4">
-              <Link href="/public/register" className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-900/20">
-                Register Participant
-              </Link>
-              <Link href="/public" className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-white/5">
-                Live Scoreboard
-              </Link>
-              <Link href="/public/tournaments" className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-white/5">
-                View Schedule
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Live Statistics Cards */}
-      <section className="max-w-7xl mx-auto px-6 py-6">
-        <h3 className="text-xs font-black uppercase tracking-wider opacity-60 mb-4">Live Statistics</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          {[
-            { label: 'Total Clubs', val: stats.clubs, color: 'text-indigo-400' },
-            { label: 'Total Athletes', val: stats.athletes, color: 'text-blue-400' },
-            { label: 'Total Categories', val: stats.categories, color: 'text-emerald-400' },
-            { label: 'Total Matches', val: stats.matches, color: 'text-amber-400' },
-            { label: 'Active Tatamis', val: stats.tatamis, color: 'text-cyan-400' },
-            { label: 'Completed Matches', val: stats.completed, color: 'text-purple-400' },
-            { label: 'Upcoming Matches', val: stats.upcoming, color: 'text-pink-400' }
-          ].map((item, idx) => (
-            <div key={idx} className={`border p-4 rounded-2xl flex flex-col justify-between h-24 ${
-              theme === 'dark' ? 'bg-[#0b0f19] border-white/5' : 'bg-white border-slate-200'
-            }`}>
-              <span className="text-[9px] uppercase font-bold opacity-60 tracking-wider leading-tight">{item.label}</span>
-              <span className={`text-2xl font-black ${item.color}`}>{item.val}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 5. Live Tatamis & Scoreboard Telemetry */}
-      <section className="max-w-7xl mx-auto px-6 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-black uppercase tracking-wider opacity-60">Live Scoreboard Telemetry</h3>
-          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-md animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Live Syncing
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {liveBouts.length === 0 ? (
-            <div className={`p-8 text-center text-xs italic border rounded-3xl col-span-2 ${
-              theme === 'dark' ? 'bg-white/[0.02] border-white/5 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-500'
-            }`}>
-              No matches running on tatamis right now. Bouts will display here as referees activate them.
-            </div>
-          ) : (
-            liveBouts.map((bout, idx) => (
-              <div key={idx} className={`border rounded-[32px] p-6 shadow-lg overflow-hidden flex flex-col justify-between gap-6 relative ${
-                theme === 'dark' ? 'bg-[#0d1222] border-white/10' : 'bg-white border-slate-200'
-              }`}>
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                  <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">
-                    {bout.tatami || `Tatami ${idx + 1}`} • Match #{bout.bout_no}
+              
+              {/* Professional SP SPORTDATA SOLUTION Logo Block (Centered) */}
+              <div className="mt-2.5 space-y-1.5 flex flex-col items-center text-center w-full max-w-fit">
+                {/* Row 1: SP SPORTDATA (Centered) */}
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl font-black italic tracking-tighter leading-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    <span className="text-white bg-gradient-to-b from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">S</span>
+                    <span className="text-red-600 font-black -ml-0.5">P</span>
                   </span>
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
-                    bout.status === 'Running' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
-                  }`}>
-                    {bout.status}
+                  <span className="text-base md:text-lg font-black italic tracking-[0.12em] text-white uppercase leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    SPORTDATA
                   </span>
                 </div>
 
-                {/* Fighters Grid */}
-                <div className="grid grid-cols-7 gap-4 items-center">
-                  <div className="col-span-3 text-left">
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest block mb-1">AKA</span>
-                    <span className="font-extrabold text-sm block truncate">RED COMPONENT</span>
-                    <span className="text-[10px] opacity-60 uppercase block truncate">Senshi Karate Club</span>
-                  </div>
-
-                  <div className="col-span-1 text-center font-bold text-lg opacity-40">VS</div>
-
-                  <div className="col-span-3 text-right">
-                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-1">AO</span>
-                    <span className="font-extrabold text-sm block truncate">BLUE COMPONENT</span>
-                    <span className="text-[10px] opacity-60 uppercase block truncate">Goju-Ryu Karate Club</span>
-                  </div>
+                {/* Row 2: — SOLUTION — (Centered with symmetric red accent lines) */}
+                <div className="flex items-center justify-center gap-2 w-full">
+                  <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-red-600 to-red-500 rounded-full"></div>
+                  <span className="text-xs font-black text-red-500 tracking-[0.3em] uppercase leading-none drop-shadow">
+                    SOLUTION
+                  </span>
+                  <div className="h-[2px] flex-1 bg-gradient-to-r from-red-500 via-red-600 to-transparent rounded-full"></div>
                 </div>
 
-                {/* Score and Timer */}
-                <div className="flex items-center justify-between bg-black/10 rounded-2xl p-4 border border-white/5">
-                  <div className="text-red-500 text-3xl font-black tracking-tight">{bout.score_a}</div>
-                  <div className="text-center">
-                    <span className="text-[9px] uppercase font-bold opacity-40 block mb-0.5">Match Timer</span>
-                    <span className="font-mono font-bold text-sm text-yellow-400">{formatTime((bout.timer_seconds || 180) * 10)}</span>
-                  </div>
-                  <div className="text-blue-400 text-3xl font-black tracking-tight">{bout.score_b}</div>
+                {/* Row 3: PRECISION. SPEED. RESULTS. (Centered) */}
+                <div className="pt-0.5 text-[10px] md:text-[11px] font-extrabold tracking-[0.2em] text-slate-300 uppercase font-sans whitespace-nowrap drop-shadow text-center">
+                  PRECISION. SPEED. RESULTS.
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      {/* 6. Upcoming Matches & Medal Table Grid */}
-      <section className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left: Next 10 scheduled matches */}
-        <div className="lg:col-span-8 space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider opacity-60">Next 10 Scheduled Matches</h3>
-          
-          <div className={`border rounded-2xl overflow-hidden ${
-            theme === 'dark' ? 'bg-[#0b0f19] border-white/5' : 'bg-white border-slate-200'
-          }`}>
-            <table className="w-full text-xs text-left">
-              <thead className={`font-bold ${theme === 'dark' ? 'bg-white/5 border-b border-white/5' : 'bg-slate-100 border-b border-slate-200'}`}>
-                <tr>
-                  <th className="p-3 text-center">Tatami</th>
-                  <th className="p-3 text-center">Match</th>
-                  <th className="p-3">Category</th>
-                  <th className="p-3">AKA (Red)</th>
-                  <th className="p-3">AO (Blue)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {upcomingBouts.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-500 italic">No scheduled bouts remaining.</td>
-                  </tr>
-                ) : (
-                  upcomingBouts.map((bout, idx) => (
-                    <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="p-3 text-center font-bold text-indigo-400 uppercase">{bout.tatami || 'Tatami 1'}</td>
-                      <td className="p-3 text-center font-semibold">{bout.bout_no}</td>
-                      <td className="p-3 truncate font-semibold max-w-[120px]">Kumite Match</td>
-                      <td className="p-3 font-semibold text-red-400 truncate max-w-[120px]">Red Competitor</td>
-                      <td className="p-3 font-semibold text-blue-400 truncate max-w-[120px]">Blue Competitor</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            </div>
           </div>
-        </div>
-
-        {/* Right: Medal Standings */}
-        <div className="lg:col-span-4 space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider opacity-60">Medal Table Standings</h3>
           
-          <div className={`border rounded-2xl overflow-hidden ${
-            theme === 'dark' ? 'bg-[#0b0f19] border-white/5' : 'bg-white border-slate-200'
-          }`}>
-            <table className="w-full text-xs text-left">
-              <thead className={`font-bold ${theme === 'dark' ? 'bg-white/5 border-b border-white/5' : 'bg-slate-100 border-b border-slate-200'}`}>
-                <tr>
-                  <th className="p-3 w-10 text-center">Rank</th>
-                  <th className="p-3">Club</th>
-                  <th className="p-3 text-center text-yellow-400">G</th>
-                  <th className="p-3 text-center text-slate-300">S</th>
-                  <th className="p-3 text-center text-amber-600">B</th>
-                  <th className="p-3 text-center">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 font-semibold">
-                {medalClubs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-500 italic">No medals awarded yet.</td>
-                  </tr>
-                ) : (
-                  medalClubs.slice(0, 10).map((club, idx) => (
-                    <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="p-3 text-center text-muted-foreground">{idx + 1}</td>
-                      <td className="p-3 truncate max-w-[150px]">{club.name}</td>
-                      <td className="p-3 text-center text-yellow-400 font-bold">{club.gold}</td>
-                      <td className="p-3 text-center text-slate-300 font-bold">{club.silver}</td>
-                      <td className="p-3 text-center text-amber-600 font-bold">{club.bronze}</td>
-                      <td className="p-3 text-center">{club.gold + club.silver + club.bronze}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-3 w-full md:w-auto z-10">
+            <div className="relative flex-1 md:w-64">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input 
+                type="text" 
+                placeholder="Search tournaments..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
+              />
+            </div>
+            <input 
+              type="file" 
+              accept=".ktournament,.json" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleImport} 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition cursor-pointer"
+            >
+              <Upload size={16} /> <span className="hidden md:inline">Import</span>
+            </button>
+            <button 
+              onClick={() => setShowNewModal(true)}
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-red-950/60 cursor-pointer"
+            >
+              <Plus size={16} /> <span>New Tournament</span>
+            </button>
           </div>
-        </div>
+        </header>
 
-      </section>
-
-      {/* 7. Professional Footer */}
-      <footer className={`border-t py-12 mt-12 text-xs ${
-        theme === 'dark' ? 'border-white/5 bg-[#050810] text-slate-500' : 'border-slate-200 bg-white text-slate-650'
-      }`}>
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          <div className="space-y-3">
-            <h4 className={`text-sm font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              Karate Tech
-            </h4>
-            <p className="max-w-md leading-relaxed">
-              Precision Karate Tournament Management System. Automated Single Elimination grids fully compliant with WKF rules.
+        {loading ? (
+          <div className="flex justify-center py-20 text-slate-500">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+          </div>
+        ) : filteredTournaments.length === 0 ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
+            <FolderPlus size={48} className="mx-auto mb-4 text-slate-600" />
+            <h3 className="text-xl font-bold mb-2">No Tournaments Found</h3>
+            <p className="text-slate-400 mb-6 max-w-md mx-auto">
+              You haven't created any local tournament databases yet, or your search didn't match anything.
             </p>
-            <div className="flex gap-4 font-bold">
-              <a href="#" className="hover:underline">Privacy Policy</a>
-              <span>•</span>
-              <a href="#" className="hover:underline">Terms of Use</a>
-            </div>
+            <button 
+              onClick={() => setShowNewModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 mx-auto transition"
+            >
+              <Plus size={18} /> Create Your First Tournament
+            </button>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTournaments.map(t => (
+              <div key={t.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition group flex flex-col">
+                <div className={`h-2 ${t.status === 'Completed' ? 'bg-green-500' : t.status === 'Draft' ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-4 gap-2">
+                    <h3 className="font-bold text-lg leading-tight line-clamp-2">{t.name}</h3>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!!supabase && <span title="Cloud Synced"><Cloud size={14} className="text-indigo-400" /></span>}
+                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${
+                        t.status === 'Completed' ? 'bg-green-900/30 text-green-400 border-green-800' : 
+                        t.status === 'Draft' ? 'bg-amber-900/30 text-amber-400 border-amber-800' : 
+                        'bg-indigo-900/30 text-indigo-400 border-indigo-800'
+                      }`}>
+                        {t.status}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm text-slate-400 mb-6 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} /> <span>{t.date || 'Date not set'}</span>
+                    </div>
+                    {t.venue && (
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} /> <span className="truncate">{t.venue}, {t.city}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="text-xs text-slate-500 mb-4">
+                    Last modified: {new Date(t.last_modified || t.created_at || Date.now()).toLocaleString()}
+                  </div>
 
-          <div className="flex flex-col md:items-end gap-1.5 md:text-right">
-            <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>© 2026 KarateTech</span>
-            <span>
-              Developed by <span className="font-semibold">SP SportData Solution</span><br />
-              (Professional Karate Tournament Management System)
-            </span>
-            <span>All Rights Reserved.</span>
-            <span className="text-[10px] mt-1">
-              Contact: <a href="mailto:karatetech@gmail.com" className="text-indigo-400 hover:underline">karatetech@gmail.com</a>
-            </span>
+                  <div className="flex items-center gap-2 mt-auto">
+                    <button 
+                      onClick={() => handleOpenTournament(t.id)}
+                      className="flex-1 bg-white/10 hover:bg-indigo-600 border border-white/10 hover:border-indigo-500 py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition"
+                    >
+                      <FolderOpen size={16} /> Open
+                    </button>
+                    
+                    <div className="relative group/menu">
+                      <button className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition">
+                        <MoreVertical size={18} />
+                      </button>
+                      
+                      <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-800 border border-white/10 rounded-xl shadow-xl overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all origin-bottom-right z-10">
+                        <button onClick={() => handleExport(t.id, t.name)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-3">
+                          <Download size={14} className="text-slate-400" /> Export Backup
+                        </button>
+                        <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-3">
+                          <Archive size={14} className="text-slate-400" /> Archive Project
+                        </button>
+                        <div className="h-px bg-white/10 my-1"></div>
+                        <button onClick={() => handleDelete(t.id, t.name)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-3">
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* New Tournament Modal */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-xl font-bold mb-6">Create New Tournament</h2>
+            <form onSubmit={handleCreateNew} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Tournament Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none" 
+                  placeholder="e.g. National Open 2026"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Organizer</label>
+                <input 
+                  type="text" 
+                  value={newOrg}
+                  onChange={e => setNewOrg(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Event Date</label>
+                <input 
+                  type="date" 
+                  value={newDate}
+                  onChange={e => setNewDate(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none" 
+                />
+              </div>
+              
+              <div className="flex items-center gap-3 mt-8">
+                <button 
+                  type="button" 
+                  onClick={() => setShowNewModal(false)}
+                  className="flex-1 py-2 rounded-lg font-bold text-slate-400 hover:bg-white/5 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg font-bold transition shadow-lg shadow-indigo-900/50"
+                >
+                  Create & Open
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </footer>
+      )}
 
     </div>
   );

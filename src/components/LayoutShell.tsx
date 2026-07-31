@@ -53,6 +53,16 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
 
   const isPublicOrAuthRoute = pathname === '/' || pathname === '/login' || pathname?.startsWith('/public') || pathname?.startsWith('/auth') || pathname?.startsWith('/display') || pathname?.startsWith('/draws/print-preview');
 
+  // Enforce Active Tournament Context
+  useEffect(() => {
+    import('@/db/dbClient').then(({ dbManager }) => {
+      const activeDb = dbManager.getActiveTournament();
+      if (!activeDb && !isPublicOrAuthRoute) {
+        window.location.href = '/';
+      }
+    });
+  }, [pathname, isPublicOrAuthRoute]);
+
   // If public or auth route, render directly without admin frame
   if (isPublicOrAuthRoute) {
     return (

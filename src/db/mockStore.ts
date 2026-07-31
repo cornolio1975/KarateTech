@@ -434,6 +434,83 @@ const isClient = () => typeof window !== 'undefined';
 // Bump this string whenever SEED_* data changes. The app will automatically
 // wipe the old localStorage cache and re-seed on the next page load.
 const SEED_VERSION = 'v2026-06-30-off';
+import { localStore } from './localStore';
+import { TournamentDatabase } from './types';
+
+export let activeTournamentDb: TournamentDatabase | null = null;
+
+let saveTimeout: NodeJS.Timeout | null = null;
+const triggerAutoSave = () => {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    if (activeTournamentDb) {
+      localStore.saveTournament(activeTournamentDb).catch(console.error);
+    }
+  }, 1000);
+};
+
+export const setActiveTournamentDb = (db: TournamentDatabase | null) => {
+  activeTournamentDb = db;
+};
+
+const keyMap: Record<string, keyof TournamentDatabase> = {
+  'ts_clubs': 'clubs',
+  'ts_coaches': 'coaches',
+  'ts_categories': 'categories',
+  'ts_teams': 'teams',
+  'ts_team_members': 'team_members',
+  'ts_participant_categories': 'participant_categories',
+  'ts_participants': 'participants',
+  'ts_payments': 'payments',
+  'ts_medical_records': 'medical',
+  'ts_documents': 'documents',
+  'ts_activity_logs': 'activity_logs',
+  'ts_bouts': 'bouts',
+  'ts_officials': 'officials'
+};
+
+// Fetch a key from active DB, localStorage, or return default seed data
+function getStoreData<T>(key: string, seed: T[]): T[] {
+  if (activeTournamentDb && keyMap[key]) {
+    const prop = keyMap[key];
+    if (activeTournamentDb[prop]) {
+      return activeTournamentDb[prop] as T[];
+    }
+    // initialize empty array if not present in the loaded DB
+    (activeTournamentDb as any)[prop] = [];
+    return [];
+  }
+
+  if (!isClient()) return seed;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(seed));
+      return seed;
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    return seed;
+  }
+}
+
+// Write a key to active DB or localStorage
+function saveStoreData<T>(key: string, data: T[]) {
+  if (activeTournamentDb && keyMap[key]) {
+    const prop = keyMap[key];
+    (activeTournamentDb as any)[prop] = data;
+    triggerAutoSave();
+    return;
+  }
+
+  if (!isClient()) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('Error saving data to localStorage', e);
+  }
+}
+
 const SEED_VERSION_KEY = 'ts_seed_version';
 
 const SEED_KEYS = [
@@ -461,29 +538,6 @@ try { initSeedStore(); } catch (e) { /* Safari Private Browsing / localStorage b
 // ────────────────────────────────────────────────────────────────────────────
 
 
-// Fetch a key from localStorage or return default seed data
-function getStoreData<T>(key: string, seed: T[]): T[] {
-  if (!isClient()) return seed;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      localStorage.setItem(key, JSON.stringify(seed));
-      return seed;
-    }
-    return JSON.parse(raw);
-  } catch (e) {
-    return seed;
-  }
-}
-
-// Write a key to localStorage
-function saveStoreData<T>(key: string, data: T[]) {
-  if (isClient()) {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) { /* Safari Private Browsing */ }
-  }
-}
 
 // Global Store interface using local persistence
 export const mockStore = {
