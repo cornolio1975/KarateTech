@@ -1005,7 +1005,8 @@ export default function ScoreboardControlPage() {
       });
 
       setShowFinishModal(false);
-      // Removed automatic navigation so the operator stays on the completed scoreboard
+      // Auto-navigate back to Match Console Hub (Kumite) to easily start the next match
+      router.push(`/dashboard/scoreboard?boutId=${boutId}`);
     } catch (err) {
       console.error('Error saving bout result:', err);
       alert('Failed to save result. Please try again.');

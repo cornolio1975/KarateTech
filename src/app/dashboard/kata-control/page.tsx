@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
 import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw } from 'lucide-react';
@@ -23,6 +23,7 @@ const OFFICIAL_WKF_KATAS = [
 
 export function KataControlPanelContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const urlBoutId = searchParams.get('boutId');
   const { tournamentName } = useTournament();
   
@@ -52,6 +53,7 @@ export function KataControlPanelContent() {
   const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Flags');
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
   const [isWinnerRevealed, setIsWinnerRevealed] = useState<boolean>(false);
+  const [penaltyH, setPenaltyH] = useState<'AKA' | 'AO' | null>(null);
 
   const openSpectatorWindow = (targetBoutId?: string, targetMode: 'new-tab' | 'new-window' = 'new-tab') => {
     const bId = targetBoutId || selectedBoutId || currentBout?.id;
@@ -111,7 +113,7 @@ export function KataControlPanelContent() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      broadcastChannelRef.current = new BroadcastChannel('karate_tatami_display');
+      broadcastChannelRef.current = new BroadcastChannel('wkf-scoreboard-sync');
     }
     return () => {
       if (broadcastChannelRef.current) {
@@ -139,7 +141,7 @@ export function KataControlPanelContent() {
 
     const defaultScoresA = bout.judge_scores_a && bout.judge_scores_a.length > 0 
       ? bout.judge_scores_a 
-      : (scoringMethod === 'Flags' ? [1, 1, 1, 0, 0] : [8.2, 8.4, 8.1, 8.3, 8.5]);
+      : (scoringMethod === 'Flags' ? [0, 0, 0, 0, 0] : [8.2, 8.4, 8.1, 8.3, 8.5]);
     const defaultScoresB = bout.judge_scores_b && bout.judge_scores_b.length > 0 
       ? bout.judge_scores_b 
       : (scoringMethod === 'Flags' ? [0, 0, 0, 0, 0] : [8.0, 8.2, 8.3, 8.1, 8.4]);
@@ -158,6 +160,17 @@ export function KataControlPanelContent() {
     }
     setSelectedWinnerId(bout.winner_id || null);
     setIsWinnerRevealed(bout.status === 'Completed' || !!bout.winner_id);
+    
+    // Auto-detect H penalty if previously saved
+    if (bout.victory_method && (bout.victory_method.includes('Supreme Judge H Decision') || bout.victory_method.includes('Chief Judge H Decision') || bout.victory_method.includes('Chief Judge Decision'))) {
+      if (bout.victory_method.includes('AKA')) {
+        setPenaltyH('AKA');
+      } else if (bout.victory_method.includes('AO')) {
+        setPenaltyH('AO');
+      }
+    } else {
+      setPenaltyH(null);
+    }
   };
 
   // Helper to trim High (MAX) and Low (MIN) scores and calculate Total Score
@@ -217,9 +230,10 @@ export function KataControlPanelContent() {
       panelSize,
       scoringMethod,
       winner: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'aka' : selectedWinnerId === participantB?.id ? 'ao' : null) : null,
-      winMethod: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'AKA WIN' : selectedWinnerId === participantB?.id ? 'AO WIN' : 'TIE') : ''
+      winMethod: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'AKA WIN' : selectedWinnerId === participantB?.id ? 'AO WIN' : 'TIE') : '',
+      penaltyH
     });
-  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId]);
+  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId, penaltyH]);
 
   useEffect(() => {
     if (mounted && currentBout) {
@@ -247,17 +261,60 @@ export function KataControlPanelContent() {
     if (athlete === 'AKA') setJudgeScoresA(arr);
     else setJudgeScoresB(arr);
   };
+  const handleClearFlags = () => {
+    if (!window.confirm("Are you sure you want to clear all flags for this bout?")) return;
+    
+    setJudgeScoresA(Array(panelSize).fill(0));
+    setJudgeScoresB(Array(panelSize).fill(0));
+    setPenaltyH(null);
+
+    // Broadcast update
+    if (broadcastChannelRef.current) {
+      const pA = participants.find(p => p.id === currentBout?.participant_a_id);
+      const pB = participants.find(p => p.id === currentBout?.participant_b_id);
+      const cA = clubs.find(c => c.id === pA?.club_id);
+      const cB = clubs.find(c => c.id === pB?.club_id);
+
+      broadcastChannelRef.current.postMessage({
+        boutId: currentBout?.id,
+        isKata: true,
+        akaName: pA?.full_name || 'AKA 🔴',
+        akaClub: cA?.name || 'Senshi Club',
+        aoName: pB?.full_name || 'AO 🔵',
+        aoClub: cB?.name || 'Goju-Ryu Club',
+        scoreAka: 0,
+        scoreAo: 0,
+        kataA,
+        kataB,
+        judgeScoresA: Array(panelSize).fill(0),
+        judgeScoresB: Array(panelSize).fill(0),
+        panelSize,
+        scoringMethod,
+        winner: null,
+        winMethod: '',
+        penaltyH: null
+      });
+    }
+  };
 
   const handleSaveResult = async () => {
     if (!currentBout) return;
     try {
       setIsSaving(true);
       let winnerId = selectedWinnerId;
-      if (totalScoreA > totalScoreB) {
-        winnerId = currentBout.participant_a_id || null;
-      } else if (totalScoreB > totalScoreA) {
-        winnerId = currentBout.participant_b_id || null;
+      let winMtd = '';
+
+      if (penaltyH) {
+        winnerId = penaltyH === 'AKA' ? currentBout.participant_b_id : currentBout.participant_a_id;
+        winMtd = `Chief Judge Decision (Penalty ${penaltyH})`;
+      } else {
+        if (totalScoreA > totalScoreB) {
+          winnerId = currentBout.participant_a_id || null;
+        } else if (totalScoreB > totalScoreA) {
+          winnerId = currentBout.participant_b_id || null;
+        }
       }
+
       setSelectedWinnerId(winnerId);
       setIsWinnerRevealed(true);
 
@@ -269,6 +326,7 @@ export function KataControlPanelContent() {
         score_a: totalScoreA,
         score_b: totalScoreB,
         winner_id: winnerId,
+        victory_method: winMtd || undefined,
         status: currentBout.status === 'Scheduled' ? 'Running' : currentBout.status
       });
 
@@ -300,7 +358,8 @@ export function KataControlPanelContent() {
           panelSize,
           scoringMethod,
           winner: winnerSide,
-          winMethod: winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'
+          winMethod: winMtd || (winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'),
+          penaltyH
         });
       }
     } catch (err) {
@@ -315,7 +374,13 @@ export function KataControlPanelContent() {
     if (!currentBout) return;
     try {
       setIsSaving(true);
-      const winner = selectedWinnerId || (totalScoreA >= totalScoreB ? currentBout.participant_a_id : currentBout.participant_b_id);
+      let winner = selectedWinnerId || (totalScoreA >= totalScoreB ? currentBout.participant_a_id : currentBout.participant_b_id);
+      let winMtd = '';
+
+      if (penaltyH) {
+        winner = penaltyH === 'AKA' ? currentBout.participant_b_id : currentBout.participant_a_id;
+        winMtd = `Chief Judge Decision (Penalty ${penaltyH})`;
+      }
       
       const updates: Partial<Bout> = {
         kata_a: kataA,
@@ -327,6 +392,7 @@ export function KataControlPanelContent() {
         score_a: Math.round(totalScoreA),
         score_b: Math.round(totalScoreB),
         winner_id: winner,
+        victory_method: winMtd || undefined,
         status: 'Completed',
       };
 
@@ -360,12 +426,13 @@ export function KataControlPanelContent() {
           panelSize,
           scoringMethod,
           winner: winnerSide,
-          winMethod: winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'
+          winMethod: winMtd || (winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'),
+          penaltyH
         });
       }
       
-      // Open Result Book Modal
-      setIsResultBookOpen(true);
+      // Redirect to the Bracket Management Console Hub for the next match
+      router.push('/bracket-hub');
     } catch (err) {
       console.error('Error completing Kata bout:', err);
       alert('Failed to save bout results.');
@@ -404,6 +471,7 @@ export function KataControlPanelContent() {
       setJudgeScoresB(resetScoresB);
       setSelectedWinnerId(null);
       setIsWinnerRevealed(false);
+      setPenaltyH(null);
       setCurrentBout(updatedBout);
       
       // Refresh list
@@ -432,7 +500,8 @@ export function KataControlPanelContent() {
           panelSize,
           scoringMethod,
           winner: null,
-          winMethod: ''
+          winMethod: '',
+          penaltyH: null
         });
       }
     } catch (err) {
@@ -859,10 +928,17 @@ export function KataControlPanelContent() {
                   const isAo = judgeScoresB[idx] === 1;
                   return (
                     <div key={idx} className="p-3 rounded-xl border bg-white/[0.02] border-white/10 flex flex-col items-center transition">
-                      <span className="text-[10px] font-bold uppercase text-gray-400 mb-3">Judge {idx + 1}</span>
+                      <span className="text-[10px] font-bold uppercase text-gray-400 mb-3 text-center leading-tight flex flex-col items-center gap-0.5">
+                        {idx === 0 ? (
+                          <><span>Judge 1</span><span className="text-[8px] text-yellow-500/90 normal-case tracking-normal">(Chief Judge)</span></>
+                        ) : (
+                          `Judge ${idx + 1}`
+                        )}
+                      </span>
                       <div className="flex flex-col gap-2 w-full h-full">
                         <button
                           onClick={() => {
+                            if (penaltyH) return; // Prevent flag toggling if penalty is active
                             const newA = [...judgeScoresA];
                             const newB = [...judgeScoresB];
                             newA[idx] = 1;
@@ -870,12 +946,14 @@ export function KataControlPanelContent() {
                             setJudgeScoresA(newA);
                             setJudgeScoresB(newB);
                           }}
-                          className={`flex-1 py-3 text-red-500 rounded-lg border transition flex items-center justify-center ${isAka ? 'bg-red-600 border-red-400 shadow-lg shadow-red-600/40 grayscale-0 text-white' : 'bg-red-950/20 border-red-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
+                          disabled={!!penaltyH}
+                          className={`flex-1 py-3 text-red-500 rounded-lg border transition flex items-center justify-center ${isAka && !penaltyH ? 'bg-red-600 border-red-400 shadow-lg shadow-red-600/40 grayscale-0 text-white' : 'bg-red-950/20 border-red-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'} ${penaltyH ? 'cursor-not-allowed opacity-20' : ''}`}
                         >
                           <Flag className="h-6 w-6 fill-current" />
                         </button>
                         <button
                           onClick={() => {
+                            if (penaltyH) return; // Prevent flag toggling if penalty is active
                             const newA = [...judgeScoresA];
                             const newB = [...judgeScoresB];
                             newA[idx] = 0;
@@ -883,10 +961,52 @@ export function KataControlPanelContent() {
                             setJudgeScoresA(newA);
                             setJudgeScoresB(newB);
                           }}
-                          className={`flex-1 py-3 text-blue-500 rounded-lg border transition flex items-center justify-center ${isAo ? 'bg-blue-600 border-blue-400 shadow-lg shadow-blue-600/40 grayscale-0 text-white' : 'bg-blue-950/20 border-blue-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
+                          disabled={!!penaltyH}
+                          className={`flex-1 py-3 text-blue-500 rounded-lg border transition flex items-center justify-center ${isAo && !penaltyH ? 'bg-blue-600 border-blue-400 shadow-lg shadow-blue-600/40 grayscale-0 text-white' : 'bg-blue-950/20 border-blue-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'} ${penaltyH ? 'cursor-not-allowed opacity-20' : ''}`}
                         >
                           <Flag className="h-6 w-6 fill-current" />
                         </button>
+
+                        {/* Chief Judge Penalty Box */}
+                        {idx === 0 && (
+                          <div className="mt-3 pt-3 border-t border-white/10 w-full flex flex-col gap-1.5">
+                            <span className="text-[9px] font-black uppercase text-center text-yellow-400">Penalty</span>
+                            <div className="flex gap-1.5 w-full">
+                              <button
+                                onClick={() => {
+                                  if (penaltyH === 'AKA') setPenaltyH(null);
+                                  else {
+                                    if (window.confirm("Assign Chief Judge Penalty to AKA? This will declare AO as the winner.")) {
+                                      setPenaltyH('AKA');
+                                    }
+                                  }
+                                }}
+                                className={`flex-1 py-1.5 text-xs font-black rounded border transition ${penaltyH === 'AKA' ? 'bg-red-600 border-red-400 text-white shadow-lg' : 'bg-red-950/20 border-red-900/30 text-red-500 hover:bg-red-950/50'}`}
+                              >
+                                <div className="flex flex-col items-center gap-0.5 leading-none py-0.5">
+                                  <span>(H)</span>
+                                  <span className="text-[8.5px] opacity-90">AKA</span>
+                                </div>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (penaltyH === 'AO') setPenaltyH(null);
+                                  else {
+                                    if (window.confirm("Assign Chief Judge Penalty to AO? This will declare AKA as the winner.")) {
+                                      setPenaltyH('AO');
+                                    }
+                                  }
+                                }}
+                                className={`flex-1 py-1.5 text-xs font-black rounded border transition ${penaltyH === 'AO' ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-blue-950/20 border-blue-900/30 text-blue-500 hover:bg-blue-950/50'}`}
+                              >
+                                <div className="flex flex-col items-center gap-0.5 leading-none py-0.5">
+                                  <span>(H)</span>
+                                  <span className="text-[8.5px] opacity-90">AO</span>
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -990,6 +1110,14 @@ export function KataControlPanelContent() {
               >
                 <RefreshCw className="h-4 w-4" />
                 Reset Match
+              </button>
+              <button
+                onClick={handleClearFlags}
+                disabled={isSaving || !currentBout || scoringMethod === 'Points'}
+                className="flex items-center gap-2 px-4 py-3 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 border border-gray-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                <Flag className="h-4 w-4" />
+                Clear All Flags
               </button>
               <button
                 onClick={handleSaveResult}

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, UsersRound, Tags, GitPullRequest, 
   CalendarDays, Sword, ShieldCheck, Award, FileText, Settings, Trophy, Tv, LogOut, Zap,
-  CalendarCheck, History, Globe, ExternalLink
+  CalendarCheck, History, Globe, ExternalLink, MonitorPlay
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import { basePath } from '@/db/dbClient';
@@ -20,6 +20,7 @@ const MENU_ITEMS = [
   { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'Draft' },
   { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
   { name: 'Scoring Management', icon: Sword, path: '/bouts' },
+  { name: 'Bracket Console Hub', icon: MonitorPlay, path: '/bracket-hub', badge: 'Live' },
   { name: 'Kumite S-Board', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF', isYellow: true },
   { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-control', badge: 'WKF', isYellow: true },
   { name: 'Officials', icon: ShieldCheck, path: '/officials' },

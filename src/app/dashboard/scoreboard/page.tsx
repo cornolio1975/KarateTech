@@ -39,6 +39,17 @@ export default function ScoreboardDashboardPage() {
       setParticipants(pList);
       setCategories(catList);
       setClubs(clList);
+
+      // Auto-load chosen category from URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const boutId = urlParams.get('boutId');
+      if (boutId) {
+        const selectedBout = bList.find(b => b.id === boutId);
+        if (selectedBout) {
+          setSelectedCatId(selectedBout.category_id);
+          // Do not filter by specific boutId so we display the entire category sequentially
+        }
+      }
     } catch (err) {
       console.error('Error loading bouts data:', err);
     } finally {
@@ -78,7 +89,7 @@ export default function ScoreboardDashboardPage() {
     return true;
   });
 
-  // Filter bouts for Kumite categories strictly
+  // Filter bouts for Kumite categories strictly and sort sequentially
   const filteredBouts = bouts.filter(b => {
     if (b.status === 'Walkover') return false;
     if (!kumiteCatIds.has(b.category_id)) return false;
@@ -86,6 +97,9 @@ export default function ScoreboardDashboardPage() {
     const matchesStatus = selectedStatus === 'ALL' || b.status === selectedStatus;
     const matchesBout = selectedBoutIdFilter === 'ALL' || b.id === selectedBoutIdFilter;
     return matchesCat && matchesStatus && matchesBout;
+  }).sort((a, b) => {
+    if (a.round_no !== b.round_no) return a.round_no - b.round_no;
+    return a.bout_no - b.bout_no;
   });
 
   return (

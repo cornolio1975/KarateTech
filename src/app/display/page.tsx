@@ -86,6 +86,7 @@ function SpectatorDisplayContent() {
   const [judgeScoresB, setJudgeScoresB] = useState<number[]>([]);
   const [panelSize, setPanelSize] = useState<number>(5);
   const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Flags');
+  const [penaltyH, setPenaltyH] = useState<'AKA' | 'AO' | null>(null);
 
   const getScoreStatusIndex = (scores: number[], index: number) => {
     if (!scores || scores.length < 3) return 'active';
@@ -379,8 +380,27 @@ function SpectatorDisplayContent() {
 
           if (data.kataA) setKataA(data.kataA);
           if (data.kataB) setKataB(data.kataB);
-          if (data.judgeScoresA) setJudgeScoresA(data.judgeScoresA);
-          if (data.judgeScoresB) setJudgeScoresB(data.judgeScoresB);
+
+          const parseScores = (scores: any) => {
+            if (!scores) return null;
+            if (Array.isArray(scores)) return scores;
+            if (typeof scores === 'string') {
+              try { return JSON.parse(scores); } catch (e) {
+                const cleaned = scores.replace(/^{|}$|\[|\]/g, '').trim();
+                if (cleaned) return cleaned.split(',').map(Number);
+              }
+            }
+            return null;
+          };
+
+          if (data.judgeScoresA) {
+            const pA = parseScores(data.judgeScoresA);
+            if (pA) setJudgeScoresA(pA);
+          }
+          if (data.judgeScoresB) {
+            const pB = parseScores(data.judgeScoresB);
+            if (pB) setJudgeScoresB(pB);
+          }
           if (data.panelSize) setPanelSize(data.panelSize);
           if (data.scoringMethod) setScoringMethod(data.scoringMethod);
 
@@ -406,6 +426,7 @@ function SpectatorDisplayContent() {
           }
           setWinnerSide(data.winner);
           setWinMethod(data.winMethod);
+          if (data.penaltyH !== undefined) setPenaltyH(data.penaltyH);
         }
       };
 
@@ -439,16 +460,38 @@ function SpectatorDisplayContent() {
           const kataBout = isKataCategory(cat);
           setIsKata(kataBout);
 
+          const parseScores = (scores: any) => {
+            if (!scores) return null;
+            if (Array.isArray(scores)) return scores;
+            if (typeof scores === 'string') {
+              try { return JSON.parse(scores); } catch (e) {
+                const cleaned = scores.replace(/^{|}$|\[|\]/g, '').trim();
+                if (cleaned) return cleaned.split(',').map(Number);
+              }
+            }
+            return null;
+          };
+
           if (kataBout) {
             setKataA(bout.kata_a || '');
             setKataB(bout.kata_b || '');
-            if (bout.judge_scores_a && Array.isArray(bout.judge_scores_a)) setJudgeScoresA(bout.judge_scores_a);
-            if (bout.judge_scores_b && Array.isArray(bout.judge_scores_b)) setJudgeScoresB(bout.judge_scores_b);
+            
+            const parsedA = parseScores(bout.judge_scores_a);
+            if (parsedA) setJudgeScoresA(parsedA);
+            
+            const parsedB = parseScores(bout.judge_scores_b);
+            if (parsedB) setJudgeScoresB(parsedB);
+            
             setScoreAka(bout.total_score_a || bout.score_a || 0);
             setScoreAo(bout.total_score_b || bout.score_b || 0);
-            if (bout.winner_id) {
-              setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
-            }
+          }
+
+          if (bout.status === 'Completed' && bout.winner_id) {
+            setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
+            setWinMethod(bout.victory_method || 'Completed');
+          } else {
+            setWinnerSide(null);
+            setWinMethod('');
           }
 
           setAkaName(compAka?.full_name || 'TBD Red');
@@ -597,6 +640,10 @@ function SpectatorDisplayContent() {
               setWinnerSide(updated.winner_id === updated.participant_a_id ? 'aka' : 'ao');
               setWinMethod('Completed');
               playBuzzer();
+            } else {
+              setWinnerSide(null);
+              setWinMethod('');
+              setPenaltyH(null);
             }
           }
         }
@@ -867,14 +914,6 @@ function SpectatorDisplayContent() {
                   WKF KATA SPECTATOR SCOREBOARD • {tatamiName} • BOUT #{boutNo}
                 </span>
                 <button
-                  onClick={() => setScoringMethod(prev => prev === 'Points' ? 'Flags' : 'Points')}
-                  title="Click to toggle spectator mode (WKF Points / WKF Flags)"
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] uppercase font-black transition cursor-pointer bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-400 border border-yellow-400/40 shadow-sm"
-                >
-                  <Flag className="h-3 w-3" />
-                  <span>MODE: {scoringMethod === 'Flags' ? 'WKF FLAGS' : 'WKF POINTS'}</span>
-                </button>
-                <button
                   disabled
                   title="Judge panel locked to 5 Judges standard"
                   className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] uppercase font-black transition cursor-default bg-blue-400/20 text-blue-400 border border-blue-400/40 shadow-sm opacity-80"
@@ -899,13 +938,21 @@ function SpectatorDisplayContent() {
 
           {/* Winner Reveal Banner */}
           {winnerSide && (
-            <div className={`py-4 px-6 rounded-2xl text-center flex items-center justify-center gap-4 animate-bounce shadow-2xl border-2 font-black uppercase tracking-widest text-2xl lg:text-3xl ${
+            <div className={`py-4 px-6 rounded-2xl text-center flex flex-col items-center justify-center gap-2 animate-bounce shadow-2xl border-2 font-black uppercase tracking-widest text-2xl lg:text-3xl ${
               winnerSide === 'aka'
                 ? 'bg-red-600/90 text-white border-red-400 shadow-red-600/50 ring-4 ring-red-500/30'
                 : 'bg-blue-600/90 text-white border-blue-400 shadow-blue-600/50 ring-4 ring-blue-500/30'
             }`}>
-              <Trophy className="h-9 w-9 text-yellow-300 animate-spin" />
-              <span>{winnerSide === 'aka' ? akaName : aoName} — {winnerSide === 'aka' ? 'AKA WINNER 🔴' : 'AO WINNER 🔵'}</span>
+              <div className="flex items-center gap-4">
+                <Trophy className="h-9 w-9 text-yellow-300 animate-spin" />
+                <span>{winnerSide === 'aka' ? akaName : aoName} — {winnerSide === 'aka' ? 'AKA WINNER 🔴' : 'AO WINNER 🔵'}</span>
+              </div>
+              {penaltyH && (
+                <div className="text-sm lg:text-base font-bold bg-black/40 px-4 py-1.5 rounded-lg border border-white/20 mt-1 flex flex-col">
+                  <span className="text-yellow-400 text-[10px] tracking-widest mb-0.5">Decision by Judge 1 (Chief Judge)</span>
+                  <span>Reason: Chief Judge Decision (Penalty {penaltyH})</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -913,7 +960,8 @@ function SpectatorDisplayContent() {
           {(() => {
             const displayScoresA = (judgeScoresA.length > 0 ? judgeScoresA : Array(panelSize).fill(8.0)).slice(0, panelSize);
             const displayScoresB = (judgeScoresB.length > 0 ? judgeScoresB : Array(panelSize).fill(8.0)).slice(0, panelSize);
-            const displayFlagsA = (judgeScoresA.length > 0 ? judgeScoresA : Array(panelSize).fill(1)).slice(0, panelSize);
+            const displayFlagsA = (judgeScoresA.length > 0 ? judgeScoresA : Array(panelSize).fill(-1)).slice(0, panelSize);
+            const displayFlagsB = (judgeScoresB.length > 0 ? judgeScoresB : Array(panelSize).fill(-1)).slice(0, panelSize);
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 items-stretch">
@@ -984,7 +1032,7 @@ function SpectatorDisplayContent() {
                         displayFlagsA.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
                       }`}>
                         {displayFlagsA.map((vote, idx) => {
-                          const isRedVote = vote === 1;
+                          const isRedVote = Number(vote) === 1;
                           return (
                             <div
                               key={idx}
@@ -1025,7 +1073,7 @@ function SpectatorDisplayContent() {
                     <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-red-400 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)] flex items-center gap-3">
                       {scoringMethod === 'Flags' ? (
                         <>
-                          <span>{judgeScoresA.length > 0 ? judgeScoresA.filter(s => s === 1).length : Math.round(scoreAka)}</span>
+                          <span>{judgeScoresA.length > 0 ? judgeScoresA.filter(s => Number(s) === 1).length : Math.round(scoreAka)}</span>
                           <Flag className="h-9 w-9 text-red-500 fill-red-500 inline-block drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
                         </>
                       ) : (
@@ -1094,15 +1142,15 @@ function SpectatorDisplayContent() {
                       <div className="text-[10px] uppercase font-bold text-blue-400/80 tracking-widest mb-2 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Flag className="h-3.5 w-3.5 text-blue-400 fill-blue-400" />
-                          WKF Flag Votes ({displayFlagsA.length} Judges)
+                          WKF Flag Votes ({displayFlagsB.length} Judges)
                         </span>
                         <span className="text-blue-300 text-[9px]">Blue Flag Voted</span>
                       </div>
                       <div className={`grid gap-2 bg-black/60 p-3 rounded-2xl border border-blue-500/20 font-mono text-center ${
-                        displayFlagsA.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
+                        displayFlagsB.length === 5 ? 'grid-cols-5' : 'grid-cols-7'
                       }`}>
-                        {displayFlagsA.map((vote, idx) => {
-                          const isBlueVote = vote === 0;
+                        {displayFlagsB.map((vote, idx) => {
+                          const isBlueVote = Number(vote) === 1;
                           return (
                             <div
                               key={idx}
@@ -1143,7 +1191,7 @@ function SpectatorDisplayContent() {
                     <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-blue-400 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] flex items-center gap-3">
                       {scoringMethod === 'Flags' ? (
                         <>
-                          <span>{judgeScoresA.length > 0 ? judgeScoresA.filter(s => s === 0).length : Math.round(scoreAo)}</span>
+                          <span>{judgeScoresB.length > 0 ? judgeScoresB.filter(s => Number(s) === 1).length : Math.round(scoreAo)}</span>
                           <Flag className="h-9 w-9 text-blue-500 fill-blue-500 inline-block drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
                         </>
                       ) : (
