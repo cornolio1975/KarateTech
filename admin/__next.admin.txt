@@ -1,5 +1,5 @@
 1:"$Sreact.fragment"
-2:I[39756,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/3z-6oqnfcw5w_.js"],"default"]
-3:I[37457,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/3z-6oqnfcw5w_.js"],"default"]
+2:I[39756,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/0cotira3pic1j.js"],"default"]
+3:I[37457,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/0cotira3pic1j.js"],"default"]
 4:[]
-0:{"rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"isPartial":false,"staleTime":300,"varyParams":"$W4","buildId":"H5Se7KQFiR7z5gNOTAx_6"}
+0:{"rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"isPartial":false,"staleTime":300,"varyParams":"$W4","buildId":"OXxCjx0iKsTlH9xYSmNxg"}

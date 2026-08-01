@@ -1,9 +1,9 @@
 1:"$Sreact.fragment"
-2:I[47257,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/3z-6oqnfcw5w_.js"],"ClientPageRoot"]
-3:I[13399,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/3z-6oqnfcw5w_.js","/KarateTech/_next/static/chunks/0wj9e8w_j0ty5.js","/KarateTech/_next/static/chunks/2l371-tj_iwt9.js"],"default"]
-6:I[97367,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/3z-6oqnfcw5w_.js"],"OutletBoundary"]
+2:I[47257,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/0cotira3pic1j.js"],"ClientPageRoot"]
+3:I[13399,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/0cotira3pic1j.js","/KarateTech/_next/static/chunks/0wj9e8w_j0ty5.js","/KarateTech/_next/static/chunks/2l371-tj_iwt9.js"],"default"]
+6:I[97367,["/KarateTech/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech/_next/static/chunks/01vq-pdd2kfnt.js","/KarateTech/_next/static/chunks/0cotira3pic1j.js"],"OutletBoundary"]
 7:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/KarateTech/_next/static/chunks/0wj9e8w_j0ty5.js","async":true}],["$","script","script-1",{"src":"/KarateTech/_next/static/chunks/2l371-tj_iwt9.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"H5Se7KQFiR7z5gNOTAx_6"}
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/KarateTech/_next/static/chunks/0wj9e8w_j0ty5.js","async":true}],["$","script","script-1",{"src":"/KarateTech/_next/static/chunks/2l371-tj_iwt9.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"OXxCjx0iKsTlH9xYSmNxg"}
 4:{}
 5:"$0:rsc:props:children:0:props:serverProvidedParams:params"
 8:null
