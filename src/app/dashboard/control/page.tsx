@@ -1231,7 +1231,7 @@ export default function ScoreboardControlPage() {
                     SENSHU
                   </div>
                 )}
-
+              </div>
               <div className="w-full text-center mt-0.5">
                 <h2 className="font-competitor text-base md:text-lg lg:text-xl font-bold truncate max-w-full text-center uppercase leading-tight text-white tracking-tight" title={competitorAka?.full_name || 'TBD Red'}>
                   {competitorAka?.full_name || 'TBD Red'}

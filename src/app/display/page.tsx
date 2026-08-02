@@ -366,6 +366,11 @@ function SpectatorDisplayContent() {
           return;
         }
 
+        if (data.type === 'CLOSE_DISPLAY') {
+          window.close();
+          return;
+        }
+
         if (data.boutId) {
           // If the controller shifted to a new match, update our active target boutId
           if (data.boutId !== activeBoutId) {

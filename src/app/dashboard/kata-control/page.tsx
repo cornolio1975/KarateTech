@@ -67,6 +67,7 @@ export function KataControlPanelContent() {
   };
 
   // Modal state
+  const [showSpectatorModal, setShowSpectatorModal] = useState(false);
   const [isResultBookOpen, setIsResultBookOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -111,9 +112,14 @@ export function KataControlPanelContent() {
     }
   };
 
+  const [spectatorConnected, setSpectatorConnected] = useState<boolean>(false);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      broadcastChannelRef.current = new BroadcastChannel('wkf-scoreboard-sync');
+      const channel = new BroadcastChannel('wkf-scoreboard-sync');
+      broadcastChannelRef.current = channel;
+      // Ping to check if already connected
+      channel.postMessage({ type: 'PING' });
     }
     return () => {
       if (broadcastChannelRef.current) {
@@ -240,6 +246,28 @@ export function KataControlPanelContent() {
       broadcastKataState();
     }
   }, [mounted, currentBout, judgeScoresA, judgeScoresB, kataA, kataB, panelSize, scoringMethod, totalScoreA, totalScoreB, isWinnerRevealed, selectedWinnerId, broadcastKataState]);
+
+  useEffect(() => {
+    const channel = broadcastChannelRef.current;
+    if (!channel) return;
+    
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'SPECTATOR_CONNECTED' || event.data.type === 'PONG') {
+        setSpectatorConnected(true);
+        if (event.data.type === 'SPECTATOR_CONNECTED') {
+          // A new spectator joined, send the current state immediately
+          broadcastKataState();
+        }
+      } else if (event.data.type === 'SPECTATOR_DISCONNECTED') {
+        setSpectatorConnected(false);
+      }
+    };
+
+    channel.addEventListener('message', handleMessage);
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+    };
+  }, [broadcastKataState]);
 
   const updateJudgeScore = (athlete: 'AKA' | 'AO', idx: number, val: number) => {
     setIsWinnerRevealed(false);
@@ -557,28 +585,39 @@ export function KataControlPanelContent() {
                 KATA SCORING CONSOLE
               </span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex items-center gap-4">
+            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex flex-wrap items-center gap-4">
               Match Console (Kata)
+              {spectatorConnected ? (
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-black tracking-widest uppercase shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  Display Connected
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-xs font-black tracking-widest uppercase">
+                  <span className="w-2 h-2 bg-red-500/50 rounded-full" />
+                  Display Disconnected
+                </span>
+              )}
             </h1>
             <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
           
           <div className="flex items-center gap-3">
             <button
-              onClick={() => openSpectatorWindow()}
-              disabled={!currentBout}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 hover:border-blue-400/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
-            >
-              <Tv className="h-4 w-4" />
-              Spectator Display
-            </button>
-
-            <button
               onClick={loadData}
               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl text-xs font-bold transition cursor-pointer"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Sync Matches
+            </button>
+
+            <button
+              onClick={() => setShowSpectatorModal(true)}
+              disabled={!currentBout}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+            >
+              <Tv className="h-4 w-4" />
+              Open Spectator View
             </button>
             
             <button
@@ -965,14 +1004,7 @@ export function KataControlPanelContent() {
 
             {/* Primary Action Buttons */}
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => openSpectatorWindow()}
-                disabled={!currentBout}
-                className="flex items-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-purple-600/20 disabled:opacity-50"
-              >
-                <Tv className="h-4 w-4" />
-                Spectator View
-              </button>
+
               <button
                 onClick={handleRematch}
                 disabled={isSaving || !currentBout}
@@ -1032,6 +1064,56 @@ export function KataControlPanelContent() {
         winnerId={selectedWinnerId}
         clubsList={clubs}
       />
+
+      {showSpectatorModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101015] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-black text-white mb-2">Open Spectator Display</h3>
+            <p className="text-gray-400 text-sm mb-6">How would you like to open the spectator view?</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  openSpectatorWindow(currentBout?.id, 'new-tab');
+                  setShowSpectatorModal(false);
+                }}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition cursor-pointer"
+              >
+                Open in New Tab
+              </button>
+              <button
+                onClick={() => {
+                  openSpectatorWindow(currentBout?.id, 'new-window');
+                  setShowSpectatorModal(false);
+                }}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition cursor-pointer"
+              >
+                Open in New Window
+              </button>
+              <button
+                onClick={() => {
+                  if (spectatorWindowRef.current) {
+                    spectatorWindowRef.current.close();
+                    spectatorWindowRef.current = null;
+                  }
+                  if (broadcastChannelRef.current) {
+                    broadcastChannelRef.current.postMessage({ type: 'CLOSE_DISPLAY' });
+                  }
+                  setShowSpectatorModal(false);
+                }}
+                className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold rounded-xl border border-red-500/30 transition cursor-pointer"
+              >
+                Close Existing Display
+              </button>
+              <button
+                onClick={() => setShowSpectatorModal(false)}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl transition mt-2 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

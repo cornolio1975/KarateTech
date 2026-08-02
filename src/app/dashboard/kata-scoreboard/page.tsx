@@ -21,6 +21,28 @@ export default function KataScoreboardHubPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedBoutIdFilter, setSelectedBoutIdFilter] = useState<string>('ALL');
 
+  // Spectator Modal State
+  const [showSpectatorModal, setShowSpectatorModal] = useState(false);
+  const [spectatorBoutId, setSpectatorBoutId] = useState<string | null>(null);
+  const spectatorWindowRef = React.useRef<Window | null>(null);
+  const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      broadcastChannelRef.current = new BroadcastChannel('wkf-scoreboard-sync');
+    }
+    return () => {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+      }
+    };
+  }, []);
+
+  const handleOpenSpectator = (boutId?: string) => {
+    setSpectatorBoutId(boutId || null);
+    setShowSpectatorModal(true);
+  };
+
   useEffect(() => {
     setMounted(true);
     loadData();
@@ -126,7 +148,7 @@ export default function KataScoreboardHubPage() {
               Sync Matches
             </button>
             <button
-              onClick={() => window.open('/display', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes')}
+              onClick={() => handleOpenSpectator()}
               className="flex items-center gap-2 px-4 py-2 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 hover:border-yellow-400/50 rounded-xl text-xs font-bold transition cursor-pointer"
             >
               <Tv className="h-4 w-4" />
@@ -306,14 +328,13 @@ export default function KataScoreboardHubPage() {
                         </button>
                       )}
 
-                      <Link
-                        href={`/display?boutId=${bout.id}`}
-                        target="_blank"
+                      <button
+                        onClick={() => handleOpenSpectator(bout.id)}
                         className="flex items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white rounded-xl transition cursor-pointer"
                         title="Open spectator display in new window"
                       >
                         <Tv className="h-4 w-4" />
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 );
@@ -322,6 +343,58 @@ export default function KataScoreboardHubPage() {
           )}
         </div>
       </div>
+
+      {showSpectatorModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101015] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-black text-white mb-2">Open Spectator Display</h3>
+            <p className="text-gray-400 text-sm mb-6">How would you like to open the spectator view?</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const url = spectatorBoutId ? `/display?boutId=${spectatorBoutId}` : '/display';
+                  spectatorWindowRef.current = window.open(url, '_blank');
+                  setShowSpectatorModal(false);
+                }}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition"
+              >
+                Open in New Tab
+              </button>
+              <button
+                onClick={() => {
+                  const url = spectatorBoutId ? `/display?boutId=${spectatorBoutId}` : '/display';
+                  spectatorWindowRef.current = window.open(url, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
+                  setShowSpectatorModal(false);
+                }}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition"
+              >
+                Open in New Window
+              </button>
+              <button
+                onClick={() => {
+                  if (spectatorWindowRef.current) {
+                    spectatorWindowRef.current.close();
+                    spectatorWindowRef.current = null;
+                  }
+                  if (broadcastChannelRef.current) {
+                    broadcastChannelRef.current.postMessage({ type: 'CLOSE_DISPLAY' });
+                  }
+                  setShowSpectatorModal(false);
+                }}
+                className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold rounded-xl border border-red-500/30 transition"
+              >
+                Close Existing Display
+              </button>
+              <button
+                onClick={() => setShowSpectatorModal(false)}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl transition mt-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
