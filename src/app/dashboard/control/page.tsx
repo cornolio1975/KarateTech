@@ -1224,14 +1224,13 @@ export default function ScoreboardControlPage() {
             {/* Header & Fighter Name */}
             <div className="w-full flex flex-col items-center shrink-0">
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-lg lg:text-2xl font-black uppercase tracking-widest text-red-400">AKA - RED</span>
+                <span className="text-4xl lg:text-6xl font-black uppercase tracking-widest text-red-400">AKA</span>
                 {senshuAka && (
                   <div className="flex items-center gap-1 bg-yellow-500 text-black text-xs font-black uppercase px-3 py-0.5 rounded-full border border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)]">
                     <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
                     SENSHU
                   </div>
                 )}
-              </div>
 
               <div className="w-full text-center mt-0.5">
                 <h2 className="font-competitor text-base md:text-lg lg:text-xl font-bold truncate max-w-full text-center uppercase leading-tight text-white tracking-tight" title={competitorAka?.full_name || 'TBD Red'}>
@@ -1455,7 +1454,7 @@ export default function ScoreboardControlPage() {
             {/* Header & Fighter Name */}
             <div className="w-full flex flex-col items-center shrink-0">
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-lg lg:text-2xl font-black uppercase tracking-widest text-blue-400 ml-auto">AO - BLUE</span>
+                <span className="text-4xl lg:text-6xl font-black uppercase tracking-widest text-blue-400 ml-auto">AO</span>
               </div>
 
               <div className="w-full text-center mt-0.5">

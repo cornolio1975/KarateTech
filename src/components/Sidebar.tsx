@@ -22,7 +22,7 @@ const MENU_ITEMS = [
   { name: 'Scoring Management', icon: Sword, path: '/bouts' },
   { name: 'Bracket Console Hub', icon: MonitorPlay, path: '/bracket-hub', badge: 'Live' },
   { name: 'Kumite S-Board', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF', isYellow: true },
-  { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-control', badge: 'WKF', isYellow: true },
+  { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-scoreboard', badge: 'WKF', isYellow: true },
   { name: 'Officials', icon: ShieldCheck, path: '/officials' },
   { name: 'Public Scoreboard', icon: Tv, path: '/public', badge: 'Live' },
   { name: 'Upcoming Tournaments', icon: CalendarCheck, path: '/public/tournaments', badge: 'New' },

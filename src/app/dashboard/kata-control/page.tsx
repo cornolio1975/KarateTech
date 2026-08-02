@@ -217,9 +217,9 @@ export function KataControlPanelContent() {
     broadcastChannelRef.current.postMessage({
       boutId: currentBout.id,
       isKata: true,
-      akaName: participantA?.full_name || 'AKA 🔴',
+      akaName: participantA?.full_name || 'AKA',
       akaClub: clubA?.name || 'Senshi Club',
-      aoName: participantB?.full_name || 'AO 🔵',
+      aoName: participantB?.full_name || 'AO',
       aoClub: clubB?.name || 'Goju-Ryu Club',
       scoreAka: totalScoreA,
       scoreAo: totalScoreB,
@@ -278,9 +278,9 @@ export function KataControlPanelContent() {
       broadcastChannelRef.current.postMessage({
         boutId: currentBout?.id,
         isKata: true,
-        akaName: pA?.full_name || 'AKA 🔴',
+        akaName: pA?.full_name || 'AKA',
         akaClub: cA?.name || 'Senshi Club',
-        aoName: pB?.full_name || 'AO 🔵',
+        aoName: pB?.full_name || 'AO',
         aoClub: cB?.name || 'Goju-Ryu Club',
         scoreAka: 0,
         scoreAo: 0,
@@ -318,15 +318,16 @@ export function KataControlPanelContent() {
       setSelectedWinnerId(winnerId);
       setIsWinnerRevealed(true);
 
-      const updated = await db.bouts.update(currentBout.id, {
+      const updated = await db.bouts.updateBoutState(currentBout.id, {
         kata_a: kataA,
         kata_b: kataB,
         judge_scores_a: judgeScoresA,
         judge_scores_b: judgeScoresB,
-        score_a: totalScoreA,
-        score_b: totalScoreB,
+        total_score_a: totalScoreA,
+        total_score_b: totalScoreB,
+        score_a: Math.round(totalScoreA),
+        score_b: Math.round(totalScoreB),
         winner_id: winnerId,
-        victory_method: winMtd || undefined,
         status: currentBout.status === 'Scheduled' ? 'Running' : currentBout.status
       });
 
@@ -345,9 +346,9 @@ export function KataControlPanelContent() {
         broadcastChannelRef.current.postMessage({
           boutId: currentBout.id,
           isKata: true,
-          akaName: participantA?.full_name || 'AKA 🔴',
+          akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
-          aoName: participantB?.full_name || 'AO 🔵',
+          aoName: participantB?.full_name || 'AO',
           aoClub: clubB?.name || 'Goju-Ryu Club',
           scoreAka: totalScoreA,
           scoreAo: totalScoreB,
@@ -413,9 +414,9 @@ export function KataControlPanelContent() {
         broadcastChannelRef.current.postMessage({
           boutId: currentBout.id,
           isKata: true,
-          akaName: participantA?.full_name || 'AKA 🔴',
+          akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
-          aoName: participantB?.full_name || 'AO 🔵',
+          aoName: participantB?.full_name || 'AO',
           aoClub: clubB?.name || 'Goju-Ryu Club',
           scoreAka: totalScoreA,
           scoreAo: totalScoreB,
@@ -431,8 +432,8 @@ export function KataControlPanelContent() {
         });
       }
       
-      // Redirect to the Bracket Management Console Hub for the next match
-      router.push('/bracket-hub');
+      // Redirect to the Match Console Hub (Kata) for the next match
+      router.push('/dashboard/kata-scoreboard');
     } catch (err) {
       console.error('Error completing Kata bout:', err);
       alert('Failed to save bout results.');
@@ -487,9 +488,9 @@ export function KataControlPanelContent() {
         broadcastChannelRef.current.postMessage({
           boutId: updatedBout.id,
           isKata: true,
-          akaName: participantA?.full_name || 'AKA 🔴',
+          akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
-          aoName: participantB?.full_name || 'AO 🔵',
+          aoName: participantB?.full_name || 'AO',
           aoClub: clubB?.name || 'Goju-Ryu Club',
           scoreAka: 0,
           scoreAo: 0,
@@ -543,18 +544,21 @@ export function KataControlPanelContent() {
   return (
     <div className="min-h-screen bg-[#07070a] text-white p-6 pb-12">
       
-      {/* Top Banner (Identical to Kumite Scoreboard Header) */}
+      {/* Top Banner */}
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
+            <Link href="/dashboard/kata-scoreboard" className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-2 flex items-center gap-1">
+               <ArrowRight className="h-3 w-3 rotate-180" /> Back to Hub
+            </Link>
+            <div className="flex items-center gap-2 mb-1.5 mt-2">
               <Zap className="h-5 w-5 text-yellow-400 animate-pulse" />
               <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
-                MATCH CONSOLE HUB (KATA)
+                KATA SCORING CONSOLE
               </span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-              Match Console Hub (Kata)
+            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex items-center gap-4">
+              Match Console (Kata)
             </h1>
             <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
@@ -592,144 +596,14 @@ export function KataControlPanelContent() {
       {/* Control Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        {/* Left Panel: Category & Bout Selector */}
-        <div className="lg:col-span-1 bg-white/[0.02] border border-white/5 rounded-2xl p-6 backdrop-blur-md h-fit">
-          <h2 className="text-base font-black tracking-wider uppercase mb-6 text-gray-300">
-            Kata Filters
-          </h2>
-
-          <div className="space-y-5">
-            {/* 1st Filter: Kata Category Select */}
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Kata Category</label>
-              <select
-                value={selectedCatId}
-                onChange={e => {
-                  const catId = e.target.value;
-                  setSelectedCatId(catId);
-                  const nextFiltered = bouts.filter(b => {
-                    const cat = categories.find(c => c.id === b.category_id);
-                    const isKata = kataCatIds.has(b.category_id) || isKataCategory(cat);
-                    if (!isKata) return false;
-                    const matchesCat = catId === 'ALL' || b.category_id === catId;
-                    const matchesStatus = selectedStatus === 'ALL' || b.status === selectedStatus;
-                    return matchesCat && matchesStatus;
-                  });
-                  if (nextFiltered.length > 0) {
-                    selectBout(nextFiltered[0]);
-                  }
-                }}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
-              >
-                <option value="ALL">All Kata Categories ({kataCategories.length})</option>
-                {kataCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* 2nd Filter: Match / Bout Select */}
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Match / Bout</label>
-              <select
-                value={selectedBoutId}
-                onChange={e => {
-                  const b = bouts.find(item => item.id === e.target.value);
-                  if (b) selectBout(b);
-                }}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition font-mono text-ellipsis overflow-hidden cursor-pointer"
-              >
-                {filteredBouts.length === 0 ? (
-                  <option value="">No matches found</option>
-                ) : (
-                  filteredBouts.map(b => {
-                    const pA = participants.find(p => p.id === b.participant_a_id)?.full_name || 'AKA';
-                    const pB = participants.find(p => p.id === b.participant_b_id)?.full_name || 'AO';
-                    return (
-                      <option key={b.id} value={b.id}>
-                        Bout #{b.bout_no || b.id.slice(0, 4)} (R{b.round_no}): {pA} vs {pB}
-                      </option>
-                    );
-                  })
-                )}
-              </select>
-            </div>
-
-            {/* 3rd Filter: Status Select */}
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Status</label>
-              <select
-                value={selectedStatus}
-                onChange={e => setSelectedStatus(e.target.value)}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
-              >
-                <option value="ALL">All States</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Running">Running / Live</option>
-                <option value="Completed">Completed</option>
-                <option value="Walkover">Walkover</option>
-              </select>
-            </div>
-
-            {/* Panel Mode Select */}
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Judge Panel Standard</label>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-[#101015] rounded-xl border border-white/10">
-                <button
-                  disabled
-                  title="7 Judges option is disabled. 5 Judges panel is standard."
-                  className="py-1.5 text-xs font-bold rounded-lg transition text-gray-600 bg-white/5 cursor-not-allowed border border-white/5 opacity-50"
-                >
-                  7 Judges (Disabled)
-                </button>
-                <button
-                  onClick={() => {
-                    setPanelSize(5);
-                    setJudgeScoresA(prev => prev.slice(0, 5));
-                    setJudgeScoresB(prev => prev.slice(0, 5));
-                  }}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition ${panelSize === 5 ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
-                >
-                  5 Judges Panel (Standard)
-                </button>
-              </div>
-            </div>
-
-            {/* Scoring Method Select */}
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Scoring Method</label>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-[#101015] rounded-xl border border-white/10">
-                <button
-                  disabled
-                  title="WKF Points option is disabled. WKF Flags is the active standard."
-                  className="py-1.5 text-xs font-bold rounded-lg transition text-gray-600 bg-white/5 cursor-not-allowed border border-white/5 opacity-50"
-                >
-                  WKF Points (Disabled)
-                </button>
-                <button
-                  onClick={() => {
-                    setScoringMethod('Flags');
-                    const defaultFlags = Array(panelSize).fill(1).map((_, i) => i < Math.ceil(panelSize / 2) ? 1 : 0);
-                    setJudgeScoresA(defaultFlags);
-                    setJudgeScoresB(Array(panelSize).fill(0));
-                  }}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition ${scoringMethod === 'Flags' ? 'bg-yellow-400 text-black shadow' : 'text-gray-400 hover:text-white'}`}
-                >
-                  WKF Flags (Standard)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Main Panel: Kata S-Board (Scoring Console) */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* Main Panel: Kata S-Board (Scoring Console) */}
+        <div className="lg:col-span-4 space-y-6">
           
           {/* Match Banner Header */}
           <div ref={scoringConsoleRef} className="p-5 bg-gradient-to-r from-[#10111a] via-[#141522] to-[#10111a] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-4 scroll-mt-6">
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
-                {category?.name || 'Kata Division'} • {currentBout?.tatami || 'Tatami 1'}
+                {category?.name || 'Kata Division'} Î“Ã‡Ã³ {currentBout?.tatami || 'Tatami 1'}
               </span>
               <h2 className="text-xl font-black text-white flex items-center gap-3 mt-0.5">
                 Bout #{currentBout?.bout_no || 1}
@@ -741,7 +615,7 @@ export function KataControlPanelContent() {
 
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <div className="text-[10px] font-bold text-gray-400 uppercase">AKA Total</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase">AKA</div>
                 <div className="text-2xl font-black font-mono text-red-500">
                   {scoringMethod === 'Flags' ? (
                     <div className="flex items-center gap-1 justify-end">
@@ -754,7 +628,7 @@ export function KataControlPanelContent() {
               </div>
               <div className="text-gray-600 font-bold text-lg">VS</div>
               <div className="text-left">
-                <div className="text-[10px] font-bold text-gray-400 uppercase">AO Total</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase">AO</div>
                 <div className="text-2xl font-black font-mono text-blue-500">
                   {scoringMethod === 'Flags' ? (
                     <div className="flex items-center gap-1">
@@ -775,7 +649,7 @@ export function KataControlPanelContent() {
             <div className="p-6 bg-gradient-to-b from-red-950/30 to-[#0d0d14] border border-red-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-red-950/20">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 bg-red-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
-                  AKA 🔴
+                  AKA
                 </span>
                 <span className="text-xs font-mono font-bold text-red-400 flex items-center">
                   Total: 
@@ -813,7 +687,7 @@ export function KataControlPanelContent() {
             <div className="p-6 bg-gradient-to-b from-blue-950/30 to-[#0d0d14] border border-blue-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-blue-950/20">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 bg-blue-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
-                  AO 🔵
+                  AO
                 </span>
                 <span className="text-xs font-mono font-bold text-blue-400 flex items-center">
                   Total: 
@@ -868,15 +742,11 @@ export function KataControlPanelContent() {
                   <button
                     onClick={() => setActiveScoringTab('AKA')}
                     className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AKA' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'text-gray-400 hover:text-white'}`}
-                  >
-                    AKA Scoring 🔴
-                  </button>
+                  >AKA</button>
                   <button
                     onClick={() => setActiveScoringTab('AO')}
                     className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AO' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'text-gray-400 hover:text-white'}`}
-                  >
-                    AO Scoring 🔵
-                  </button>
+                  >AO</button>
                 </div>
               )}
             </div>
@@ -1080,9 +950,9 @@ export function KataControlPanelContent() {
                 <h3 className="text-xl font-black text-white">
                   {isWinnerRevealed || currentBout?.status === 'Completed' ? (
                     selectedWinnerId === participantA?.id ? (
-                      <span className="text-red-400">{participantA?.full_name} (AKA 🔴)</span>
+                      <span className="text-red-400">{participantA?.full_name} (AKA)</span>
                     ) : selectedWinnerId === participantB?.id ? (
-                      <span className="text-blue-400">{participantB?.full_name} (AO 🔵)</span>
+                      <span className="text-blue-400">{participantB?.full_name} (AO)</span>
                     ) : (
                       'Tied Score'
                     )

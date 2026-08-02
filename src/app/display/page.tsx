@@ -796,7 +796,7 @@ function SpectatorDisplayContent() {
           <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
             {/* AKA RED KATA */}
             <div className="bg-red-950/40 border-2 border-red-600/50 rounded-2xl p-6 flex flex-col items-center justify-between space-y-4">
-              <span className="text-red-400 font-extrabold text-2xl tracking-wider">AKA (RED)</span>
+              <span className="text-red-400 font-extrabold text-5xl lg:text-7xl tracking-wider">AKA</span>
               <h3 className="text-3xl font-black text-white">{akaName}</h3>
               <p className="text-sm font-bold text-red-300/60 uppercase">{akaClub}</p>
               <div className="w-full bg-red-900/30 p-3 rounded-xl border border-red-500/30 text-center">
@@ -807,7 +807,7 @@ function SpectatorDisplayContent() {
 
             {/* AO BLUE KATA */}
             <div className="bg-blue-950/40 border-2 border-blue-600/50 rounded-2xl p-6 flex flex-col items-center justify-between space-y-4">
-              <span className="text-blue-400 font-extrabold text-2xl tracking-wider">AO (BLUE)</span>
+              <span className="text-blue-400 font-extrabold text-5xl lg:text-7xl tracking-wider">AO</span>
               <h3 className="text-3xl font-black text-white">{aoName}</h3>
               <p className="text-sm font-bold text-blue-300/60 uppercase">{aoClub}</p>
               <div className="w-full bg-blue-900/30 p-3 rounded-xl border border-blue-500/30 text-center">
@@ -974,7 +974,7 @@ function SpectatorDisplayContent() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="px-3.5 py-1 bg-red-600/30 border border-red-500/50 text-red-400 font-black text-xs uppercase tracking-widest rounded-lg">
-                        AKA (RED)
+                        AKA
                       </span>
                       {kataA && (
                         <span className="text-xs font-extrabold uppercase tracking-wider text-red-300 bg-black/60 px-3.5 py-1.5 rounded-xl border border-red-500/30 font-mono">
@@ -1092,7 +1092,7 @@ function SpectatorDisplayContent() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="px-3.5 py-1 bg-blue-600/30 border border-blue-500/50 text-blue-400 font-black text-xs uppercase tracking-widest rounded-lg">
-                        AO (BLUE)
+                        AO
                       </span>
                       {kataB && (
                         <span className="text-xs font-extrabold uppercase tracking-wider text-blue-300 bg-black/60 px-3.5 py-1.5 rounded-xl border border-blue-500/30 font-mono">
@@ -1272,9 +1272,9 @@ function SpectatorDisplayContent() {
                   先取 SENSHU
                 </span>
               )}
-              <span className={`text-3xl lg:text-4xl font-black uppercase tracking-wider leading-none ${
+              <span className={`text-6xl lg:text-8xl font-black uppercase tracking-wider leading-none ${
                 winnerSide === 'aka' && winMethod === 'Superior Points' ? 'text-red-400' : 'text-red-500'
-              }`}>AKA RED</span>
+              }`}>AKA</span>
 
               {/* Fighter Name directly under AKA RED */}
               <div className="w-full px-2 mt-1.5 flex flex-col items-center relative z-10">
@@ -1405,9 +1405,9 @@ function SpectatorDisplayContent() {
                   先取 SENSHU
                 </span>
               )}
-              <span className={`text-3xl lg:text-4xl font-black uppercase tracking-wider leading-none ${
+              <span className={`text-6xl lg:text-8xl font-black uppercase tracking-wider leading-none ${
                 winnerSide === 'ao' ? 'text-blue-400' : 'text-blue-400'
-              }`}>AO BLUE</span>
+              }`}>AO</span>
 
               {/* Fighter Name directly under AO BLUE */}
               <div className="w-full px-2 mt-1.5 flex flex-col items-center relative z-10">
