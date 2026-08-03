@@ -961,6 +961,27 @@ function SpectatorDisplayContent() {
             </div>
           )}
 
+          {/* Kata Timer Box */}
+          {(timeLeft > 0 || timerActive) && !winnerSide && (
+            <div className="flex justify-center w-full my-2">
+              <div className="bg-black/60 backdrop-blur-xl border border-white/20 rounded-3xl px-12 py-4 flex items-center gap-8 shadow-2xl">
+                <div className="flex flex-col items-center">
+                  <span className="text-[12px] font-black text-white/50 uppercase tracking-[0.2em] mb-1">Match Time</span>
+                  <div className={`font-mono text-6xl font-bold tracking-tight flex items-baseline ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}`}>
+                    <span>{formatMainTime(timeLeft)}</span>
+                    <span className={`text-4xl ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/70'}`}>{formatDecsTime(timeLeft)}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  <span className={`w-4 h-4 rounded-full ${timerActive ? 'bg-green-500 animate-ping shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'}`} />
+                  <span className="text-[10px] font-black uppercase text-white/50 tracking-[0.2em]">
+                    {timerActive ? 'RUNNING' : 'PAUSED'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* AKA & AO Competitor Cards */}
           {(() => {
             const displayScoresA = (judgeScoresA.length > 0 ? judgeScoresA : Array(panelSize).fill(8.0)).slice(0, panelSize);

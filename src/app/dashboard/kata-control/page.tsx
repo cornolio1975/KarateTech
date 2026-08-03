@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
@@ -54,6 +54,47 @@ export function KataControlPanelContent() {
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
   const [isWinnerRevealed, setIsWinnerRevealed] = useState<boolean>(false);
   const [penaltyH, setPenaltyH] = useState<'AKA' | 'AO' | null>(null);
+
+  // Timer state
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isTimerRunning && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setIsTimerRunning(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 100);
+    } else if (timeLeft <= 0) {
+      setIsTimerRunning(false);
+      if (timeLeft < 0) setTimeLeft(0);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isTimerRunning, timeLeft]);
+
+  const formatMainTime = (tenths: number) => {
+    const mins = Math.floor(tenths / 600);
+    const secs = Math.floor((tenths % 600) / 10);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatDecsTime = (tenths: number) => {
+    const decs = tenths % 10;
+    return `.${decs}`;
+  };
+
+  const setTimerPreset = (secs: number) => {
+    setTimeLeft(secs * 10);
+    setIsTimerRunning(false);
+  };
 
   const openSpectatorWindow = (targetBoutId?: string, targetMode: 'new-tab' | 'new-window' = 'new-tab') => {
     const bId = targetBoutId || selectedBoutId || currentBout?.id;
@@ -237,15 +278,17 @@ export function KataControlPanelContent() {
       scoringMethod,
       winner: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'aka' : selectedWinnerId === participantB?.id ? 'ao' : null) : null,
       winMethod: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'AKA WIN' : selectedWinnerId === participantB?.id ? 'AO WIN' : 'TIE') : '',
-      penaltyH
+      penaltyH,
+      timeLeft,
+      timerActive: isTimerRunning
     });
-  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId, penaltyH]);
+  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId, penaltyH, timeLeft, isTimerRunning]);
 
   useEffect(() => {
     if (mounted && currentBout) {
       broadcastKataState();
     }
-  }, [mounted, currentBout, judgeScoresA, judgeScoresB, kataA, kataB, panelSize, scoringMethod, totalScoreA, totalScoreB, isWinnerRevealed, selectedWinnerId, broadcastKataState]);
+  }, [mounted, currentBout, judgeScoresA, judgeScoresB, kataA, kataB, panelSize, scoringMethod, totalScoreA, totalScoreB, isWinnerRevealed, selectedWinnerId, timeLeft, isTimerRunning, broadcastKataState]);
 
   useEffect(() => {
     const channel = broadcastChannelRef.current;
@@ -682,10 +725,10 @@ export function KataControlPanelContent() {
           </div>
 
           {/* Athletes Comparison & Declared Kata Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch min-h-0">
             
             {/* AKA Athlete Card (Red) */}
-            <div className="p-6 bg-gradient-to-b from-red-950/30 to-[#0d0d14] border border-red-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-red-950/20">
+            <div className="col-span-1 lg:col-span-4 p-6 bg-gradient-to-b from-red-950/30 to-[#0d0d14] border border-red-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-red-950/20">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 bg-red-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
                   AKA
@@ -722,8 +765,80 @@ export function KataControlPanelContent() {
               </div>
             </div>
 
+            {/* TIMER Display & Control Panel (Center) */}
+            <div className="col-span-1 lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col justify-between items-center text-center overflow-hidden shadow-lg min-h-0">
+              <span className="text-xs uppercase font-black text-white/80 tracking-[0.2em] mb-2 shrink-0">MATCH TIMER</span>
+              
+              <div className={`flex-1 flex items-baseline justify-center font-mono text-[clamp(40px,5vw,70px)] font-black leading-none select-none tracking-tight my-2 ${
+                timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]'
+              }`}>
+                <span>{formatMainTime(timeLeft)}</span>
+                <span className={`text-[clamp(24px,3vw,40px)] ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'}`}>{formatDecsTime(timeLeft)}</span>
+              </div>
+              
+              <div className="flex items-center justify-center gap-1.5 mb-3 shrink-0">
+                <span className={`w-3 h-3 rounded-full ${isTimerRunning ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
+                <span className="text-[10px] font-black uppercase text-white/70 tracking-wider">
+                  {isTimerRunning ? 'ACTIVE RUNNING' : 'PAUSED'}
+                </span>
+              </div>
+
+              <div className="w-full flex flex-col gap-1.5 pt-3 border-t border-white/10 shrink-0">
+                <div className="grid grid-cols-4 gap-1.5 w-full">
+                  <div className="col-span-2">
+                    {isTimerRunning ? (
+                      <button
+                        onClick={() => setIsTimerRunning(false)}
+                        className="w-full h-full py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition shadow-md shadow-red-950/40"
+                      >
+                        <Square className="h-3.5 w-3.5 fill-white" /> Stop
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setIsTimerRunning(true)}
+                        disabled={timeLeft === 0}
+                        className="w-full h-full py-2 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition shadow-md shadow-green-950/40"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-white" /> Start
+                      </button>
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={() => setTimeLeft(0)}
+                    disabled={isTimerRunning}
+                    className="py-2 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 transition border border-white/10"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Reset
+                  </button>
+                  
+                  <div className="grid grid-rows-2 gap-1">
+                    <button
+                      onClick={() => setTimeLeft(prev => prev + 10)}
+                      disabled={isTimerRunning}
+                      className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[9px] uppercase transition border border-white/20"
+                    >
+                      +1s
+                    </button>
+                    <button
+                      onClick={() => setTimeLeft(prev => prev > 10 ? prev - 10 : 0)}
+                      disabled={isTimerRunning}
+                      className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[9px] uppercase transition border border-white/20"
+                    >
+                      -1s
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+                  <button onClick={() => setTimerPreset(120)} className="py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-gray-300 transition border border-white/10">2.00m</button>
+                  <button onClick={() => setTimerPreset(90)} className="py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-gray-300 transition border border-white/10">1.30m</button>
+                  <button onClick={() => setTimerPreset(30)} className="py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-gray-300 transition border border-white/10">30s</button>
+                </div>
+              </div>
+            </div>
+
             {/* AO Athlete Card (Blue) */}
-            <div className="p-6 bg-gradient-to-b from-blue-950/30 to-[#0d0d14] border border-blue-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-blue-950/20">
+            <div className="col-span-1 lg:col-span-4 p-6 bg-gradient-to-b from-blue-950/30 to-[#0d0d14] border border-blue-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-blue-950/20">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 bg-blue-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
                   AO
@@ -887,6 +1002,8 @@ export function KataControlPanelContent() {
                                   else {
                                     if (window.confirm("Assign Chief Judge Penalty to AKA? This will declare AO as the winner.")) {
                                       setPenaltyH('AKA');
+                                      setJudgeScoresA(Array(panelSize).fill(0));
+                                      setJudgeScoresB(Array(panelSize).fill(0));
                                     }
                                   }
                                 }}
@@ -903,6 +1020,8 @@ export function KataControlPanelContent() {
                                   else {
                                     if (window.confirm("Assign Chief Judge Penalty to AO? This will declare AKA as the winner.")) {
                                       setPenaltyH('AO');
+                                      setJudgeScoresA(Array(panelSize).fill(0));
+                                      setJudgeScoresB(Array(panelSize).fill(0));
                                     }
                                   }
                                 }}
