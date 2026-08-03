@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { dbManager } from '@/db/dbClient';
+import { dbManager, supabase } from '@/db/dbClient';
 import { localStore } from '@/db/localStore';
 import { useTournament } from '@/context/TournamentContext';
 import { Tournament, TournamentDatabase } from '@/db/types';
@@ -131,6 +131,38 @@ export default function TournamentConfigPage() {
       await localStore.saveTournament(activeDb);
       // Update global context so header updates instantly
       setTournamentName(name);
+
+      // Cloud Sync: push all updated details to Supabase so it syncs across all devices
+      if (supabase && activeDb.tournament.id) {
+        try {
+          await supabase
+            .from('tournaments')
+            .update({
+              name: updatedT.name,
+              organizer: updatedT.organizer,
+              date: updatedT.date,
+              date_iso: updatedT.date_iso,
+              venue: updatedT.venue,
+              city: updatedT.city,
+              registration_close: updatedT.registration_close,
+              registration_close_iso: updatedT.registration_close_iso,
+              status: updatedT.status,
+              featured: updatedT.featured,
+              discipline: updatedT.discipline,
+              medals_gold: updatedT.medals_gold,
+              medals_silver: updatedT.medals_silver,
+              medals_bronze: updatedT.medals_bronze,
+              total_participants: updatedT.total_participants,
+              total_clubs: updatedT.total_clubs,
+              poster_emoji: updatedT.poster_emoji,
+              banner_gradient: updatedT.banner_gradient
+            })
+            .eq('id', activeDb.tournament.id);
+        } catch (syncErr) {
+          console.warn('Failed to sync tournament details to Supabase:', syncErr);
+        }
+      }
+
       setMessage({ type: 'success', text: 'Tournament configuration saved successfully.' });
     } catch (err) {
       console.error(err);
