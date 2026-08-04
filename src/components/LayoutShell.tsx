@@ -54,11 +54,31 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
   const isPublicOrAuthRoute = pathname === '/' || pathname === '/login' || pathname?.startsWith('/public') || pathname?.startsWith('/auth') || pathname?.startsWith('/display') || pathname?.startsWith('/draws/print-preview');
 
   // Enforce Active Tournament Context
+  const [isDbReady, setIsDbReady] = useState(isPublicOrAuthRoute);
+
   useEffect(() => {
-    import('@/db/dbClient').then(({ dbManager }) => {
-      const activeDb = dbManager.getActiveTournament();
-      if (!activeDb && !isPublicOrAuthRoute) {
+    if (isPublicOrAuthRoute) return;
+
+    import('@/db/dbClient').then(async ({ dbManager }) => {
+      let activeDb = dbManager.getActiveTournament();
+      
+      // If memory was cleared by a hard reload, try to restore from localStorage
+      if (!activeDb) {
+        const activeId = localStorage.getItem('ts_active_tournament_id');
+        if (activeId) {
+          const { localStore } = await import('@/db/localStore');
+          activeDb = await localStore.loadTournament(activeId);
+          if (activeDb) {
+             const { setActiveTournamentDb } = await import('@/db/mockStore');
+             setActiveTournamentDb(activeDb);
+          }
+        }
+      }
+
+      if (!activeDb) {
         window.location.href = '/';
+      } else {
+        setIsDbReady(true);
       }
     });
   }, [pathname, isPublicOrAuthRoute]);
@@ -77,6 +97,15 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
   // If not logged in, force render the login screen
   if (!isLoggedIn) {
     return <LoginPage />;
+  }
+
+  // Prevent rendering protected admin routes until DB is loaded into memory
+  if (!isPublicOrAuthRoute && !isDbReady) {
+    return (
+       <div className="flex items-center justify-center h-screen bg-background text-foreground">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+       </div>
+    );
   }
 
   // Standard Admin layout for logged in Admin/Co-Admin

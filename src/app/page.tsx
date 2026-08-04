@@ -46,7 +46,9 @@ export default function TournamentManager() {
       setLoading(true);
       const success = await dbManager.setActiveTournament(id);
       if (success) {
-        router.push('/dashboard/scoreboard');
+        window.location.href = '/dashboard/scoreboard';
+        // Add a safety timeout to clear the spinner if the hard navigation takes a second
+        setTimeout(() => setLoading(false), 500);
       } else {
         alert('Failed to open tournament project. The file might be corrupted.');
         setLoading(false);
@@ -54,6 +56,40 @@ export default function TournamentManager() {
     } catch (e) {
       console.error(e);
       alert('Error opening tournament.');
+      setLoading(false);
+    }
+  };
+
+  const handleSyncFromCloud = async (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    if (!confirm(`Are you sure you want to reload "${name}" from the Cloud Database? This will overwrite local changes.`)) return;
+    setLoading(true);
+    try {
+      if (supabase && typeof navigator !== 'undefined' && navigator.onLine) {
+        let syncId = id;
+        const isProperUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(syncId);
+        if (!isProperUUID) {
+          syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
+        }
+        
+        const { data, error } = await supabase.from('tournaments').select('data').eq('id', syncId).single();
+        if (error) throw error;
+        if (data?.data) {
+          const cloudDb = data.data as TournamentDatabase;
+          cloudDb.tournament.id = syncId;
+          await localStore.saveTournament(cloudDb);
+          await loadTournaments();
+          alert('Successfully loaded new data from cloud.');
+        } else {
+          alert('No data found in cloud for this tournament.');
+        }
+      } else {
+        alert('Supabase is not configured or you are offline.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error loading from cloud database.');
+    } finally {
       setLoading(false);
     }
   };
@@ -312,7 +348,15 @@ export default function TournamentManager() {
                   <div className="flex justify-between items-start mb-4 gap-2">
                     <h3 className="font-bold text-lg leading-tight line-clamp-2">{t.name}</h3>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {!!supabase && <span title="Cloud Synced"><Cloud size={14} className="text-indigo-400" /></span>}
+                      {!!supabase && (
+                        <button
+                          onClick={(e) => handleSyncFromCloud(e, t.id, t.name)}
+                          title="Sync from Cloud"
+                          className="hover:scale-110 transition-transform cursor-pointer"
+                        >
+                          <Cloud size={14} className="text-indigo-400" />
+                        </button>
+                      )}
                       <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${
                         t.status === 'Completed' ? 'bg-green-900/30 text-green-400 border-green-800' : 
                         t.status === 'Draft' ? 'bg-amber-900/30 text-amber-400 border-amber-800' : 

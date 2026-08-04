@@ -38,6 +38,9 @@ export const dbManager = {
     const db = await localStore.loadTournament(id);
     if (db) {
       setActiveTournamentDb(db);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ts_active_tournament_id', id);
+      }
       return true;
     }
     return false;
