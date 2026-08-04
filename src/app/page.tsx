@@ -72,9 +72,9 @@ export default function TournamentManager() {
           syncId = '00000000-0000-4000-8000-' + syncId.replace(/[^0-9a-fA-F]/g, '0').padStart(12, '0').slice(-12);
         }
         
-        const { data, error } = await supabase.from('tournaments').select('data').eq('id', syncId).single();
+        const { data, error } = await supabase.from('tournaments').select('data').eq('id', syncId).maybeSingle();
         if (error) throw error;
-        if (data?.data) {
+        if (data && data.data) {
           const cloudDb = data.data as TournamentDatabase;
           cloudDb.tournament.id = syncId;
           await localStore.saveTournament(cloudDb);

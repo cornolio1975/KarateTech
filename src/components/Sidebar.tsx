@@ -19,7 +19,7 @@ const MENU_ITEMS = [
   { name: 'Categories', icon: Tags, path: '/categories' },
   { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'Draft' },
   { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
-  { name: 'Scoring Management', icon: Sword, path: '/bouts' },
+
   { name: 'Bracket Console Hub', icon: MonitorPlay, path: '/bracket-hub', badge: 'Live' },
   { name: 'Kumite S-Board', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF', isYellow: true },
   { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-scoreboard', badge: 'WKF', isYellow: true },

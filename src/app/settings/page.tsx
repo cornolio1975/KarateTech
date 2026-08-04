@@ -553,7 +553,7 @@ export default function SettingsPage() {
                   Show Point History on Referee Screen
                 </label>
                 <p className="text-[10px] text-muted-foreground">
-                  Displays fighter scoring history below the total points on the match official scoring console (/scoring).
+                  Displays fighter scoring history below the total points on the match official scoring console (/dashboard/scoreboard).
                 </p>
               </div>
             </div>
