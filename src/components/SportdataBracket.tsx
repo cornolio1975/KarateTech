@@ -289,7 +289,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
 
   // 5. Standings calculation
   const getStandings = () => {
-    const finalBout = mainBouts.find((b) => b.round_no === R && b.bout_no === 1);
+    const finalBout = mainBouts.find((b) => b.round_no === R);
     if (!finalBout || (finalBout.status !== 'Completed' && finalBout.status !== 'Walkover') || !finalBout.winner_id) return [];
 
     const first = participants.find((p) => p.id === finalBout.winner_id);

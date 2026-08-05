@@ -160,7 +160,7 @@ export default function PublicSpectatorHub() {
         const maxRound = Math.max(...rounds, 0);
         const finalBout = catBouts.find(b => b.round_no === maxRound);
 
-        if (finalBout && finalBout.status === 'Completed' && finalBout.winner_id) {
+        if (finalBout && (finalBout.status === 'Completed' || finalBout.status === 'Walkover') && finalBout.winner_id) {
           const goldWinner = participants.find(p => p.id === finalBout.winner_id);
           const goldKey = goldWinner?.club_id || 'Independent';
           if (tally[goldKey]) tally[goldKey].gold++;
@@ -174,7 +174,7 @@ export default function PublicSpectatorHub() {
         }
 
         const bronzeBout = catBouts.find(b => b.round_no === 99);
-        if (bronzeBout && bronzeBout.status === 'Completed' && bronzeBout.winner_id) {
+        if (bronzeBout && (bronzeBout.status === 'Completed' || bronzeBout.status === 'Walkover') && bronzeBout.winner_id) {
           const bronzeWinner = participants.find(p => p.id === bronzeBout.winner_id);
           const bronzeKey = bronzeWinner?.club_id || 'Independent';
           if (tally[bronzeKey]) tally[bronzeKey].bronze++;

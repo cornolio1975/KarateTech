@@ -123,7 +123,7 @@ export default function ReportsPage() {
         const maxRound = Math.max(...rounds, 0);
         const finalBout = catBouts.find(b => b.round_no === maxRound);
 
-        if (finalBout && finalBout.status === 'Completed') {
+        if (finalBout && (finalBout.status === 'Completed' || finalBout.status === 'Walkover') && finalBout.winner_id) {
           // Gold
           const goldWinner = participants.find(p => p.id === finalBout.winner_id);
           const goldClubKey = goldWinner?.club_id || 'Independent';
@@ -140,7 +140,7 @@ export default function ReportsPage() {
 
         // Bronze match (bout_no = 99 or round_no = 99)
         const bronzeBout = catBouts.find(b => b.round_no === 99);
-        if (bronzeBout && bronzeBout.status === 'Completed' && bronzeBout.winner_id) {
+        if (bronzeBout && (bronzeBout.status === 'Completed' || bronzeBout.status === 'Walkover') && bronzeBout.winner_id) {
           const bronzeWinner = participants.find(p => p.id === bronzeBout.winner_id);
           const bronzeClubKey = bronzeWinner?.club_id || 'Independent';
           if (tallyMap[bronzeClubKey]) tallyMap[bronzeClubKey].bronze += 1;

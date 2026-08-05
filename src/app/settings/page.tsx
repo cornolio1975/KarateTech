@@ -227,7 +227,7 @@ export default function SettingsPage() {
           // Fetch champion names and dojos
           for (const catId in finalBoutsMap) {
             const finalBout = finalBoutsMap[catId];
-            if (finalBout.winner_id && finalBout.status === 'Completed') {
+            if (finalBout.winner_id && (finalBout.status === 'Completed' || finalBout.status === 'Walkover')) {
               const winnerPart = dbParticipants?.find(p => p.id === finalBout.winner_id);
               const winnerClub = dbClubs?.find(c => c.id === winnerPart?.club_id);
               const category = dbCats?.find(c => c.id === catId);

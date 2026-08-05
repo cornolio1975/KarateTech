@@ -4,12 +4,14 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, isKataCategory } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, List, Monitor, Clock, Layers, Calendar, Flag } from 'lucide-react';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Layers, Calendar, Flag } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
-import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
+import TournamentSelectorGate from '@/components/TournamentSelectorGate';
+import { fetchSpectatorData } from './actions';
 
 function SpectatorDisplayContent() {
   const searchParams = useSearchParams();
+  const urlTournamentId = searchParams.get('tournament');
   const urlBoutId = searchParams.get('boutId');
   const urlPlaylistId = searchParams.get('playlistId');
 
@@ -22,7 +24,6 @@ function SpectatorDisplayContent() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
   const [slideTimeLeft, setSlideTimeLeft] = useState<number>(25);
   const [isPlaylistPaused, setIsPlaylistPaused] = useState<boolean>(false);
-  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState<boolean>(false);
 
   // General Presentation Data
   const [allBouts, setAllBouts] = useState<Bout[]>([]);
@@ -115,6 +116,27 @@ function SpectatorDisplayContent() {
   const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
   const soundPlayedRef = useRef<string | null>(null);
 
+  const parseJudgeScores = (scores: any) => {
+    if (!scores) return null;
+    if (Array.isArray(scores)) return scores;
+    if (typeof scores === 'string') {
+      try {
+        return JSON.parse(scores);
+      } catch {
+        const cleaned = scores.replace(/^{|}$|\[|\]/g, '').trim();
+        if (cleaned) return cleaned.split(',').map(Number);
+      }
+    }
+    return null;
+  };
+
+  const inferKataScoringMethod = (scoresA: number[] | null, scoresB: number[] | null) => {
+    if (!scoresA?.length || !scoresB?.length) return null;
+    const isFlags = scoresA.every(score => score === 0 || score === 1)
+      && scoresB.every(score => score === 0 || score === 1);
+    return isFlags ? 'Flags' : 'Points';
+  };
+
   // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -147,13 +169,24 @@ function SpectatorDisplayContent() {
   useEffect(() => {
     const loadPresentationData = async () => {
       try {
-        const [plList, bList, cList, pList, clList] = await Promise.all([
-          db.displayPlaylists.list(),
-          db.bouts.list(),
-          db.categories.list(),
-          db.participants.list(),
-          db.clubs.list()
-        ]);
+        let plList: DisplayPlaylist[], bList: Bout[], cList: Category[], pList: Participant[], clList: Club[];
+        
+        const serverData = await fetchSpectatorData(urlTournamentId);
+        if (serverData.isSupabase) {
+          plList = serverData.playlists;
+          bList = serverData.bouts;
+          cList = serverData.categories;
+          pList = serverData.participants;
+          clList = serverData.clubs;
+        } else {
+          [plList, bList, cList, pList, clList] = await Promise.all([
+            db.displayPlaylists.list(),
+            db.bouts.list(),
+            db.categories.list(),
+            db.participants.list(),
+            db.clubs.list()
+          ]);
+        }
         setPlaylists(plList);
         setAllBouts(bList);
         setAllCategories(cList);
@@ -167,13 +200,21 @@ function SpectatorDisplayContent() {
             setCurrentSlideIndex(0);
             setSlideTimeLeft(targetPl.slides[0]?.duration_seconds || 25);
           }
+        } else {
+          // Auto-load the active playlist for viewers if no specific ID provided
+          const activePl = plList.find(p => p.is_active) || plList[0];
+          if (activePl) {
+            setActivePlaylist(activePl);
+            setCurrentSlideIndex(0);
+            setSlideTimeLeft(activePl.slides[0]?.duration_seconds || 25);
+          }
         }
       } catch (err) {
         console.error('Error loading presentation data:', err);
       }
     };
     loadPresentationData();
-  }, [urlPlaylistId]);
+  }, [urlPlaylistId, urlTournamentId]);
 
   // Playlist Slide Rotation Timer Effect
   useEffect(() => {
@@ -386,24 +427,12 @@ function SpectatorDisplayContent() {
           if (data.kataA) setKataA(data.kataA);
           if (data.kataB) setKataB(data.kataB);
 
-          const parseScores = (scores: any) => {
-            if (!scores) return null;
-            if (Array.isArray(scores)) return scores;
-            if (typeof scores === 'string') {
-              try { return JSON.parse(scores); } catch (e) {
-                const cleaned = scores.replace(/^{|}$|\[|\]/g, '').trim();
-                if (cleaned) return cleaned.split(',').map(Number);
-              }
-            }
-            return null;
-          };
-
           if (data.judgeScoresA) {
-            const pA = parseScores(data.judgeScoresA);
+            const pA = parseJudgeScores(data.judgeScoresA);
             if (pA) setJudgeScoresA(pA);
           }
           if (data.judgeScoresB) {
-            const pB = parseScores(data.judgeScoresB);
+            const pB = parseJudgeScores(data.judgeScoresB);
             if (pB) setJudgeScoresB(pB);
           }
           if (data.panelSize) setPanelSize(data.panelSize);
@@ -465,27 +494,20 @@ function SpectatorDisplayContent() {
           const kataBout = isKataCategory(cat);
           setIsKata(kataBout);
 
-          const parseScores = (scores: any) => {
-            if (!scores) return null;
-            if (Array.isArray(scores)) return scores;
-            if (typeof scores === 'string') {
-              try { return JSON.parse(scores); } catch (e) {
-                const cleaned = scores.replace(/^{|}$|\[|\]/g, '').trim();
-                if (cleaned) return cleaned.split(',').map(Number);
-              }
-            }
-            return null;
-          };
-
           if (kataBout) {
             setKataA(bout.kata_a || '');
             setKataB(bout.kata_b || '');
             
-            const parsedA = parseScores(bout.judge_scores_a);
+            const parsedA = parseJudgeScores(bout.judge_scores_a);
             if (parsedA) setJudgeScoresA(parsedA);
             
-            const parsedB = parseScores(bout.judge_scores_b);
+            const parsedB = parseJudgeScores(bout.judge_scores_b);
             if (parsedB) setJudgeScoresB(parsedB);
+
+            const inferredMethod = inferKataScoringMethod(parsedA, parsedB);
+            if (inferredMethod) setScoringMethod(inferredMethod);
+            const inferredPanelSize = parsedA?.length || parsedB?.length;
+            if (inferredPanelSize === 5 || inferredPanelSize === 7) setPanelSize(inferredPanelSize);
             
             setScoreAka(bout.total_score_a || bout.score_a || 0);
             setScoreAo(bout.total_score_b || bout.score_b || 0);
@@ -509,8 +531,10 @@ function SpectatorDisplayContent() {
           setBoutNo(bout.bout_no);
           setRoundNo(bout.round_no);
 
-          setScoreAka(bout.score_a ?? 0);
-          setScoreAo(bout.score_b ?? 0);
+          if (!kataBout) {
+            setScoreAka(bout.score_a ?? 0);
+            setScoreAo(bout.score_b ?? 0);
+          }
           setSenshuAka(bout.senshu_a ?? false);
           setSenshuAo(bout.senshu_b ?? false);
           let parsedEventsAka: { fighter: string; points: number; technique: string; timestamp: number; matchId: string }[] = [];
@@ -585,8 +609,28 @@ function SpectatorDisplayContent() {
         async (payload: any) => {
           const updated = payload.new;
           if (updated) {
-            setScoreAka(updated.score_a ?? 0);
-            setScoreAo(updated.score_b ?? 0);
+            const parsedJudgeScoresA = parseJudgeScores(updated.judge_scores_a);
+            const parsedJudgeScoresB = parseJudgeScores(updated.judge_scores_b);
+            const isKataUpdate = !!(updated.kata_a || updated.kata_b || parsedJudgeScoresA?.length || parsedJudgeScoresB?.length);
+
+            if (isKataUpdate) {
+              setIsKata(true);
+              setKataA(updated.kata_a || '');
+              setKataB(updated.kata_b || '');
+              if (parsedJudgeScoresA) setJudgeScoresA(parsedJudgeScoresA);
+              if (parsedJudgeScoresB) setJudgeScoresB(parsedJudgeScoresB);
+
+              const inferredMethod = inferKataScoringMethod(parsedJudgeScoresA, parsedJudgeScoresB);
+              if (inferredMethod) setScoringMethod(inferredMethod);
+              const inferredPanelSize = parsedJudgeScoresA?.length || parsedJudgeScoresB?.length;
+              if (inferredPanelSize === 5 || inferredPanelSize === 7) setPanelSize(inferredPanelSize);
+
+              setScoreAka(updated.total_score_a ?? updated.score_a ?? 0);
+              setScoreAo(updated.total_score_b ?? updated.score_b ?? 0);
+            } else {
+              setScoreAka(updated.score_a ?? 0);
+              setScoreAo(updated.score_b ?? 0);
+            }
             setSenshuAka(updated.senshu_a ?? false);
             setSenshuAo(updated.senshu_b ?? false);
             let parsedEventsAka: { fighter: string; points: number; technique: string; timestamp: number; matchId: string }[] = [];
@@ -643,7 +687,7 @@ function SpectatorDisplayContent() {
             
             if (updated.status === 'Completed') {
               setWinnerSide(updated.winner_id === updated.participant_a_id ? 'aka' : 'ao');
-              setWinMethod('Completed');
+              setWinMethod(updated.victory_method || 'Completed');
               playBuzzer();
             } else {
               setWinnerSide(null);
@@ -702,6 +746,80 @@ function SpectatorDisplayContent() {
   const currentSlide = activePlaylist?.slides[currentSlideIndex];
   const currentSlideType = currentSlide?.type || 'live_scoreboard';
 
+  const medalStandings = (() => {
+    const tally: Record<string, { name: string; gold: number; silver: number; bronze: number }> = {};
+
+    allClubs.forEach(club => {
+      tally[club.id] = { name: club.name, gold: 0, silver: 0, bronze: 0 };
+    });
+    tally.Independent = { name: 'Independent Athletes', gold: 0, silver: 0, bronze: 0 };
+
+    allCategories.forEach(category => {
+      const categoryBouts = allBouts.filter(bout => bout.category_id === category.id);
+      if (categoryBouts.length === 0) return;
+
+      const isRoundRobin = categoryBouts.length > 1 && categoryBouts.every(bout => bout.round_no === 1);
+
+      if (isRoundRobin) {
+        const winsMap: Record<string, number> = {};
+        const scoreMap: Record<string, number> = {};
+
+        categoryBouts.forEach(bout => {
+          if (bout.winner_id) winsMap[bout.winner_id] = (winsMap[bout.winner_id] || 0) + 1;
+          if (bout.participant_a_id) scoreMap[bout.participant_a_id] = (scoreMap[bout.participant_a_id] || 0) + bout.score_a;
+          if (bout.participant_b_id) scoreMap[bout.participant_b_id] = (scoreMap[bout.participant_b_id] || 0) + bout.score_b;
+        });
+
+        const rankedParticipants = (Array.from(
+          new Set(categoryBouts.flatMap(bout => [bout.participant_a_id, bout.participant_b_id]).filter(Boolean))
+        ) as string[]).sort((leftId, rightId) => {
+          const winDifference = (winsMap[rightId] || 0) - (winsMap[leftId] || 0);
+          if (winDifference !== 0) return winDifference;
+          return (scoreMap[rightId] || 0) - (scoreMap[leftId] || 0);
+        });
+
+        [['gold', rankedParticipants[0]], ['silver', rankedParticipants[1]], ['bronze', rankedParticipants[2]]].forEach(([medal, participantId]) => {
+          if (!participantId) return;
+          const participant = allParticipants.find(entry => entry.id === participantId);
+          const clubKey = participant?.club_id || 'Independent';
+          if (tally[clubKey]) tally[clubKey][medal as 'gold' | 'silver' | 'bronze'] += 1;
+        });
+
+        return;
+      }
+
+      const competitiveRounds = categoryBouts.map(bout => bout.round_no).filter(roundNo => roundNo !== 99);
+      const maxRound = Math.max(...competitiveRounds, 0);
+      const finalBout = categoryBouts.find(bout => bout.round_no === maxRound);
+
+      if (finalBout && (finalBout.status === 'Completed' || finalBout.status === 'Walkover') && finalBout.winner_id) {
+        const goldWinner = allParticipants.find(participant => participant.id === finalBout.winner_id);
+        const goldClubKey = goldWinner?.club_id || 'Independent';
+        if (tally[goldClubKey]) tally[goldClubKey].gold += 1;
+
+        const silverParticipantId = finalBout.winner_id === finalBout.participant_a_id ? finalBout.participant_b_id : finalBout.participant_a_id;
+        if (silverParticipantId) {
+          const silverWinner = allParticipants.find(participant => participant.id === silverParticipantId);
+          const silverClubKey = silverWinner?.club_id || 'Independent';
+          if (tally[silverClubKey]) tally[silverClubKey].silver += 1;
+        }
+      }
+
+      const bronzeBout = categoryBouts.find(bout => bout.round_no === 99);
+      if (bronzeBout && (bronzeBout.status === 'Completed' || bronzeBout.status === 'Walkover') && bronzeBout.winner_id) {
+        const bronzeWinner = allParticipants.find(participant => participant.id === bronzeBout.winner_id);
+        const bronzeClubKey = bronzeWinner?.club_id || 'Independent';
+        if (tally[bronzeClubKey]) tally[bronzeClubKey].bronze += 1;
+      }
+    });
+
+    return Object.entries(tally)
+      .map(([id, value]) => ({ id, ...value, total: value.gold + value.silver + value.bronze }))
+      .filter(club => club.total > 0)
+      .sort((left, right) => right.gold - left.gold || right.silver - left.silver || right.bronze - left.bronze)
+      .slice(0, 5);
+  })();
+
   if (!mounted) return null;
 
   return (
@@ -709,31 +827,12 @@ function SpectatorDisplayContent() {
       className="min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-black text-white flex flex-col lg:overflow-hidden select-none font-sans p-4 lg:p-6 relative"
       onMouseMove={resetHideTimer}
     >
-      {/* Display Playlist Modal */}
-      <DisplayPlaylistModal
-        isOpen={isPlaylistModalOpen}
-        onClose={() => setIsPlaylistModalOpen(false)}
-        onSelectPlaylist={(pl) => {
-          setActivePlaylist(pl);
-          setCurrentSlideIndex(0);
-          setSlideTimeLeft(pl.slides[0]?.duration_seconds || 25);
-          setIsPlaylistModalOpen(false);
-        }}
-      />
-
       {/* Top Controls Bar (Playlist & Fullscreen) */}
       <div className={`fixed top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none transition-all duration-300 ${
         showControls || !isFullscreen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
       }`}>
         {/* Playlist Controls Badge */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <button
-            onClick={() => setIsPlaylistModalOpen(true)}
-            className="bg-yellow-500 hover:bg-yellow-400 text-black font-extrabold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xl border border-yellow-400 cursor-pointer uppercase tracking-wider transition"
-          >
-            <List className="h-4 w-4" />
-            <span>Display Playlists</span>
-          </button>
 
           {activePlaylist && (
             <div className="flex items-center gap-2.5 bg-black/85 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-2xl">
@@ -862,12 +961,16 @@ function SpectatorDisplayContent() {
               <span className="text-center text-amber-600">🥉 Bronze</span>
             </div>
             <div className="divide-y divide-white/10 text-sm font-bold">
-              {allClubs.slice(0, 5).map((cl, idx) => (
-                <div key={cl.id} className="grid grid-cols-6 p-4 items-center hover:bg-white/5 transition">
-                  <span className="col-span-3 text-white font-extrabold">{idx + 1}. {cl.name}</span>
-                  <span className="text-center font-mono text-yellow-400 font-extrabold">{3 - idx > 0 ? 3 - idx : 0}</span>
-                  <span className="text-center font-mono text-slate-300">{2 - idx > 0 ? 2 - idx : 0}</span>
-                  <span className="text-center font-mono text-amber-600">{1}</span>
+              {medalStandings.length === 0 ? (
+                <div className="p-6 text-center text-white/60 font-semibold">
+                  No medal results yet. Complete final and bronze bouts to populate the leaderboard.
+                </div>
+              ) : medalStandings.map((club, idx) => (
+                <div key={club.id} className="grid grid-cols-6 p-4 items-center hover:bg-white/5 transition">
+                  <span className="col-span-3 text-white font-extrabold">{idx + 1}. {club.name}</span>
+                  <span className="text-center font-mono text-yellow-400 font-extrabold">{club.gold}</span>
+                  <span className="text-center font-mono text-slate-300">{club.silver}</span>
+                  <span className="text-center font-mono text-amber-600">{club.bronze}</span>
                 </div>
               ))}
             </div>
@@ -1516,13 +1619,15 @@ function SpectatorDisplayContent() {
 
 export default function SpectatorDisplayPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white/40 text-xl font-black tracking-widest animate-pulse">LOADING DISPLAY...</div>
-      </div>
-    }>
-      <SpectatorDisplayContent />
-    </Suspense>
+    <TournamentSelectorGate>
+      <Suspense fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="text-white/40 text-xl font-black tracking-widest animate-pulse">LOADING DISPLAY...</div>
+        </div>
+      }>
+        <SpectatorDisplayContent />
+      </Suspense>
+    </TournamentSelectorGate>
   );
 }
 
