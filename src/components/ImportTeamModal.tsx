@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { db, basePath } from '@/db/dbClient';
 import { Upload, X, Check, RefreshCw, AlertCircle, FileText, ArrowRight } from 'lucide-react';
-import { Club, Coach } from '@/db/types';
+
 
 interface ImportTeamModalProps {
   isOpen: boolean;
@@ -149,12 +149,12 @@ export default function ImportTeamModal({ isOpen, onClose }: ImportTeamModalProp
         const coachName = cols[2]?.trim() || '';
 
         // Try to match existing club by name
-        let matchedClub = existingClubs.find(c => c.name.toLowerCase() === clubName.toLowerCase());
-        let resolvedClubId = matchedClub?.id;
+        const matchedClub = existingClubs.find(c => c.name.toLowerCase() === clubName.toLowerCase());
+        const resolvedClubId = matchedClub?.id;
 
         // Try to match existing coach by name
-        let matchedCoach = existingCoaches.find(c => c.name.toLowerCase() === coachName.toLowerCase());
-        let resolvedCoachId = matchedCoach?.id;
+        const matchedCoach = existingCoaches.find(c => c.name.toLowerCase() === coachName.toLowerCase());
+        const resolvedCoachId = matchedCoach?.id;
 
         const isDuplicate = existingTeamNames.has(name.toLowerCase());
 
@@ -187,7 +187,7 @@ export default function ImportTeamModal({ isOpen, onClose }: ImportTeamModalProp
     const errors: string[] = [];
 
     try {
-      let existingClubs = await db.clubs.list();
+      const existingClubs = await db.clubs.list();
       const existingTeams = await db.teams.list();
       const existingTeamNames = new Set(existingTeams.map(t => t.name.toLowerCase().trim()));
 

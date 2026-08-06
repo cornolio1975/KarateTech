@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { db } from '@/db/dbClient';
+import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKumiteCategory, isKataCategory } from '@/db/types';
 import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
@@ -20,6 +20,12 @@ export default function ScoreboardDashboardPage() {
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedBoutIdFilter, setSelectedBoutIdFilter] = useState<string>('ALL');
+
+  const openSpectatorView = () => {
+    const activeTournamentId = typeof window !== 'undefined' ? localStorage.getItem('ts_active_tournament_id') : null;
+    const tournamentParam = activeTournamentId ? `?tournament=${encodeURIComponent(activeTournamentId)}` : '';
+    window.open(`${basePath}/display${tournamentParam}`, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -128,7 +134,7 @@ export default function ScoreboardDashboardPage() {
             Sync Matches
           </button>
           <button
-            onClick={() => window.open('/display', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes')}
+            onClick={openSpectatorView}
             className="flex items-center gap-2 px-4 py-2 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 hover:border-yellow-400/50 rounded-xl text-xs font-bold transition cursor-pointer"
           >
             <Tv className="h-4 w-4" />

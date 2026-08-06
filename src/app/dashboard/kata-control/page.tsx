@@ -99,7 +99,9 @@ export function KataControlPanelContent() {
   const openSpectatorWindow = (targetBoutId?: string, targetMode: 'new-tab' | 'new-window' = 'new-tab') => {
     const bId = targetBoutId || selectedBoutId || currentBout?.id;
     if (!bId) return;
-    const specUrl = `${window.location.origin}${basePath}/display?boutId=${bId}&mode=${scoringMethod}&panelSize=${panelSize}`;
+    const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+    const tournamentParam = activeTournamentId ? `&tournament=${encodeURIComponent(activeTournamentId)}` : '';
+    const specUrl = `${window.location.origin}${basePath}/display?boutId=${bId}&mode=${scoringMethod}&panelSize=${panelSize}${tournamentParam}`;
     if (targetMode === 'new-window') {
       spectatorWindowRef.current = window.open(specUrl, 'SpectatorDisplay', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
     } else {

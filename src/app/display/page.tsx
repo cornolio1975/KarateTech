@@ -1,19 +1,57 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath } from '@/db/dbClient';
-import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, isKataCategory } from '@/db/types';
+import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, TournamentDatabase, isKataCategory } from '@/db/types';
 import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Layers, Calendar, Flag } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import TournamentSelectorGate from '@/components/TournamentSelectorGate';
-import { fetchSpectatorData } from './actions';
+import { localStore } from '@/db/localStore';
+
+interface SponsorTickerItem {
+  id: string;
+  name: string;
+  logo_url: string;
+  website_url?: string;
+  active: boolean;
+  order: number;
+}
+
+const extractSponsorsFromSource = (source: unknown): SponsorTickerItem[] => {
+  const rawSponsors = (
+    (source as { tournament?: { settings?: { sponsors?: unknown } } } | null | undefined)?.tournament?.settings?.sponsors
+    ?? (source as { settings?: { sponsors?: unknown } } | null | undefined)?.settings?.sponsors
+    ?? (source as { data?: { tournament?: { settings?: { sponsors?: unknown } }; settings?: { sponsors?: unknown } } } | null | undefined)?.data?.tournament?.settings?.sponsors
+    ?? (source as { data?: { settings?: { sponsors?: unknown } } } | null | undefined)?.data?.settings?.sponsors
+  );
+
+  if (!Array.isArray(rawSponsors)) {
+    return [];
+  }
+
+  return rawSponsors
+    .map((item, idx) => {
+      const sponsor = item as Partial<SponsorTickerItem>;
+      return {
+        id: sponsor.id || `sponsor-${idx}`,
+        name: sponsor.name || 'Unnamed Sponsor',
+        logo_url: sponsor.logo_url || '',
+        website_url: sponsor.website_url || '',
+        active: sponsor.active !== false,
+        order: typeof sponsor.order === 'number' ? sponsor.order : idx
+      } satisfies SponsorTickerItem;
+    })
+    .filter(sponsor => sponsor.active)
+    .sort((a, b) => a.order - b.order);
+};
 
 function SpectatorDisplayContent() {
   const searchParams = useSearchParams();
   const urlTournamentId = searchParams.get('tournament');
   const urlBoutId = searchParams.get('boutId');
   const urlPlaylistId = searchParams.get('playlistId');
+  const forceLiveOnly = searchParams.get('liveOnly') === 'true';
 
   const [activeBoutId, setActiveBoutId] = useState<string | null>(null);
   const { tournamentName } = useTournament();
@@ -30,6 +68,7 @@ function SpectatorDisplayContent() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
   const [allClubs, setAllClubs] = useState<Club[]>([]);
+  const [sponsors, setSponsors] = useState<SponsorTickerItem[]>([]);
 
   // Sync activeBoutId & mode & panelSize with URL query params initially or when they change
   useEffect(() => {
@@ -170,14 +209,46 @@ function SpectatorDisplayContent() {
     const loadPresentationData = async () => {
       try {
         let plList: DisplayPlaylist[], bList: Bout[], cList: Category[], pList: Participant[], clList: Club[];
-        
-        const serverData = await fetchSpectatorData(urlTournamentId);
-        if (serverData.isSupabase) {
-          plList = serverData.playlists;
-          bList = serverData.bouts;
-          cList = serverData.categories;
-          pList = serverData.participants;
-          clList = serverData.clubs;
+        let sponsorList: SponsorTickerItem[] = [];
+
+        if (urlTournamentId) {
+          const localTournamentDb = await localStore.loadTournament(urlTournamentId);
+          if (localTournamentDb) {
+            sponsorList = extractSponsorsFromSource(localTournamentDb);
+          }
+        }
+
+        if (supabase && urlTournamentId) {
+          const { data: tournamentRow, error: tournamentError } = await supabase
+            .from('tournaments')
+            .select('id, status, deleted_at, data')
+            .eq('id', urlTournamentId)
+            .maybeSingle();
+
+          if (tournamentError) throw tournamentError;
+
+          const tournamentDb = tournamentRow?.data as TournamentDatabase | null;
+          if (
+            tournamentDb
+            && tournamentRow?.status
+            && !['Archived', 'Deleted'].includes(tournamentRow.status)
+            && !tournamentRow.deleted_at
+          ) {
+            plList = tournamentDb.display_playlists || [];
+            bList = tournamentDb.bouts || [];
+            cList = tournamentDb.categories || [];
+            pList = (tournamentDb.participants || []).filter(participant => !participant.deleted_at);
+            clList = tournamentDb.clubs || [];
+            sponsorList = extractSponsorsFromSource(tournamentDb);
+          } else {
+            [plList, bList, cList, pList, clList] = await Promise.all([
+              db.displayPlaylists.list(),
+              db.bouts.list(),
+              db.categories.list(),
+              db.participants.list(),
+              db.clubs.list()
+            ]);
+          }
         } else {
           [plList, bList, cList, pList, clList] = await Promise.all([
             db.displayPlaylists.list(),
@@ -192,8 +263,14 @@ function SpectatorDisplayContent() {
         setAllCategories(cList);
         setAllParticipants(pList);
         setAllClubs(clList);
+        setSponsors(sponsorList);
 
-        if (urlPlaylistId) {
+        if (forceLiveOnly) {
+          // Keep display on the active live scoreboard and ignore playlist slides.
+          setActivePlaylist(null);
+          setCurrentSlideIndex(0);
+          setSlideTimeLeft(25);
+        } else if (urlPlaylistId) {
           const targetPl = plList.find(p => p.id === urlPlaylistId);
           if (targetPl) {
             setActivePlaylist(targetPl);
@@ -214,7 +291,7 @@ function SpectatorDisplayContent() {
       }
     };
     loadPresentationData();
-  }, [urlPlaylistId, urlTournamentId]);
+  }, [forceLiveOnly, urlPlaylistId, urlTournamentId]);
 
   // Playlist Slide Rotation Timer Effect
   useEffect(() => {
@@ -743,6 +820,82 @@ function SpectatorDisplayContent() {
     return `.${decs}0`;
   };
 
+  const akaTechniqueCounts = useMemo(() => {
+    return eventsAka.reduce(
+      (acc, event) => {
+        if (event.points === 3) acc.ippon += 1;
+        if (event.points === 2) acc.wazaAri += 1;
+        if (event.points === 1) acc.yuko += 1;
+        return acc;
+      },
+      { ippon: 0, wazaAri: 0, yuko: 0 }
+    );
+  }, [eventsAka]);
+
+  const aoTechniqueCounts = useMemo(() => {
+    return eventsAo.reduce(
+      (acc, event) => {
+        if (event.points === 3) acc.ippon += 1;
+        if (event.points === 2) acc.wazaAri += 1;
+        if (event.points === 1) acc.yuko += 1;
+        return acc;
+      },
+      { ippon: 0, wazaAri: 0, yuko: 0 }
+    );
+  }, [eventsAo]);
+
+  const sponsorLoopItems = useMemo(() => (
+    sponsors.length > 1 ? [...sponsors, ...sponsors] : sponsors
+  ), [sponsors]);
+
+  const sponsorTickerCards = useMemo(() => (
+    sponsors.map((sponsor) => (
+      <div
+        key={sponsor.id}
+        className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2"
+      >
+        {sponsor.logo_url ? (
+          <div className="flex h-12 w-20 items-center justify-center overflow-hidden rounded-xl bg-white/95 px-2 py-1 shadow-inner">
+            <img
+              src={sponsor.logo_url}
+              alt={sponsor.name}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        ) : null}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black uppercase tracking-wide text-white">{sponsor.name}</p>
+          <p className="truncate text-xs font-semibold text-cyan-300/80">{sponsor.website_url || 'Official Sponsor'}</p>
+        </div>
+      </div>
+    ))
+  ), [sponsors]);
+
+  const akaTwoDigitScore = scoreAka >= 10;
+  const aoTwoDigitScore = scoreAo >= 10;
+
+  const akaScoreShiftClass = '';
+  const aoScoreShiftClass = '';
+
+  const akaScoreSizeClass = 'text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)]';
+  const aoScoreSizeClass = 'text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)]';
+
+  const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+  const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+
+  const akaSummaryGridClass = akaTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+  const aoSummaryGridClass = aoTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+
+  const akaSummaryValueClass = akaTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+  const aoSummaryValueClass = aoTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+
+  const akaSummarySlotClass = akaTwoDigitScore
+    ? 'w-[74px] lg:w-[82px] h-[48px] lg:h-[58px]'
+    : 'w-[84px] lg:w-[92px] h-[54px] lg:h-[64px]';
+  const aoSummarySlotClass = aoTwoDigitScore
+    ? 'w-[74px] lg:w-[82px] h-[50px] lg:h-[60px]'
+    : 'w-[84px] lg:w-[92px] h-[56px] lg:h-[66px]';
+
   const currentSlide = activePlaylist?.slides[currentSlideIndex];
   const currentSlideType = currentSlide?.type || 'live_scoreboard';
 
@@ -824,7 +977,7 @@ function SpectatorDisplayContent() {
 
   return (
     <div
-      className="min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-black text-white flex flex-col lg:overflow-hidden select-none font-sans p-4 lg:p-6 relative"
+      className="min-h-[100dvh] w-full bg-black text-white flex flex-col overflow-y-auto select-none font-sans p-4 pb-24 lg:p-6 lg:pb-28 relative"
       onMouseMove={resetHideTimer}
     >
       {/* Top Controls Bar (Playlist & Fullscreen) */}
@@ -1007,6 +1160,47 @@ function SpectatorDisplayContent() {
           <p className="text-lg font-bold text-white/60 uppercase tracking-wider">
             {tournamentName || 'Kelab Karate Do Senshi Goju-Ryu'}
           </p>
+        </div>
+      )}
+
+      {currentSlideType === 'image' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-4 bg-slate-950/90 rounded-3xl border border-white/10 my-12 overflow-hidden">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">{currentSlide?.title || 'Image Media'}</h2>
+            <p className="text-sm font-semibold text-white/50">Playlist image presentation</p>
+          </div>
+          {currentSlide?.media_url ? (
+            <img
+              src={currentSlide.media_url}
+              alt={currentSlide.title || 'Playlist image'}
+              className="max-h-[70vh] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl"
+            />
+          ) : (
+            <div className="text-sm font-semibold text-white/50">No image URL configured for this slide.</div>
+          )}
+        </div>
+      )}
+
+      {currentSlideType === 'video' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-4 bg-slate-950/90 rounded-3xl border border-white/10 my-12 overflow-hidden">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">{currentSlide?.title || 'Video Media'}</h2>
+            <p className="text-sm font-semibold text-white/50">Playlist video presentation</p>
+          </div>
+          {currentSlide?.media_url ? (
+            <video
+              key={currentSlide.id}
+              src={currentSlide.media_url}
+              className="max-h-[70vh] max-w-full rounded-2xl border border-white/10 shadow-2xl bg-black"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+            />
+          ) : (
+            <div className="text-sm font-semibold text-white/50">No video URL configured for this slide.</div>
+          )}
         </div>
       )}
 
@@ -1348,7 +1542,6 @@ function SpectatorDisplayContent() {
                 {categoryName}
               </h1>
             </div>
-
             <div className="text-right">
               <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">
                 TOURNAMENT HUB
@@ -1386,9 +1579,9 @@ function SpectatorDisplayContent() {
       )}
 
       {/* Main Scoreboard Arena Grid */}
-      <div className="flex-1 min-h-0 grid grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6 pb-2">
+      <div className="flex-1 min-h-0 grid grid-cols-2 xl:grid-cols-12 gap-3 lg:gap-4 xl:gap-6 pb-2">
         {/* AKA RED CARD */}
-        <div className={`col-span-1 lg:col-span-3 order-2 lg:order-1 h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
+        <div className={`col-span-1 xl:col-span-3 order-2 xl:order-1 h-auto xl:h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
           winnerSide === 'aka'
             ? 'bg-red-950/80 border-4 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.4),0_0_80px_rgba(239,68,68,0.8)]'
             : 'bg-[#150000] border-4 border-red-600/40 text-white'
@@ -1398,7 +1591,7 @@ function SpectatorDisplayContent() {
               {senshuAka && (
                 <span className="bg-yellow-500 text-black font-black text-sm lg:text-base uppercase px-4 py-1 rounded-xl tracking-widest animate-pulse border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] flex items-center justify-center gap-1.5 w-max max-w-full mx-auto">
                   <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                  先取 SENSHU
+                  SENSHU
                 </span>
               )}
               <span className={`text-6xl lg:text-8xl font-black uppercase tracking-wider leading-none ${
@@ -1416,40 +1609,35 @@ function SpectatorDisplayContent() {
                   {akaClub}
                 </p>
 
-                {showPointHistory && eventsAka.length > 0 && (
-                  <div className="absolute right-0 top-full mt-1 pr-1 lg:pr-2 flex justify-end w-full pointer-events-none z-20">
-                    <div className="grid grid-rows-6 grid-flow-col gap-x-0.5 gap-y-0.5 lg:gap-x-1 lg:gap-y-1 max-w-[45%] pointer-events-auto">
-                      {eventsAka.map((ev, idx) => (
-                        <div key={idx} className="flex items-center justify-end">
-                          <span className={`inline-flex items-center gap-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap transition-all ${
-                            eventsAka.length > 15 ? 'px-0.5 py-[1px] text-[5px] lg:text-[6px]' :
-                            eventsAka.length > 5 ? 'px-1 py-[1px] text-[6px] lg:text-[8px]' :
-                            'px-1.5 py-[2px] text-[8px] lg:text-[10px]'
-                          }`}>
-                            <span className="font-black text-red-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
           {/* Huge Score (DIN 1451 Bold 140-220px) */}
-          <div className={`flex-1 flex flex-col items-center justify-center min-h-0 py-2 w-full transition-all duration-500 ${
-            showPointHistory && eventsAka.length > 0 ? 'pr-[40%] lg:pr-[45%]' : ''
-          }`}>
-            <span className={`font-din text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
-              winnerSide === 'aka'
-                ? 'text-red-500 animate-blink drop-shadow-[0_0_80px_rgba(239,68,68,0.7)] scale-110'
-                : scoreAka - scoreAo >= 8 
-                  ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_80px_rgba(239,68,68,0.7)]' 
-                  : 'text-red-500 drop-shadow-[0_0_55px_rgba(239,68,68,0.3)]'
-            }`}>
-              {scoreAka}
-            </span>
+          <div className="flex-1 min-h-0 py-2 w-full transition-all duration-500 flex items-center gap-2">
+            <div className={`flex-1 min-h-0 flex items-center justify-center ${akaScoreShiftClass}`}>
+              <span className={`font-din ${akaScoreSizeClass} font-black leading-none select-none tracking-tight transition-all duration-300 ${
+                winnerSide === 'aka'
+                  ? 'text-red-500 animate-blink drop-shadow-[0_0_80px_rgba(239,68,68,0.7)] scale-110'
+                  : scoreAka - scoreAo >= 8 
+                    ? 'text-red-500 animate-pulse scale-105 drop-shadow-[0_0_80px_rgba(239,68,68,0.7)]' 
+                    : 'text-red-500 drop-shadow-[0_0_55px_rgba(239,68,68,0.3)]'
+              }`}>
+                {scoreAka}
+              </span>
+            </div>
+            <div className={`${akaSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
+                <div className={`w-full rounded-lg border border-red-400/60 bg-red-950/65 shadow-[0_0_12px_rgba(239,68,68,0.25)] ${akaSummaryBoxClass}`}>
+                  <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-red-100 ${akaSummaryGridClass}`}>
+                    <span>Ippon</span>
+                    <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.ippon}</span>
+                    <span>Waza-Ari</span>
+                    <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.wazaAri}</span>
+                    <span>Yuko</span>
+                    <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.yuko}</span>
+                  </div>
+                </div>
+            </div>
           </div>
 
           {/* AKA Warnings Row */}
@@ -1478,8 +1666,8 @@ function SpectatorDisplayContent() {
         </div>
 
         {/* CENTER COLUMN: TIMER */}
-        <div className="col-span-2 lg:col-span-6 order-1 lg:order-2 flex flex-col justify-center items-center h-full text-center px-1 lg:px-4">
-          <div className="bg-black/60 backdrop-blur-xl border border-white/20 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[40px] w-full h-full p-2 lg:p-8 flex flex-col justify-between items-center relative overflow-hidden">
+        <div className="col-span-2 xl:col-span-6 order-1 xl:order-2 flex flex-col justify-center items-center h-auto xl:h-full text-center px-1 lg:px-4">
+          <div className="bg-black/60 backdrop-blur-xl border border-white/20 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[40px] w-full h-auto xl:h-full min-h-[300px] p-2 lg:p-8 flex flex-col justify-between items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
             
             {/* Top Area: Label */}
@@ -1521,7 +1709,7 @@ function SpectatorDisplayContent() {
         </div>
 
         {/* AO BLUE CARD */}
-        <div className={`col-span-1 lg:col-span-3 order-3 lg:order-3 h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
+        <div className={`col-span-1 xl:col-span-3 order-3 xl:order-3 h-auto xl:h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
           winnerSide === 'ao'
             ? 'bg-blue-950/80 border-4 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.4),0_0_80px_rgba(59,130,246,0.8)]'
             : 'bg-[#000515] border-4 border-blue-600/40 text-white'
@@ -1531,7 +1719,7 @@ function SpectatorDisplayContent() {
               {senshuAo && (
                 <span className="bg-yellow-500 text-black font-black text-sm lg:text-base uppercase px-4 py-1 rounded-xl tracking-widest animate-pulse border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] flex items-center justify-center gap-1.5 w-max max-w-full mx-auto">
                   <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-                  先取 SENSHU
+                  SENSHU
                 </span>
               )}
               <span className={`text-6xl lg:text-8xl font-black uppercase tracking-wider leading-none ${
@@ -1549,40 +1737,35 @@ function SpectatorDisplayContent() {
                   {aoClub}
                 </p>
 
-                {showPointHistory && eventsAo.length > 0 && (
-                  <div className="absolute right-0 top-full mt-1 pr-1 lg:pr-2 flex justify-end w-full pointer-events-none z-20">
-                    <div className="grid grid-rows-6 grid-flow-col gap-x-0.5 gap-y-0.5 lg:gap-x-1 lg:gap-y-1 max-w-[45%] pointer-events-auto">
-                      {eventsAo.map((ev, idx) => (
-                        <div key={idx} className="flex items-center justify-end">
-                          <span className={`inline-flex items-center gap-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap transition-all ${
-                            eventsAo.length > 15 ? 'px-0.5 py-[1px] text-[5px] lg:text-[6px]' :
-                            eventsAo.length > 5 ? 'px-1 py-[1px] text-[6px] lg:text-[8px]' :
-                            'px-1.5 py-[2px] text-[8px] lg:text-[10px]'
-                          }`}>
-                            <span className="font-black text-blue-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
           {/* Huge Score (DIN 1451 Bold 140-220px) */}
-          <div className={`flex-1 flex flex-col items-center justify-center min-h-0 py-2 w-full transition-all duration-500 ${
-            showPointHistory && eventsAo.length > 0 ? 'pr-[40%] lg:pr-[45%]' : ''
-          }`}>
-            <span className={`font-din text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)] font-black leading-none select-none tracking-tight transition-all duration-300 ${
-              winnerSide === 'ao'
-                ? 'text-blue-400 animate-blink drop-shadow-[0_0_80px_rgba(59,130,246,0.7)] scale-110'
-                : scoreAo - scoreAka >= 8 
-                  ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_80px_rgba(59,130,246,0.7)]' 
-                  : 'text-blue-400 drop-shadow-[0_0_35px_rgba(59,130,246,0.3)]'
-            }`}>
-              {scoreAo}
-            </span>
+          <div className="flex-1 min-h-0 py-2 w-full transition-all duration-500 flex items-center gap-2">
+            <div className={`flex-1 min-h-0 flex items-center justify-center ${aoScoreShiftClass}`}>
+              <span className={`font-din ${aoScoreSizeClass} font-black leading-none select-none tracking-tight transition-all duration-300 ${
+                winnerSide === 'ao'
+                  ? 'text-blue-400 animate-blink drop-shadow-[0_0_80px_rgba(59,130,246,0.7)] scale-110'
+                  : scoreAo - scoreAka >= 8 
+                    ? 'text-blue-400 animate-pulse scale-105 drop-shadow-[0_0_80px_rgba(59,130,246,0.7)]' 
+                    : 'text-blue-400 drop-shadow-[0_0_35px_rgba(59,130,246,0.3)]'
+              }`}>
+                {scoreAo}
+              </span>
+            </div>
+            <div className={`${aoSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
+                <div className={`w-full rounded-lg border border-blue-400/60 bg-blue-950/65 shadow-[0_0_12px_rgba(59,130,246,0.25)] ${aoSummaryBoxClass}`}>
+                  <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-blue-100 ${aoSummaryGridClass}`}>
+                    <span>Ippon</span>
+                    <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.ippon}</span>
+                    <span>Waza-Ari</span>
+                    <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.wazaAri}</span>
+                    <span>Yuko</span>
+                    <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.yuko}</span>
+                  </div>
+                </div>
+            </div>
           </div>
 
           {/* AO Warnings Row */}
@@ -1612,6 +1795,41 @@ function SpectatorDisplayContent() {
       </div>
     </>
   )}
+
+      {sponsorLoopItems.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 overflow-hidden border-t border-cyan-400/20 bg-black/85 backdrop-blur-md pointer-events-none shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
+          {sponsors.length > 1 ? (
+            <div className="flex min-w-max items-center gap-5 px-4 py-3 sponsor-ticker-marquee whitespace-nowrap">
+              <div className="flex shrink-0 items-center gap-5">
+                {sponsorTickerCards}
+              </div>
+              <div className="flex shrink-0 items-center gap-5" aria-hidden="true">
+                {sponsorTickerCards}
+              </div>
+            </div>
+          ) : (
+            <div className="flex w-full items-center justify-center px-4 py-3">
+              {sponsorTickerCards}
+            </div>
+          )}
+        </div>
+      )}
+
+      <style jsx>{`
+        .sponsor-ticker-marquee {
+          animation: sponsor-marquee 28s linear infinite;
+          width: max-content;
+        }
+
+        @keyframes sponsor-marquee {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(calc(-50% - 10px));
+          }
+        }
+      `}</style>
 
 </div>
   );

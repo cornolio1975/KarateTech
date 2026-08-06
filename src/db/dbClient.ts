@@ -85,6 +85,43 @@ export const dbManager = {
   }
 };
 
+const resolveActiveTournamentDb = async (): Promise<TournamentDatabase | null> => {
+  const activeDb = dbManager.getActiveTournament();
+  if (activeDb?.tournament?.id) {
+    return activeDb;
+  }
+
+  if (typeof window !== 'undefined') {
+    const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+    if (activeTournamentId) {
+      const loadedDb = await localStore.loadTournament(activeTournamentId);
+      if (loadedDb) {
+        setActiveTournamentDb(loadedDb);
+        return loadedDb;
+      }
+    }
+  }
+
+  return null;
+};
+
+const persistTournamentPlaylists = async (playlists: DisplayPlaylist[]): Promise<void> => {
+  const activeDb = await resolveActiveTournamentDb();
+  if (!activeDb) {
+    mockStore.displayPlaylists.replaceAll(playlists);
+    return;
+  }
+
+  const updatedDb: TournamentDatabase = {
+    ...activeDb,
+    display_playlists: playlists
+  };
+
+  setActiveTournamentDb(updatedDb);
+  mockStore.displayPlaylists.replaceAll(playlists);
+  await localStore.saveTournament(updatedDb);
+};
+
 export const db = {
   isSupabase: (): boolean => !!supabase,
 
@@ -1179,82 +1216,115 @@ export const db = {
   // 17. Display Playlists
   displayPlaylists: {
     list: async (): Promise<DisplayPlaylist[]> => {
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const playlists = activeDb.display_playlists || [];
+        mockStore.displayPlaylists.replaceAll(playlists);
+        return playlists;
+      }
+
       if (supabase) {
         try {
+          // If we had a tournament scope in supabase, we'd filter here.
+          // For now, we fetch all or just rely on the local active tournament mockStore sync.
           const { data, error } = await supabase.from('display_playlists').select('*').order('created_at', { ascending: false });
-          if (!error && data && data.length > 0) return data;
+          if (!error && data && data.length > 0) {
+            mockStore.displayPlaylists.replaceAll(data);
+            return data;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists list error, falling back to LocalStorage:', describeError(e));
+          console.warn('Supabase display_playlists list error, falling back to mockStore:', describeError(e));
         }
       }
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('ts_display_playlists');
-        if (stored) {
-          try {
-            return JSON.parse(stored);
-          } catch (e) {}
-        }
-        localStorage.setItem('ts_display_playlists', JSON.stringify(DEFAULT_PLAYLISTS));
-      }
-      return DEFAULT_PLAYLISTS;
+      return mockStore.displayPlaylists.list();
     },
     add: async (playlist: Omit<DisplayPlaylist, 'id'>): Promise<DisplayPlaylist> => {
-      const newPlaylist: DisplayPlaylist = {
-        ...playlist,
-        id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const newPlaylist: DisplayPlaylist = {
+          ...playlist,
+          id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        const nextPlaylists = [newPlaylist, ...(activeDb.display_playlists || [])];
+        await persistTournamentPlaylists(nextPlaylists);
+        return newPlaylist;
+      }
+
       if (supabase) {
+        const newPlaylist: DisplayPlaylist = {
+          ...playlist,
+          id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
         try {
           const { data, error } = await supabase.from('display_playlists').insert([newPlaylist]).select().single();
-          if (!error && data) return data;
+          if (!error && data) {
+            mockStore.displayPlaylists.upsert(data);
+            return data;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists add error, saving to LocalStorage fallback:', describeError(e));
+          console.warn('Supabase display_playlists add error, falling back to mockStore:', describeError(e));
         }
       }
-      if (typeof window !== 'undefined') {
-        const current = await db.displayPlaylists.list();
-        const updated = [newPlaylist, ...current];
-        localStorage.setItem('ts_display_playlists', JSON.stringify(updated));
-      }
-      return newPlaylist;
+      return mockStore.displayPlaylists.add(playlist);
     },
     update: async (id: string, updates: Partial<DisplayPlaylist>): Promise<DisplayPlaylist> => {
-      const updatedPayload = { ...updates, updated_at: new Date().toISOString() };
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const currentPlaylists = activeDb.display_playlists || [];
+        const idx = currentPlaylists.findIndex(playlist => playlist.id === id);
+        if (idx === -1) {
+          throw new Error('DisplayPlaylist not found');
+        }
+
+        const updatedPlaylist: DisplayPlaylist = {
+          ...currentPlaylists[idx],
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+        const nextPlaylists = [...currentPlaylists];
+        nextPlaylists[idx] = updatedPlaylist;
+        await persistTournamentPlaylists(nextPlaylists);
+        return updatedPlaylist;
+      }
+
       if (supabase) {
+        const updatedPayload = { ...updates, updated_at: new Date().toISOString() };
         try {
           const { data, error } = await supabase.from('display_playlists').update(updatedPayload).eq('id', id).select().single();
-          if (!error && data) return data;
+          if (!error && data) {
+            mockStore.displayPlaylists.upsert(data);
+            return data;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists update error, saving to LocalStorage fallback:', describeError(e));
+          console.warn('Supabase display_playlists update error, falling back to mockStore:', describeError(e));
         }
       }
-      const list = await db.displayPlaylists.list();
-      const idx = list.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...updatedPayload };
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('ts_display_playlists', JSON.stringify(list));
-        }
-        return list[idx];
-      }
-      throw new Error(`Playlist ${id} not found`);
+      return mockStore.displayPlaylists.update(id, updates);
     },
     delete: async (id: string): Promise<void> => {
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const nextPlaylists = (activeDb.display_playlists || []).filter(playlist => playlist.id !== id);
+        await persistTournamentPlaylists(nextPlaylists);
+        return;
+      }
+
       if (supabase) {
         try {
           const { error } = await supabase.from('display_playlists').delete().eq('id', id);
-          if (!error) return;
+          if (!error) {
+            mockStore.displayPlaylists.delete(id);
+            return;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists delete error, falling back to LocalStorage:', describeError(e));
+          console.warn('Supabase display_playlists delete error, falling back to mockStore:', describeError(e));
         }
       }
-      const list = await db.displayPlaylists.list();
-      const filtered = list.filter(p => p.id !== id);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('ts_display_playlists', JSON.stringify(filtered));
-      }
+      mockStore.displayPlaylists.delete(id);
     }
   }
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
@@ -33,6 +33,16 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const isParticipantsPage = pathname === '/participants';
+  const [liveDisplayHref, setLiveDisplayHref] = useState('/display');
+
+  useEffect(() => {
+    const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+    if (activeTournamentId) {
+      setLiveDisplayHref(`/display?tournament=${encodeURIComponent(activeTournamentId)}`);
+    } else {
+      setLiveDisplayHref('/display');
+    }
+  }, []);
 
   // Handler for bulk action execution
   const handleBulkAction = async (action: string) => {
@@ -85,8 +95,8 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <a
-          href="https://tournamentdisplay.spsportdatasolution.org/"
+        <Link
+          href={liveDisplayHref}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40 rounded-lg text-xs font-bold transition text-amber-300 hover:text-white cursor-pointer"
@@ -94,7 +104,7 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Tv className="h-3.5 w-3.5 text-amber-400" />
           <span className="hidden md:inline">T-LiveDisplay</span>
-        </a>
+        </Link>
         <a
           href="https://spsportdatasolution.org/karatetech/"
           target="_blank"

@@ -49,7 +49,7 @@ export function calculatePrintDimensions(
     };
   }
 
-  let paperSize: PaperSize = 'A4';
+  const paperSize: PaperSize = 'A4';
   let resolvedOrientation: 'portrait' | 'landscape' = 'landscape';
   
   // 1. Intelligent Orientation

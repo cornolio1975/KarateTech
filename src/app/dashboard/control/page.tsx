@@ -102,7 +102,9 @@ export default function ScoreboardControlPage() {
   // Open Spectator Window helper
   const openSpectatorWindow = useCallback((mode: 'default' | 'new-tab' | 'new-window' = 'default') => {
     if (typeof window === 'undefined') return;
-    const specUrl = `${window.location.origin}${basePath}/display?boutId=${boutId}`;
+    const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+    const tournamentParam = activeTournamentId ? `&tournament=${encodeURIComponent(activeTournamentId)}` : '';
+    const specUrl = `${window.location.origin}${basePath}/display?boutId=${boutId}&liveOnly=true${tournamentParam}`;
     let specWindow: Window | null = null;
     
     if (mode === 'default') {
@@ -650,7 +652,7 @@ export default function ScoreboardControlPage() {
 
   // Undo action: undoes actions all the way back to match start
   const handleUndo = useCallback(() => {
-    if (history.length === 0) return;
+    if (history.length <= 1) return;
     const lastState = history[history.length - 1];
     setScoreAka(lastState.scoreAka);
     setScoreAo(lastState.scoreAo);
@@ -836,6 +838,30 @@ export default function ScoreboardControlPage() {
       setTimerActive(false);
       playHansokuAlarm();
       const opponentSide = isAka ? 'ao' : 'aka';
+
+      // Auto-clear active scoring data and force 8-0 result to the opponent on Hansoku.
+      setScoreAka(isAka ? 0 : 8);
+      setScoreAo(isAka ? 8 : 0);
+      setPointsAka([]);
+      setPointsAo([]);
+      setEventsAka([]);
+      setEventsAo([]);
+      setSenshuAka(false);
+      setSenshuAo(false);
+      setFirstScorer(null);
+      setStoppageScorers([]);
+      setHasTimerRun(false);
+      setTimeLeft(matchDuration * 10);
+
+      // Keep disqualification marker visible on the losing side.
+      if (isAka) {
+        setC1Aka(5);
+        setC1Ao(0);
+      } else {
+        setC1Ao(5);
+        setC1Aka(0);
+      }
+
       setWinnerSide(opponentSide);
       setWinMethod('HANSOKU');
     } else if ((isAka && c1Aka >= 5) || (!isAka && c1Ao >= 5)) {
@@ -966,6 +992,43 @@ export default function ScoreboardControlPage() {
     return `.${tenths % 10}`;
   };
 
+  const akaTechniqueCounts = {
+    ippon: eventsAka.filter((event) => event.points === 3).length,
+    wazaAri: eventsAka.filter((event) => event.points === 2).length,
+    yuko: eventsAka.filter((event) => event.points === 1).length
+  };
+
+  const aoTechniqueCounts = {
+    ippon: eventsAo.filter((event) => event.points === 3).length,
+    wazaAri: eventsAo.filter((event) => event.points === 2).length,
+    yuko: eventsAo.filter((event) => event.points === 1).length
+  };
+
+  const akaTwoDigitScore = scoreAka >= 10;
+  const aoTwoDigitScore = scoreAo >= 10;
+
+  const akaScoreShiftClass = '';
+  const aoScoreShiftClass = '';
+
+  const akaScoreSizeClass = 'text-[clamp(52px,9vh,190px)] lg:text-[clamp(120px,16vh,210px)]';
+  const aoScoreSizeClass = 'text-[clamp(52px,9vh,190px)] lg:text-[clamp(120px,16vh,210px)]';
+
+  const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+  const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+
+  const akaSummaryGridClass = akaTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+  const aoSummaryGridClass = aoTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+
+  const akaSummaryValueClass = akaTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+  const aoSummaryValueClass = aoTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+
+  const akaSummarySlotClass = akaTwoDigitScore
+    ? 'w-[74px] lg:w-[82px] h-[44px] lg:h-[54px]'
+    : 'w-[84px] lg:w-[92px] h-[50px] lg:h-[60px]';
+  const aoSummarySlotClass = aoTwoDigitScore
+    ? 'w-[74px] lg:w-[82px] h-[46px] lg:h-[56px]'
+    : 'w-[84px] lg:w-[92px] h-[52px] lg:h-[62px]';
+
   // Finish Match saving result
   const handleSaveResult = async () => {
     if (!boutId || !bout) return;
@@ -1059,6 +1122,51 @@ export default function ScoreboardControlPage() {
     }
   };
 
+  const handleClearAllResult = async () => {
+    if (!boutId) return;
+
+    const confirmClear = window.confirm(
+      'Clear all current match results? This will reset scores, penalties, winner, and timer state for this bout.'
+    );
+    if (!confirmClear) return;
+
+    try {
+      setSaving(true);
+
+      const resetBout = await db.bouts.resetBoutResult(boutId, matchDuration);
+      if (resetBout) {
+        setBout(resetBout);
+      }
+
+      setScoreAka(0);
+      setScoreAo(0);
+      setC1Aka(0);
+      setC1Ao(0);
+      setSenshuAka(false);
+      setSenshuAo(false);
+      setFirstScorer(null);
+      setPointsAka([]);
+      setPointsAo([]);
+      setEventsAka([]);
+      setEventsAo([]);
+      setWinnerSide(null);
+      setWinMethod('');
+      setTimeLeft(matchDuration * 10);
+      setTimerActive(false);
+      setStoppageScorers([]);
+      setHasTimerRun(false);
+      setShowFinishModal(false);
+      setHistory([]);
+
+      alert('All match results cleared. Scoreboard is reset.');
+    } catch (err) {
+      console.error('Error clearing match results:', err);
+      alert('Failed to clear match results. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSpectatorIndicatorClick = () => {
     openSpectatorWindow('default');
   };
@@ -1093,7 +1201,7 @@ export default function ScoreboardControlPage() {
   }
 
   return (
-    <div className="min-h-full lg:h-full w-full overflow-y-auto lg:overflow-hidden bg-[#0b0b10] text-white flex flex-col">
+    <div className="min-h-[100dvh] w-full overflow-y-auto bg-[#0b0b10] text-white flex flex-col">
       {/* Header */}
       <header className="bg-[#0b0b10] border-b border-white/5 px-4 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -1159,7 +1267,7 @@ export default function ScoreboardControlPage() {
           </button>
           <button
             onClick={handleUndo}
-            disabled={history.length === 0}
+            disabled={history.length <= 1}
             className="flex items-center gap-1 px-2 py-0.5 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-lg text-[10px] font-bold transition"
           >
             <Undo className="h-3 w-3" /> Undo
@@ -1213,10 +1321,10 @@ export default function ScoreboardControlPage() {
         )}
 
         {/* ROW 1: Visual Displays & Controls (3-Column Layout: AKA | TIMER | AO) */}
-        <div className="grid grid-cols-2 lg:grid-cols-12 gap-1 lg:gap-2 flex-1 min-h-0">
+        <div className="grid grid-cols-2 xl:grid-cols-12 gap-1 lg:gap-2 flex-1 min-h-0">
           
           {/* AKA Display & Control Panel */}
-          <section className={`col-span-1 lg:col-span-4 order-2 lg:order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
+          <section className={`col-span-1 xl:col-span-4 order-2 xl:order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'aka'
               ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_80px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)]'
               : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
@@ -1242,10 +1350,10 @@ export default function ScoreboardControlPage() {
               </div>
             </div>
 
-            {/* Score & Point History */}
-            <div className="flex-1 flex flex-row items-center justify-center min-h-0 py-0.5 w-full relative">
-              <div className="flex-1 flex justify-center">
-                <span className={`font-din text-[clamp(40px,8vh,170px)] lg:text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
+            {/* Score & Technique Summary */}
+            <div className="flex-1 min-h-0 py-0.5 w-full flex items-center gap-2">
+              <div className={`flex-1 min-h-0 flex items-center justify-center ${akaScoreShiftClass}`}>
+                <span className={`font-din ${akaScoreSizeClass} font-black leading-none tracking-tight select-none transition-all duration-300 ${
                   winnerSide === 'aka'
                     ? 'text-red-500 animate-blink drop-shadow-[0_0_50px_rgba(239,68,68,0.95)] scale-105'
                     : scoreAka - scoreAo >= 8
@@ -1256,21 +1364,18 @@ export default function ScoreboardControlPage() {
                 </span>
               </div>
 
-              {showPointHistory && eventsAka.length > 0 && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 grid grid-rows-5 grid-flow-col gap-x-0.5 gap-y-0.5 h-auto items-center justify-start max-w-[45%] pr-1">
-                  {eventsAka.map((ev, idx) => (
-                    <div key={idx} className="flex items-center">
-                      <span className={`inline-flex items-center gap-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap transition-all ${
-                        eventsAka.length > 15 ? 'px-1 py-[1px] text-[5px] lg:text-[6px]' :
-                        eventsAka.length > 5 ? 'px-1 py-[2px] text-[6px] lg:text-[8px]' :
-                        'px-1.5 py-[2px] text-[7px] lg:text-[9px]'
-                      }`}>
-                        <span className="font-black text-red-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
-                      </span>
+              <div className={`${akaSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
+                  <div className={`w-full rounded-lg border border-red-400/60 bg-red-950/65 shadow-[0_0_12px_rgba(239,68,68,0.25)] ${akaSummaryBoxClass}`}>
+                    <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-red-100 ${akaSummaryGridClass}`}>
+                      <span>Ippon</span>
+                      <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.ippon}</span>
+                      <span>Waza-Ari</span>
+                      <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.wazaAri}</span>
+                      <span>Yuko</span>
+                      <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.yuko}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+              </div>
             </div>
 
             {/* AKA Controls: Score Buttons + Penalties */}
@@ -1341,7 +1446,7 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* TIMER Display & Control Panel (Middle Column) */}
-          <section className="col-span-2 lg:col-span-4 order-1 lg:order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
+          <section className="col-span-2 xl:col-span-4 order-1 xl:order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
             <span className="text-xs md:text-sm lg:text-xl uppercase font-black text-white/80 tracking-[0.3em] shrink-0 mb-0.5 lg:mb-0">MATCH TIMER</span>
             
             {/* Giant Timer */}
@@ -1435,7 +1540,7 @@ export default function ScoreboardControlPage() {
                 <div className="flex flex-col justify-end">
                   <button
                     onClick={handleUndo}
-                    disabled={history.length === 0}
+                    disabled={history.length <= 1}
                     className="w-full py-0.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-md font-black text-[9px] uppercase transition cursor-pointer flex items-center justify-center gap-1"
                   >
                     <RotateCcw className="h-2.5 w-2.5" /> Undo Action
@@ -1446,7 +1551,7 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* AO Display & Control Panel */}
-          <section className={`col-span-1 lg:col-span-4 order-3 lg:order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
+          <section className={`col-span-1 xl:col-span-4 order-3 xl:order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'ao'
               ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_80px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)]'
               : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
@@ -1464,10 +1569,10 @@ export default function ScoreboardControlPage() {
               </div>
             </div>
 
-            {/* Score & Point History */}
-            <div className="flex-1 flex flex-row items-center justify-center min-h-0 py-0.5 w-full relative">
-              <div className="flex-1 flex justify-center">
-                <span className={`font-din text-[clamp(40px,8vh,170px)] lg:text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
+            {/* Score & Technique Summary */}
+            <div className="flex-1 min-h-0 py-0.5 w-full flex items-center gap-2">
+              <div className={`flex-1 min-h-0 flex items-center justify-center ${aoScoreShiftClass}`}>
+                <span className={`font-din ${aoScoreSizeClass} font-black leading-none tracking-tight select-none transition-all duration-300 ${
                   winnerSide === 'ao'
                     ? 'text-blue-400 animate-blink drop-shadow-[0_0_50px_rgba(59,130,246,0.95)] scale-105'
                     : scoreAo - scoreAka >= 8
@@ -1478,21 +1583,18 @@ export default function ScoreboardControlPage() {
                 </span>
               </div>
 
-              {showPointHistory && eventsAo.length > 0 && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 grid grid-rows-5 grid-flow-col gap-x-0.5 gap-y-0.5 h-auto items-center justify-start max-w-[45%] pr-1">
-                  {eventsAo.map((ev, idx) => (
-                    <div key={idx} className="flex items-center">
-                      <span className={`inline-flex items-center gap-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap transition-all ${
-                        eventsAo.length > 15 ? 'px-1 py-[1px] text-[5px] lg:text-[6px]' :
-                        eventsAo.length > 5 ? 'px-1 py-[2px] text-[6px] lg:text-[8px]' :
-                        'px-1.5 py-[2px] text-[7px] lg:text-[9px]'
-                      }`}>
-                        <span className="font-black text-blue-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
-                      </span>
+              <div className={`${aoSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
+                  <div className={`w-full rounded-lg border border-blue-400/60 bg-blue-950/65 shadow-[0_0_12px_rgba(59,130,246,0.25)] ${aoSummaryBoxClass}`}>
+                    <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-blue-100 ${aoSummaryGridClass}`}>
+                      <span>Ippon</span>
+                      <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.ippon}</span>
+                      <span>Waza-Ari</span>
+                      <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.wazaAri}</span>
+                      <span>Yuko</span>
+                      <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.yuko}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+              </div>
             </div>
 
             {/* AO Controls: Score Buttons + Penalties */}
@@ -1578,6 +1680,14 @@ export default function ScoreboardControlPage() {
         </div>
 
         <div className="flex gap-1.5 items-center ml-auto">
+          <button
+            onClick={handleClearAllResult}
+            disabled={saving}
+            className="flex items-center gap-1 px-2.5 py-1 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border border-white/15"
+          >
+            <RotateCcw className="h-3 w-3" /> Clear All Result
+          </button>
+
           {(winnerSide || bout.status === 'Completed') && (
             <button
               onClick={handleRematch}
