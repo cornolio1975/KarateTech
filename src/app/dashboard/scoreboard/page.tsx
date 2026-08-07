@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKumiteCategory, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw, Lock } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function ScoreboardDashboardPage() {
@@ -28,6 +28,18 @@ export default function ScoreboardDashboardPage() {
     const tournamentParam = activeTournamentId ? `?tournament=${encodeURIComponent(activeTournamentId)}` : '';
     window.open(`${basePath}/display${tournamentParam}`, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
   };
+
+  // Track which category+tatami combos currently have a match running
+  const runningTatamiCategories = useMemo(() => {
+    const running = new Set<string>();
+    bouts.forEach(b => {
+      if (b.status === 'Running') {
+        const key = `${b.tatami || 'T1'}-${b.category_id}`;
+        running.add(key);
+      }
+    });
+    return running;
+  }, [bouts]);
 
   useEffect(() => {
     setMounted(true);
@@ -231,6 +243,10 @@ export default function ScoreboardDashboardPage() {
                 const competitorA = participants.find(p => p.id === bout.participant_a_id);
                 const competitorB = participants.find(p => p.id === bout.participant_b_id);
                 const category = categories.find(c => c.id === bout.category_id);
+                
+                const tatamiKey = `${bout.tatami || 'T1'}-${bout.category_id}`;
+                const hasRunningMatchInSameGroup = bout.status === 'Scheduled' && runningTatamiCategories.has(tatamiKey);
+                const isControlDisabled = hasRunningMatchInSameGroup;
 
                 const getStatusColor = (status: string) => {
                   switch (status) {
@@ -301,17 +317,22 @@ export default function ScoreboardDashboardPage() {
                     <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
                       <button
                         onClick={() => {
-                          // Auto open spectator display in new window
-                          const targetSpectator = `${basePath}/display?boutId=${bout.id}&liveOnly=true`;
-                          window.open(targetSpectator, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
+                          if (isControlDisabled) return;
+
                           
                           // Navigate to Control Panel
                           const targetControl = isKataCategory(category) ? `/dashboard/kata-control?boutId=${bout.id}` : `/dashboard/control?boutId=${bout.id}`;
                           router.push(targetControl);
                         }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
+                        disabled={isControlDisabled}
+                        title={isControlDisabled ? 'Another match is already running in this category on this tatami.' : ''}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-black text-xs uppercase tracking-wider rounded-xl transition ${
+                          isControlDisabled
+                            ? 'bg-yellow-500/10 text-yellow-500/50 cursor-not-allowed border border-yellow-500/20'
+                            : 'bg-yellow-500 hover:bg-yellow-400 text-black cursor-pointer'
+                        }`}
                       >
-                        <Play className="h-3.5 w-3.5 fill-black" />
+                        {isControlDisabled ? <Lock className={`h-3.5 w-3.5 ${isControlDisabled ? 'text-yellow-500/50' : 'fill-black'}`} /> : <Play className="h-3.5 w-3.5 fill-black text-black" />}
                         {bout.status === 'Completed' ? 'View Results' : 'Control Panel'}
                       </button>
                       
@@ -325,14 +346,18 @@ export default function ScoreboardDashboardPage() {
                         </button>
                       )}
 
-                      <Link
-                        href={`/display?boutId=${bout.id}&liveOnly=true`}
-                        target="_blank"
+                      <button
+                        onClick={() => {
+                          const activeTournamentId = typeof window !== 'undefined' ? localStorage.getItem('ts_active_tournament_id') : null;
+                          const tournamentParam = activeTournamentId ? `&tournament=${encodeURIComponent(activeTournamentId)}` : '';
+                          const targetSpectator = `${basePath}/display?boutId=${bout.id}&liveOnly=true${tournamentParam}`;
+                          window.open(targetSpectator, '_blank');
+                        }}
                         className="flex items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white rounded-xl transition cursor-pointer"
                         title="Open spectator display in new window"
                       >
                         <Tv className="h-4 w-4" />
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 );

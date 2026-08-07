@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { db } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, ShieldAlert, RefreshCw, MapPin, Tv, RotateCcw } from 'lucide-react';
+import { Zap, Play, ShieldAlert, RefreshCw, MapPin, Tv, RotateCcw, Lock } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function KataScoreboardHubPage() {
+  const router = useRouter();
   const { tournamentName } = useTournament();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -96,6 +98,18 @@ export default function KataScoreboardHubPage() {
       setLoading(false);
     }
   };
+
+  // Track which category+tatami combos currently have a match running
+  const runningTatamiCategories = useMemo(() => {
+    const running = new Set<string>();
+    bouts.forEach(b => {
+      if (b.status === 'Running') {
+        const key = `${b.tatami || 'T1'}-${b.category_id}`;
+        running.add(key);
+      }
+    });
+    return running;
+  }, [bouts]);
 
   if (!mounted) return null;
 
@@ -257,6 +271,12 @@ export default function KataScoreboardHubPage() {
                     key={bout.id}
                     className="relative bg-white/[0.02] border border-white/5 hover:border-white/10 rounded-2xl p-5 backdrop-blur-sm transition flex flex-col justify-between"
                   >
+                    {(() => {
+                      const tatamiKey = `${bout.tatami || 'T1'}-${bout.category_id}`;
+                      const isControlDisabled = bout.status !== 'Running' && runningTatamiCategories.has(tatamiKey);
+                      
+                      return (
+                        <>
                     <div>
                       {/* Badge / Info */}
                       <div className="flex items-center justify-between mb-3">
@@ -310,13 +330,22 @@ export default function KataScoreboardHubPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
-                      <Link
-                        href={`/dashboard/kata-control?boutId=${bout.id}`}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
+                      <button
+                        onClick={() => {
+                          if (isControlDisabled) return;
+                          router.push(`/dashboard/kata-control?boutId=${bout.id}`);
+                        }}
+                        disabled={isControlDisabled}
+                        title={isControlDisabled ? 'Another match is already running in this category on this tatami.' : ''}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-black text-xs uppercase tracking-wider rounded-xl transition ${
+                          isControlDisabled
+                            ? 'bg-yellow-500/10 text-yellow-500/50 cursor-not-allowed border border-yellow-500/20'
+                            : 'bg-yellow-500 hover:bg-yellow-400 text-black cursor-pointer'
+                        }`}
                       >
-                        <Play className="h-3.5 w-3.5 fill-black" />
+                        {isControlDisabled ? <Lock className={`h-3.5 w-3.5 ${isControlDisabled ? 'text-yellow-500/50' : 'fill-black'}`} /> : <Play className="h-3.5 w-3.5 fill-black text-black" />}
                         {bout.status === 'Completed' ? 'View Results' : 'Control Panel'}
-                      </Link>
+                      </button>
                       
                       {bout.status === 'Completed' && (
                         <button
@@ -336,6 +365,9 @@ export default function KataScoreboardHubPage() {
                         <Tv className="h-4 w-4" />
                       </button>
                     </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 );
               })}

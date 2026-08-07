@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square, Monitor, Layers, Maximize2 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
@@ -96,12 +96,16 @@ export function KataControlPanelContent() {
     setIsTimerRunning(false);
   };
 
-  const openSpectatorWindow = (targetBoutId?: string, targetMode: 'new-tab' | 'new-window' = 'new-tab') => {
+  const openSpectatorWindow = (targetBoutId?: string, targetMode: 'same-page' | 'new-tab' | 'new-window' = 'new-tab') => {
     const bId = targetBoutId || selectedBoutId || currentBout?.id;
     if (!bId) return;
     const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
     const tournamentParam = activeTournamentId ? `&tournament=${encodeURIComponent(activeTournamentId)}` : '';
-    const specUrl = `${window.location.origin}${basePath}/display?boutId=${bId}&mode=${scoringMethod}&panelSize=${panelSize}${tournamentParam}`;
+    const specUrl = `${window.location.origin}${basePath}/display?boutId=${bId}&liveOnly=true&mode=${scoringMethod}&panelSize=${panelSize}${tournamentParam}`;
+    if (targetMode === 'same-page') {
+      window.location.href = specUrl;
+      return;
+    }
     if (targetMode === 'new-window') {
       spectatorWindowRef.current = window.open(specUrl, 'SpectatorDisplay', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
     } else {
@@ -472,6 +476,8 @@ export function KataControlPanelContent() {
 
       const updatedBout = await db.bouts.updateBoutState(currentBout.id, updates);
       setCurrentBout(updatedBout);
+      setSelectedWinnerId(winner);
+      setIsWinnerRevealed(true);
       
       // Refresh list
       await loadData();
@@ -630,20 +636,22 @@ export function KataControlPanelContent() {
                 KATA SCORING CONSOLE
               </span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex flex-wrap items-center gap-4">
-              Match Console (Kata)
-              {spectatorConnected ? (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-black tracking-widest uppercase shadow-[0_0_15px_rgba(34,197,94,0.3)]">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  Display Connected
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-xs font-black tracking-widest uppercase">
-                  <span className="w-2 h-2 bg-red-500/50 rounded-full" />
-                  Display Disconnected
-                </span>
-              )}
-            </h1>
+            <div className="flex flex-wrap items-center gap-4">
+              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+                Match Console (Kata)
+              </h1>
+              <button
+                onClick={() => setShowSpectatorModal(true)}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase transition border cursor-pointer ${
+                  spectatorConnected 
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(34,197,94,0.3)]' 
+                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${spectatorConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500/50'}`} />
+                {spectatorConnected ? 'Referee Screen Connected' : 'Referee Screen Closed'}
+              </button>
+            </div>
             <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
           
@@ -662,7 +670,7 @@ export function KataControlPanelContent() {
               className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
             >
               <Tv className="h-4 w-4" />
-              Open Spectator View
+              Referee Screen
             </button>
             
             <button
@@ -1187,47 +1195,77 @@ export function KataControlPanelContent() {
       />
 
       {showSpectatorModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#101015] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-black text-white mb-2">Open Spectator Display</h3>
-            <p className="text-gray-400 text-sm mb-6">How would you like to open the spectator view?</p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  openSpectatorWindow(currentBout?.id, 'new-tab');
-                  setShowSpectatorModal(false);
-                }}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition cursor-pointer"
-              >
-                Open in New Tab
-              </button>
-              <button
-                onClick={() => {
-                  openSpectatorWindow(currentBout?.id, 'new-window');
-                  setShowSpectatorModal(false);
-                }}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition cursor-pointer"
-              >
-                Open in New Window
-              </button>
-              <button
-                onClick={() => {
-                  if (spectatorWindowRef.current) {
-                    spectatorWindowRef.current.close();
-                    spectatorWindowRef.current = null;
-                  }
-                  if (broadcastChannelRef.current) {
-                    broadcastChannelRef.current.postMessage({ type: 'CLOSE_DISPLAY' });
-                  }
-                  setShowSpectatorModal(false);
-                }}
-                className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold rounded-xl border border-red-500/30 transition cursor-pointer"
-              >
-                Close Existing Display
-              </button>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111116] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-600" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-center w-12 h-12 bg-cyan-500/10 rounded-xl mb-4 border border-cyan-500/20 mx-auto">
+                <Tv className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-black text-center text-white mb-2">Launch Referee Screen</h2>
+              <p className="text-sm text-slate-400 text-center mb-6">
+                Choose how you want to open the live referee screen for this tatami.
+              </p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    openSpectatorWindow(currentBout?.id, 'new-tab');
+                    setShowSpectatorModal(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <Layers className="h-5 w-5 text-blue-400" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white group-hover:text-blue-300 transition">New Tab</h3>
+                      <p className="text-xs text-slate-500">Opens in a standard browser tab (keeps console open)</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-blue-500 opacity-0 group-hover:opacity-100 transition" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    openSpectatorWindow(currentBout?.id, 'new-window');
+                    setShowSpectatorModal(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <Maximize2 className="h-5 w-5 text-purple-400" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition">Clean Window</h3>
+                      <p className="text-xs text-slate-500">Popup window without tabs or URL bar (best for TV)</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-purple-500 opacity-0 group-hover:opacity-100 transition" />
+                </button>
+              </div>
+
+              {spectatorConnected && (
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      if (spectatorWindowRef.current) {
+                        spectatorWindowRef.current.close();
+                        spectatorWindowRef.current = null;
+                      }
+                      if (broadcastChannelRef.current) {
+                        broadcastChannelRef.current.postMessage({ type: 'CLOSE_DISPLAY' });
+                      }
+                      setShowSpectatorModal(false);
+                    }}
+                    className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 font-bold rounded-xl border border-red-500/20 transition cursor-pointer"
+                  >
+                    Close Connected Screen
+                  </button>
+                </div>
+              )}
+
               <button
                 onClick={() => setShowSpectatorModal(false)}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl transition mt-2 cursor-pointer"
+                className="w-full py-3 mt-3 bg-transparent text-gray-500 hover:text-white font-bold transition cursor-pointer"
               >
                 Cancel
               </button>

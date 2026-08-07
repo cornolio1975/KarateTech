@@ -1220,14 +1220,14 @@ function SpectatorDisplayContent() {
 
           {/* Winner Reveal Banner */}
           {winnerSide && (
-            <div className={`py-4 px-6 rounded-2xl text-center flex flex-col items-center justify-center gap-2 animate-bounce shadow-2xl border-2 font-black uppercase tracking-widest text-2xl lg:text-3xl ${
+            <div className={`py-0.5 px-2 mb-1 rounded text-center flex flex-col items-center justify-center gap-0.5 shadow-sm border font-black uppercase tracking-wider text-xs lg:text-sm leading-none break-words max-w-full ${
               winnerSide === 'aka'
-                ? 'bg-red-600/90 text-white border-red-400 shadow-red-600/50 ring-4 ring-red-500/30'
-                : 'bg-blue-600/90 text-white border-blue-400 shadow-blue-600/50 ring-4 ring-blue-500/30'
+                ? 'bg-red-600/90 text-white border-red-400 ring-1 ring-red-500/30'
+                : 'bg-blue-600/90 text-white border-blue-400 ring-1 ring-blue-500/30'
             }`}>
-              <div className="flex items-center gap-4">
-                <Trophy className="h-9 w-9 text-yellow-300 animate-spin" />
-                <span>{winnerSide === 'aka' ? akaName : aoName} — {winnerSide === 'aka' ? 'AKA WINNER 🔴' : 'AO WINNER 🔵'}</span>
+              <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-full">
+                <Trophy className="h-3 w-3 lg:h-4 lg:w-4 text-yellow-300 shrink-0" />
+                <span className="truncate whitespace-normal text-center">{winnerSide === 'aka' ? akaName : aoName} — {winnerSide === 'aka' ? 'AKA WINNER 🏆' : 'AO WINNER 🏆'}</span>
               </div>
               {penaltyH && (
                 <div className="text-sm lg:text-base font-bold bg-black/40 px-4 py-1.5 rounded-lg border border-white/20 mt-1 flex flex-col">
@@ -1541,12 +1541,12 @@ function SpectatorDisplayContent() {
 
       {/* Dynamic Winner Alert Header */}
       {winnerSide && (
-        <div className={`p-2 lg:p-3 mb-3 shrink-0 rounded-2xl flex items-center justify-center font-black text-lg lg:text-xl tracking-widest uppercase border-2 shadow-xl animate-pulse z-20 ${
+        <div className={`p-0.5 lg:p-1 mb-1 shrink-0 rounded flex flex-wrap items-center justify-center text-center font-bold text-[10px] lg:text-xs tracking-wide uppercase border shadow-none z-20 ${
           winnerSide === 'aka'
-            ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.5)]'
-            : 'bg-blue-950/90 text-blue-400 border-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.5)]'
+            ? 'bg-red-950/90 text-red-400 border-red-500'
+            : 'bg-blue-950/90 text-blue-400 border-blue-500'
         }`}>
-          {winMethod === 'HANSOKU' ? '🚨' : '🏆'} WINNER BY {
+          {winMethod === 'HANSOKU' ? '💀' : '🏆'} WINNER BY {
             winMethod === 'Points' ? 'POINTS ADVANTAGE' :
             winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' :
             winMethod === 'Superior Points' ? 'SUPERIOR POINTS' :
@@ -1554,7 +1554,7 @@ function SpectatorDisplayContent() {
             winMethod === 'HANSOKU' ? 'HANSOKU DISQUALIFICATION' :
             winMethod === 'Kiken' ? 'KIKEN (WITHDRAWAL)' :
             winMethod || 'POINTS ADVANTAGE'
-          }: {winnerSide === 'aka' ? akaName : aoName} {winMethod === 'HANSOKU' ? '🚨' : '🏆'}
+          }: {winnerSide === 'aka' ? akaName : aoName} {winMethod === 'HANSOKU' ? '💀' : '🏆'}
         </div>
       )}
 

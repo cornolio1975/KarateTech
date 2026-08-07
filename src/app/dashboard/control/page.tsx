@@ -1421,23 +1421,6 @@ export default function ScoreboardControlPage() {
               <div className="space-y-3">
                 <button
                   onClick={() => {
-                    openSpectatorWindow('same-page');
-                    setIsSpectatorModalOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-xl transition cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <MonitorPlay className="h-5 w-5 text-slate-400 group-hover:text-cyan-400" />
-                    <div>
-                      <div className="font-bold text-sm text-white">Open in This Window</div>
-                      <div className="text-[10px] text-slate-400">Replaces current console view</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-cyan-400" />
-                </button>
-
-                <button
-                  onClick={() => {
                     openSpectatorWindow('new-tab');
                     setIsSpectatorModalOpen(false);
                   }}
