@@ -139,7 +139,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div className="min-w-0 flex-1">
             <span className="font-semibold text-xs block text-foreground truncate">{userRole || 'Admin'} Director</span>
-            <span className="text-[10px] text-muted-foreground truncate block">{userEmail || 'admin@senshikarate.com'}</span>
+            <span className="text-[10px] text-muted-foreground truncate block">{userEmail || 'admin@spsportdatasolution.org'}</span>
           </div>
         </div>
         

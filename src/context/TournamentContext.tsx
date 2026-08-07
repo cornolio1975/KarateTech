@@ -75,7 +75,7 @@ const defaultAccessibility: AccessibilitySettings = {
 const defaultUsers: SystemUser[] = [
   {
     name: 'Tournament Director',
-    email: 'admin@senshikarate.com',
+    email: 'admin@spsportdatasolution.org',
     role: 'Admin',
     status: 'Active',
     canModify: true,
@@ -402,8 +402,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   };
 
   const login = (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string) => {
+    const emailStr = email || (role === 'Admin' ? 'admin@spsportdatasolution.org' : role === 'Co-Admin' ? 'coadmin@senshikarate.com' : 'spectator@senshikarate.com');
     setUserRole(role);
-    const emailStr = email || (role === 'Admin' ? 'admin@senshikarate.com' : role === 'Co-Admin' ? 'coadmin@senshikarate.com' : 'spectator@senshikarate.com');
     setUserEmail(emailStr);
     setIsLoggedIn(true);
     if (typeof window !== 'undefined') {

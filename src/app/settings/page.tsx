@@ -419,8 +419,8 @@ export default function SettingsPage() {
     setMessage({ type: 'success', text: 'User details updated successfully.' });
   };
 
-  const handleDeleteUserClick = (email: string) => {
-    if (email === 'admin@senshikarate.com') {
+  const handleDeleteUser = (email: string) => {
+    if (email === 'admin@spsportdatasolution.org') {
       alert('Cannot delete the master Tournament Director account.');
       return;
     }
@@ -803,7 +803,7 @@ export default function SettingsPage() {
                 <select
                   value={String(editUserCanModify)}
                   onChange={(e) => setEditUserCanModify(e.target.value === 'true')}
-                  disabled={editingUserEmail === 'admin@senshikarate.com'}
+                  disabled={editingUserEmail === 'admin@spsportdatasolution.org'}
                   className="w-full px-3 py-2 bg-card border border-border rounded-lg text-xs focus:outline-none text-foreground dark:bg-neutral-800 disabled:opacity-50"
                 >
                   <option value="false">Read-Only (Spectator)</option>
@@ -1145,8 +1145,8 @@ export default function SettingsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteUserClick(user.email)}
-                            disabled={user.email === 'admin@senshikarate.com'}
+                            onClick={() => handleDeleteUser(user.email)}
+                            disabled={user.email === 'admin@spsportdatasolution.org'}
                             className="p-1.5 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 rounded-md transition disabled:opacity-30 cursor-pointer"
                             title="Delete User"
                           >
