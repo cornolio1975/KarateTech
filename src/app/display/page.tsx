@@ -1631,7 +1631,7 @@ function SpectatorDisplayContent() {
 
           {/* Huge Score (DIN 1451 Bold 140-220px) */}
           <div className="flex-1 min-h-0 py-2 w-full transition-all duration-500 flex items-center gap-2">
-            <div className={`flex-1 min-h-0 flex items-center justify-center ${akaScoreShiftClass}`}>
+            <div className={`flex-1 min-h-0 flex items-center justify-center gap-4 ${akaScoreShiftClass}`}>
               <span className={`font-din ${akaScoreSizeClass} font-black leading-none select-none tracking-tight transition-all duration-300 ${
                 winnerSide === 'aka'
                   ? 'text-red-500 animate-blink drop-shadow-[0_0_80px_rgba(239,68,68,0.7)] scale-110'
@@ -1641,6 +1641,20 @@ function SpectatorDisplayContent() {
               }`}>
                 {scoreAka}
               </span>
+
+              {/* Trophy Box for Winner */}
+              {winnerSide === 'aka' && (
+                <div className="bg-red-600 border-4 border-red-400 rounded-3xl p-3 lg:p-5 shadow-[0_0_25px_rgba(239,68,68,0.8)] z-10 shrink-0">
+                  <Trophy className="h-16 w-16 lg:h-24 lg:w-24 text-white drop-shadow-md" />
+                </div>
+              )}
+              
+              {/* Penalty H Box for Loser by Hansoku */}
+              {winnerSide === 'ao' && winMethod === 'HANSOKU' && (
+                <div className="bg-red-600 border-4 border-red-400 rounded-3xl px-6 lg:px-8 py-3 shadow-[0_0_25px_rgba(239,68,68,0.8)] flex items-center justify-center z-10 shrink-0">
+                  <span className="text-6xl lg:text-8xl font-black text-white drop-shadow-md">H</span>
+                </div>
+              )}
             </div>
             <div className={`${akaSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
                 <div className={`w-full rounded-lg border border-red-400/60 bg-red-950/65 shadow-[0_0_12px_rgba(239,68,68,0.25)] ${akaSummaryBoxClass}`}>
@@ -1759,7 +1773,7 @@ function SpectatorDisplayContent() {
 
           {/* Huge Score (DIN 1451 Bold 140-220px) */}
           <div className="flex-1 min-h-0 py-2 w-full transition-all duration-500 flex items-center gap-2">
-            <div className={`flex-1 min-h-0 flex items-center justify-center ${aoScoreShiftClass}`}>
+            <div className={`flex-1 min-h-0 flex items-center justify-center gap-4 ${aoScoreShiftClass}`}>
               <span className={`font-din ${aoScoreSizeClass} font-black leading-none select-none tracking-tight transition-all duration-300 ${
                 winnerSide === 'ao'
                   ? 'text-blue-400 animate-blink drop-shadow-[0_0_80px_rgba(59,130,246,0.7)] scale-110'
@@ -1769,6 +1783,20 @@ function SpectatorDisplayContent() {
               }`}>
                 {scoreAo}
               </span>
+
+              {/* Trophy Box for Winner */}
+              {winnerSide === 'ao' && (
+                <div className="bg-blue-600 border-4 border-blue-400 rounded-3xl p-3 lg:p-5 shadow-[0_0_25px_rgba(59,130,246,0.8)] z-10 shrink-0">
+                  <Trophy className="h-16 w-16 lg:h-24 lg:w-24 text-white drop-shadow-md" />
+                </div>
+              )}
+              
+              {/* Penalty H Box for Loser by Hansoku */}
+              {winnerSide === 'aka' && winMethod === 'HANSOKU' && (
+                <div className="bg-red-600 border-4 border-red-400 rounded-3xl px-6 lg:px-8 py-3 shadow-[0_0_25px_rgba(239,68,68,0.8)] flex items-center justify-center z-10 shrink-0">
+                  <span className="text-6xl lg:text-8xl font-black text-white drop-shadow-md">H</span>
+                </div>
+              )}
             </div>
             <div className={`${aoSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
                 <div className={`w-full rounded-lg border border-blue-400/60 bg-blue-950/65 shadow-[0_0_12px_rgba(59,130,246,0.25)] ${aoSummaryBoxClass}`}>

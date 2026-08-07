@@ -481,6 +481,10 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
       } else if (bout.victory_method.includes("Penalty AO") && !isAka) {
         hasPenaltyH = true;
       }
+    } else if (!isKata && bout?.victory_method === "HANSOKU") {
+      if (!isWinner && bout?.winner_id) {
+        hasPenaltyH = true;
+      }
     }
 
     return (
