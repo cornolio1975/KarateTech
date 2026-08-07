@@ -533,6 +533,15 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             H
           </div>
         )}
+
+        {/* Winner Trophy Box */}
+        {isWinner && (
+          <div className={`w-[16px] shrink-0 border-l flex items-center justify-center text-[10px] ${
+            theme === "dark" ? "bg-white text-black border-white" : "bg-black text-white border-black"
+          }`}>
+            🏆
+          </div>
+        )}
       </div>
     );
   };

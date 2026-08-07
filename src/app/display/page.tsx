@@ -1399,6 +1399,12 @@ function SpectatorDisplayContent() {
                           H
                         </div>
                       )}
+
+                      {winnerSide === 'aka' && (
+                        <div className="bg-red-600 text-white border-2 border-red-400 rounded-xl px-4 py-1 flex items-center justify-center ml-3 shadow-[0_0_15px_rgba(220,38,38,0.8)]">
+                          <Trophy className="h-10 w-10 lg:h-14 lg:w-14 text-white drop-shadow-md" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1522,6 +1528,12 @@ function SpectatorDisplayContent() {
                       {penaltyH === 'AO' && (
                         <div className="bg-red-600 text-white border-2 border-red-400 rounded-xl px-4 py-1 flex items-center justify-center text-4xl lg:text-6xl ml-3 shadow-[0_0_15px_rgba(220,38,38,0.8)]">
                           H
+                        </div>
+                      )}
+
+                      {winnerSide === 'ao' && (
+                        <div className="bg-blue-600 text-white border-2 border-blue-400 rounded-xl px-4 py-1 flex items-center justify-center ml-3 shadow-[0_0_15px_rgba(59,130,246,0.8)]">
+                          <Trophy className="h-10 w-10 lg:h-14 lg:w-14 text-white drop-shadow-md" />
                         </div>
                       )}
                     </div>
