@@ -1326,3 +1326,21 @@ html.text-scale-xl {
 .animate-score-blink {
   animation: score-blink 0.8s ease-in-out infinite;
 }
+
+/* Sponsor ticker marquee */
+.sponsor-ticker-rail {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sponsor-ticker-track {
+  display: inline-flex;
+  width: max-content;
+  animation: sponsor-marquee 20s linear infinite; /* duration overridden by inline style */
+}
+
+@keyframes sponsor-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-25%); }
+}

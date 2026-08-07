@@ -1166,7 +1166,10 @@ export const db = {
     list: async (): Promise<Tournament[]> => {
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('tournaments').select('*');
+          const { data, error } = await supabase
+            .from('tournaments')
+            .select('id, name, organizer, status, date, date_iso, venue, city, featured, deleted_at, settings, registration_close, registration_close_iso, discipline, medals_gold, medals_silver, medals_bronze, total_participants, total_clubs');
+
           if (error) throw error;
           return data || [];
         } catch (e: unknown) {

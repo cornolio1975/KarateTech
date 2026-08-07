@@ -237,7 +237,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
         supabase
           .from('tournaments')
-          .select('*')
+          .select('id, name, venue, city, date_iso, date, registration_close_iso, registration_close, featured, deleted_at')
           .then(({ data, error }) => {
             if (!error && data && data.length > 0) {
               const featured = data.find((t: any) => t.featured && !t.deleted_at) || data.find((t: any) => !t.deleted_at);

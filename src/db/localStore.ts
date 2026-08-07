@@ -8,6 +8,55 @@ const dbStore = localforage.createInstance({
   storeName: 'tournaments'
 });
 
+// --- Debounced cloud sync queue ---
+// Holds one pending upsert per tournament ID. Rapid saves collapse into one upload.
+const syncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+const activeSyncs: Record<string, boolean> = {};
+const pendingPayloads: Record<string, Record<string, unknown>> = {};
+const SYNC_DEBOUNCE_MS = 2000; // wait 2s after last save before uploading
+const SYNC_MAX_RETRIES = 3;
+
+async function cloudUpsertWithRetry(
+  payload: Record<string, unknown>,
+  attempt = 1
+): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('tournaments').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      const isTimeout =
+        error.message?.includes('timeout') ||
+        error.message?.includes('canceling statement') ||
+        (error as { code?: string }).code === '57014';
+
+      if (isTimeout && attempt <= SYNC_MAX_RETRIES) {
+        const delay = 3000 * attempt; // 3s, 6s, 12s
+        console.warn(`Cloud sync timeout (attempt ${attempt}/${SYNC_MAX_RETRIES}), retrying in ${delay / 1000}s…`);
+        await new Promise(res => setTimeout(res, delay));
+        return cloudUpsertWithRetry(payload, attempt + 1);
+      }
+      console.warn('Supabase Cloud Sync Error:', error.message || error);
+    } else {
+      console.log('✅ Successfully synced tournament to Supabase Cloud:', payload.name);
+    }
+  } catch (e) {
+    console.warn('Cloud sync failed, data is saved locally.', e);
+  }
+}
+
+async function processPending(syncId: string) {
+  if (activeSyncs[syncId]) return; // Already uploading, will automatically pick up the new payload next
+  activeSyncs[syncId] = true;
+  
+  while (pendingPayloads[syncId]) {
+    const payload = pendingPayloads[syncId];
+    delete pendingPayloads[syncId]; // Clear pending so we don't upload the same one twice
+    await cloudUpsertWithRetry(payload);
+  }
+  
+  delete activeSyncs[syncId];
+}
+
 export const localStore = {
   /**
    * Save a complete tournament database to IndexedDB and sync to Supabase.
@@ -30,14 +79,17 @@ export const localStore = {
       db.tournament.id = syncId;
     }
 
-    // 1. Save to Local IndexedDB using the canonical UUID key
+    // 1. Save to Local IndexedDB immediately (always fast)
     await dbStore.setItem(`ktournament_${syncId}`, db);
 
-    // 2. Sync to Supabase Cloud
+    // 2. Debounced cloud sync — collapses rapid saves into one upload
     if (supabase) {
-      try {
+      if (syncTimers[syncId]) clearTimeout(syncTimers[syncId]);
+      syncTimers[syncId] = setTimeout(async () => {
+        delete syncTimers[syncId];
         const nowIso = new Date().toISOString();
-        const payload: Record<string, any> = {
+
+        const payload: Record<string, unknown> = {
           id: syncId,
           name: db.tournament.name || 'Untitled Tournament',
           status: db.tournament.status || 'Draft',
@@ -51,19 +103,12 @@ export const localStore = {
           data: db,
           last_modified: db.tournament.last_modified || nowIso
         };
-
-        const { error } = await supabase.from('tournaments').upsert(payload, { onConflict: 'id' });
-        
-        if (error) {
-          console.warn('Supabase Cloud Sync Error:', error.message || error);
-        } else {
-          console.log('✅ Successfully synced tournament to Supabase Cloud:', db.tournament.name);
-        }
-      } catch (e) {
-        console.warn('Cloud sync failed, data is saved locally.', e);
-      }
+        pendingPayloads[syncId] = payload;
+        processPending(syncId);
+      }, SYNC_DEBOUNCE_MS);
     }
   },
+
 
   /**
    * Load a complete tournament database from Cloud or IndexedDB.

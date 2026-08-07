@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { db, supabase, basePath } from '@/db/dbClient';
+import { db, supabase, basePath, dbManager } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, TournamentDatabase, isKataCategory } from '@/db/types';
 import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Layers, Calendar, Flag } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
@@ -248,6 +248,8 @@ function SpectatorDisplayContent() {
               db.participants.list(),
               db.clubs.list()
             ]);
+            const activeDb = dbManager.getActiveTournament();
+            if (activeDb) sponsorList = extractSponsorsFromSource(activeDb);
           }
         } else {
           [plList, bList, cList, pList, clList] = await Promise.all([
@@ -257,6 +259,8 @@ function SpectatorDisplayContent() {
             db.participants.list(),
             db.clubs.list()
           ]);
+          const activeDb = dbManager.getActiveTournament();
+          if (activeDb) sponsorList = extractSponsorsFromSource(activeDb);
         }
         setPlaylists(plList);
         setAllBouts(bList);
@@ -300,12 +304,7 @@ function SpectatorDisplayContent() {
     const timer = setInterval(() => {
       setSlideTimeLeft((prev) => {
         if (prev <= 1) {
-          setCurrentSlideIndex((curr) => {
-            const nextIdx = (curr + 1) % activePlaylist.slides.length;
-            setSlideTimeLeft(activePlaylist.slides[nextIdx]?.duration_seconds || 25);
-            return nextIdx;
-          });
-          return 25;
+          return 0; // Trigger effect below
         }
         return prev - 1;
       });
@@ -313,6 +312,14 @@ function SpectatorDisplayContent() {
 
     return () => clearInterval(timer);
   }, [activePlaylist, isPlaylistPaused]);
+
+  useEffect(() => {
+    if (slideTimeLeft === 0 && activePlaylist && activePlaylist.slides.length > 0 && !isPlaylistPaused) {
+      const nextIdx = (currentSlideIndex + 1) % activePlaylist.slides.length;
+      setCurrentSlideIndex(nextIdx);
+      setSlideTimeLeft(activePlaylist.slides[nextIdx]?.duration_seconds || 25);
+    }
+  }, [slideTimeLeft, activePlaylist, currentSlideIndex, isPlaylistPaused]);
 
   const handleNextSlide = () => {
     if (!activePlaylist || !activePlaylist.slides.length) return;
@@ -843,33 +850,6 @@ function SpectatorDisplayContent() {
       { ippon: 0, wazaAri: 0, yuko: 0 }
     );
   }, [eventsAo]);
-
-  const sponsorLoopItems = useMemo(() => (
-    sponsors.length > 1 ? [...sponsors, ...sponsors] : sponsors
-  ), [sponsors]);
-
-  const sponsorTickerCards = useMemo(() => (
-    sponsors.map((sponsor) => (
-      <div
-        key={sponsor.id}
-        className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2"
-      >
-        {sponsor.logo_url ? (
-          <div className="flex h-12 w-20 items-center justify-center overflow-hidden rounded-xl bg-white/95 px-2 py-1 shadow-inner">
-            <img
-              src={sponsor.logo_url}
-              alt={sponsor.name}
-              className="max-h-full max-w-full object-contain"
-            />
-          </div>
-        ) : null}
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black uppercase tracking-wide text-white">{sponsor.name}</p>
-          <p className="truncate text-xs font-semibold text-cyan-300/80">{sponsor.website_url || 'Official Sponsor'}</p>
-        </div>
-      </div>
-    ))
-  ), [sponsors]);
 
   const akaTwoDigitScore = scoreAka >= 10;
   const aoTwoDigitScore = scoreAo >= 10;
@@ -1796,40 +1776,9 @@ function SpectatorDisplayContent() {
     </>
   )}
 
-      {sponsorLoopItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 overflow-hidden border-t border-cyan-400/20 bg-black/85 backdrop-blur-md pointer-events-none shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
-          {sponsors.length > 1 ? (
-            <div className="flex min-w-max items-center gap-5 px-4 py-3 sponsor-ticker-marquee whitespace-nowrap">
-              <div className="flex shrink-0 items-center gap-5">
-                {sponsorTickerCards}
-              </div>
-              <div className="flex shrink-0 items-center gap-5" aria-hidden="true">
-                {sponsorTickerCards}
-              </div>
-            </div>
-          ) : (
-            <div className="flex w-full items-center justify-center px-4 py-3">
-              {sponsorTickerCards}
-            </div>
-          )}
-        </div>
-      )}
 
-      <style jsx>{`
-        .sponsor-ticker-marquee {
-          animation: sponsor-marquee 28s linear infinite;
-          width: max-content;
-        }
 
-        @keyframes sponsor-marquee {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(calc(-50% - 10px));
-          }
-        }
-      `}</style>
+
 
 </div>
   );

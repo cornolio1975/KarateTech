@@ -7,11 +7,49 @@ import { useTournament } from '@/context/TournamentContext';
 import { Tournament, TournamentDatabase } from '@/db/types';
 import TournamentFormModal from '@/components/TournamentFormModal';
 import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
+import TournamentShareLink from '@/components/TournamentShareLink';
 import { 
   Trophy, Plus, CheckCircle, Edit3, Trash2, Loader2, MapPin, Calendar,
   Layers, Shield, Film, List, Zap, MonitorPlay, Folder, RefreshCw, RotateCcw, ExternalLink, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { basePath } from '@/db/dbClient';
+
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+const compressImage = (file: File, callback: (base64: string) => void) => {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const MAX_DIM = 800;
+      if (width > height && width > MAX_DIM) {
+        height *= MAX_DIM / width;
+        width = MAX_DIM;
+      } else if (height > MAX_DIM) {
+        width *= MAX_DIM / height;
+        height = MAX_DIM;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      callback(canvas.toDataURL('image/webp', 0.6));
+    };
+    img.src = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+};
 
 interface SponsorItem {
   id: string;
@@ -47,6 +85,8 @@ export default function TournamentDetailsModule() {
   const [savingSponsors, setSavingSponsors] = useState(false);
   const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
   const [addMediaTriggerKey, setAddMediaTriggerKey] = useState(0);
+  const [tickerSpeed, setTickerSpeed] = useState(20); // seconds for one full loop
+  const [savingSpeed, setSavingSpeed] = useState(false);
   const [sponsorDraft, setSponsorDraft] = useState<SponsorDraft>({
     id: null,
     name: '',
@@ -61,9 +101,9 @@ export default function TournamentDetailsModule() {
   // Tabs
   const tabs = [
     { name: 'Dashboard Overview', icon: <Layers className="h-4 w-4" /> },
-    { name: 'Sponsor Management (0)', icon: <Shield className="h-4 w-4" /> },
+    { name: 'Sponsor Management', icon: <Shield className="h-4 w-4" /> },
     { name: 'Tournament Details', icon: <Trophy className="h-4 w-4" /> },
-    { name: 'Media Playlist (0)', icon: <Film className="h-4 w-4" /> },
+    { name: 'Media Playlist', icon: <Film className="h-4 w-4" /> },
   ];
 
   useEffect(() => {
@@ -80,7 +120,7 @@ export default function TournamentDetailsModule() {
       if (supabase) {
         const { data, error } = await supabase
           .from('tournaments')
-          .select('*')
+          .select('id, name, organizer, date, date_iso, venue, city, registration_close, registration_close_iso, status, banner_gradient, featured, deleted_at, discipline, medals_gold, medals_silver, medals_bronze, total_participants, total_clubs, settings, last_modified')
           .neq('status', 'Deleted')
           .order('date_iso', { ascending: false });
         
@@ -100,11 +140,19 @@ export default function TournamentDetailsModule() {
 
   useEffect(() => {
     const activeTournament = tournaments.find(t => t.id === activeTournamentId);
-    const rawSponsors = (
-      (activeTournament?.settings as { sponsors?: unknown } | undefined)?.sponsors
-      ?? ((activeTournament as unknown as { data?: { tournament?: { settings?: { sponsors?: unknown } }; settings?: { sponsors?: unknown } } } | undefined)?.data?.tournament?.settings?.sponsors)
-      ?? ((activeTournament as unknown as { data?: { settings?: { sponsors?: unknown } } } | undefined)?.data?.settings?.sponsors)
-    );
+    const rawSettings = (
+      (activeTournament?.settings as Record<string, unknown> | undefined)
+      ?? ((activeTournament as unknown as { data?: { tournament?: { settings?: Record<string, unknown> }; settings?: Record<string, unknown> } } | undefined)?.data?.tournament?.settings)
+      ?? ((activeTournament as unknown as { data?: { settings?: Record<string, unknown> } } | undefined)?.data?.settings)
+      ?? {}
+    ) as Record<string, unknown>;
+    const rawSponsors = rawSettings.sponsors;
+    const rawSpeed = rawSettings.ticker_speed;
+    if (typeof rawSpeed === 'number' && rawSpeed > 0) {
+      setTickerSpeed(rawSpeed);
+    } else {
+      setTickerSpeed(20);
+    }
     if (Array.isArray(rawSponsors)) {
       const normalized = rawSponsors
         .map((item, idx) => {
@@ -235,6 +283,36 @@ export default function TournamentDetailsModule() {
     }
   };
 
+  const persistTickerSpeed = async (speed: number) => {
+    if (!activeTournamentId) return;
+    const activeTournament = tournaments.find(t => t.id === activeTournamentId)
+      || dbManager.getActiveTournament()?.tournament
+      || null;
+    if (!activeTournament) return;
+    try {
+      setSavingSpeed(true);
+      const updatedSettings = {
+        ...(activeTournament.settings || {}),
+        ticker_speed: speed
+      };
+      if (supabase) {
+        try {
+          await supabase
+            .from('tournaments')
+            .update({ settings: updatedSettings })
+            .eq('id', activeTournamentId);
+        } catch { /* ignore cloud error, fall through to local */ }
+      }
+      (dbManager as any).updateTournamentSettings?.(activeTournamentId, updatedSettings);
+      setTournaments(prev => prev.map(t => (
+        t.id === activeTournamentId ? { ...t, settings: updatedSettings } : t
+      )));
+      setTickerSpeed(speed);
+    } finally {
+      setSavingSpeed(false);
+    }
+  };
+
   const openAddSponsorModal = () => {
     if (!activeTournamentId) {
       alert('Please set an active tournament first.');
@@ -282,7 +360,7 @@ export default function TournamentDetailsModule() {
       nextSponsors = [
         ...sponsors,
         {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           name: sponsorDraft.name.trim(),
           logo_url: sponsorDraft.logo_url.trim(),
           website_url: sponsorDraft.website_url.trim(),
@@ -315,23 +393,10 @@ export default function TournamentDetailsModule() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      if (!result) {
-        alert('Failed to read selected logo image. Please try another file.');
-        return;
-      }
-
+    compressImage(file, (result) => {
       setSponsorDraft(prev => ({ ...prev, logo_url: result }));
-    };
-
-    reader.onerror = () => {
-      alert('Failed to read selected logo image. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
-    event.target.value = '';
+      event.target.value = '';
+    });
   };
 
   const handleDeleteSponsor = async (id: string) => {
@@ -463,7 +528,7 @@ export default function TournamentDetailsModule() {
         }
       } else {
         // Insert
-        const newId = crypto.randomUUID();
+        const newId = generateUUID();
         const { error } = await supabase.from('tournaments').insert([{ ...payload, id: newId }]);
         if (error) throw error;
       }
@@ -491,7 +556,7 @@ export default function TournamentDetailsModule() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setActiveTab('Media Playlist (0)')} className="flex items-center gap-2 px-5 py-2 bg-[#1e293b] hover:bg-[#334155] border border-white/10 rounded-full text-sm font-bold text-white transition cursor-pointer shadow-sm">
+          <button onClick={() => setActiveTab('Media Playlist')} className="flex items-center gap-2 px-5 py-2 bg-[#1e293b] hover:bg-[#334155] border border-white/10 rounded-full text-sm font-bold text-white transition cursor-pointer shadow-sm">
             <List className="h-4 w-4 text-cyan-400" /> Manage Playlists
           </button>
           <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-5 py-2 bg-cyan-900/20 hover:bg-cyan-900/40 border border-cyan-500/30 rounded-full text-sm font-bold text-cyan-400 transition cursor-pointer shadow-sm">
@@ -563,7 +628,7 @@ export default function TournamentDetailsModule() {
                     <span className="text-lg text-slate-300 font-bold tracking-tight">Logos Displaying</span>
                   </h2>
                   <p className="text-sm text-slate-400 mb-6 font-medium">Sponsor wall ticker overlay on broadcast</p>
-                  <button onClick={() => setActiveTab('Sponsor Management (0)')} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 cursor-pointer">
+                  <button onClick={() => setActiveTab('Sponsor Management')} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 cursor-pointer">
                     Manage Sponsors <span className="text-lg leading-none">&rsaquo;</span>
                   </button>
                 </div>
@@ -583,7 +648,7 @@ export default function TournamentDetailsModule() {
                     <span className="text-sm text-cyan-400 font-bold tracking-tight">Rotation Player</span>
                   </h2>
                   <p className="text-sm text-slate-400 mb-6 font-medium">Scoreboards, Brackets, Medals, Kata & Schedule</p>
-                  <button onClick={() => setActiveTab('Media Playlist (0)')} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 cursor-pointer">
+                  <button onClick={() => setActiveTab('Media Playlist')} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 cursor-pointer">
                     Open Playlist Manager <span className="text-lg leading-none">&rsaquo;</span>
                   </button>
                 </div>
@@ -605,7 +670,7 @@ export default function TournamentDetailsModule() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-4 relative z-10 shrink-0 mt-4 md:mt-0">
-                <button onClick={() => setActiveTab('Media Playlist (0)')} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[#1e293b] hover:bg-[#334155] border border-white/10 rounded-full text-sm font-bold text-white transition cursor-pointer shadow-lg">
+                <button onClick={() => setActiveTab('Media Playlist')} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[#1e293b] hover:bg-[#334155] border border-white/10 rounded-full text-sm font-bold text-white transition cursor-pointer shadow-lg">
                   <List className="h-4 w-4 text-cyan-400" /> Manage Playlists
                 </button>
                 <button onClick={() => window.open(displayUrl, '_blank')} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black rounded-full text-sm font-black tracking-wide shadow-[0_0_20px_rgba(34,211,238,0.4)] transition cursor-pointer">
@@ -613,10 +678,18 @@ export default function TournamentDetailsModule() {
                 </button>
               </div>
             </div>
+
+            {/* Public Share Link Component */}
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <TournamentShareLink 
+                tournamentId={activeTournamentId || undefined} 
+                tournamentName={activeTournamentId ? tournaments.find(t => t.id === activeTournamentId)?.name : undefined}
+              />
+            </div>
           </div>
         )}
 
-        {activeTab === 'Sponsor Management (0)' && (
+        {activeTab === 'Sponsor Management' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header Module */}
             <div className="rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-white/5 bg-[#0f172a] shadow-xl">
@@ -636,6 +709,46 @@ export default function TournamentDetailsModule() {
               >
                 <Plus className="h-4 w-4" /> Add Sponsor
               </button>
+            </div>
+
+            {/* Ticker Speed Control */}
+            <div className="rounded-2xl p-5 border border-white/10 bg-[#0f172a] shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Ticker Scroll Speed</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Controls how fast the sponsor banner scrolls across the display screen.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-3 py-1 rounded-lg">
+                    {tickerSpeed}s / loop
+                  </span>
+                  <button
+                    onClick={() => persistTickerSpeed(tickerSpeed)}
+                    disabled={savingSpeed}
+                    className="px-4 py-1.5 text-xs font-extrabold bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:opacity-50 text-black rounded-full transition cursor-pointer"
+                  >
+                    {savingSpeed ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 w-12 text-right font-mono">Fast</span>
+                <input
+                  type="range"
+                  min={5}
+                  max={60}
+                  step={1}
+                  value={tickerSpeed}
+                  onChange={(e) => setTickerSpeed(Number(e.target.value))}
+                  className="flex-1 h-2 rounded-full appearance-none cursor-pointer accent-cyan-400"
+                />
+                <span className="text-xs text-slate-500 w-12 font-mono">Slow</span>
+              </div>
+              <div className="flex justify-between mt-1 px-[3.5rem]">
+                <span className="text-[10px] text-slate-600">5s</span>
+                <span className="text-[10px] text-slate-600">30s</span>
+                <span className="text-[10px] text-slate-600">60s</span>
+              </div>
             </div>
 
             {/* Sponsor Content */}
@@ -730,7 +843,7 @@ export default function TournamentDetailsModule() {
           </div>
         )}
 
-        {activeTab === 'Media Playlist (0)' && (
+        {activeTab === 'Media Playlist' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header Module */}
             <div className="rounded-3xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-white/5 bg-[#0f172a] shadow-xl">
@@ -744,12 +857,17 @@ export default function TournamentDetailsModule() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <button className="px-5 py-2.5 border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-950/40 text-cyan-400 font-bold rounded-full transition cursor-pointer flex items-center gap-2 whitespace-nowrap text-sm shadow-sm">
+                <button 
+                  onClick={() => {
+                    const activeT = typeof window !== 'undefined' ? localStorage.getItem('ts_active_tournament_id') : null;
+                    const target = activeT ? `${basePath}/display?tournament=${encodeURIComponent(activeT)}` : `${basePath}/display`;
+                    window.open(target, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
+                  }}
+                  className="px-5 py-2.5 border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-950/40 text-cyan-400 font-bold rounded-full transition cursor-pointer flex items-center gap-2 whitespace-nowrap text-sm shadow-sm"
+                >
                   <RefreshCw className="h-4 w-4" /> Loop All Display
                 </button>
-                <button className="px-5 py-2.5 border border-white/10 bg-[#1e293b] hover:bg-[#334155] text-slate-300 hover:text-white font-bold rounded-full transition cursor-pointer flex items-center gap-2 whitespace-nowrap text-sm shadow-sm">
-                  <RotateCcw className="h-4 w-4" /> Restore Default Playlist
-                </button>
+
                 <button
                   onClick={() => setAddMediaTriggerKey(prev => prev + 1)}
                   className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black font-extrabold rounded-full shadow-[0_0_15px_rgba(34,211,238,0.3)] transition cursor-pointer flex items-center gap-2 whitespace-nowrap text-sm"

@@ -5,7 +5,7 @@ import { db, basePath } from '@/db/dbClient';
 import { DisplayPlaylist, DisplayPlaylistSlide } from '@/db/types';
 import { 
   Tv, Plus, Trash2, Edit3, Save, X, Play, Clock,
-  ChevronUp, ChevronDown, Layers, Monitor, Award, Calendar, Volume2, Image as ImageIcon, Film
+  ChevronUp, ChevronDown, Layers, Monitor, Award, Calendar, Volume2, Image as ImageIcon, Film, Radio
 } from 'lucide-react';
 
 interface DisplayPlaylistModalProps {
@@ -28,10 +28,39 @@ const DEFAULT_SLIDE_TYPES = [
   { type: 'announcement', name: 'Custom Announcement / Sponsor Banner', shortLabel: 'Announcement', icon: Volume2, defaultDuration: 12 },
   { type: 'image', name: 'Image Media Slide', shortLabel: 'Image', icon: ImageIcon, defaultDuration: 15 },
   { type: 'video', name: 'Video Media Slide', shortLabel: 'Video', icon: Film, defaultDuration: 30 },
+  { type: 'live_stream', name: 'Live Stream @ Arena', shortLabel: 'Stream', icon: Radio, defaultDuration: 60 },
 ] as const;
 
-const MAX_IMAGE_UPLOAD_MB = 2;
-const MAX_VIDEO_UPLOAD_MB = 10;
+const MAX_IMAGE_UPLOAD_MB = 5;
+
+const compressImage = (file: File, callback: (base64: string) => void) => {
+  const reader = new FileReader();
+  reader.onerror = () => alert('Failed to read the image file.');
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onerror = () => alert('Invalid or unsupported image file.');
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const MAX_DIM = 800;
+      if (width > height && width > MAX_DIM) {
+        height *= MAX_DIM / width;
+        width = MAX_DIM;
+      } else if (height > MAX_DIM) {
+        width *= MAX_DIM / height;
+        height = MAX_DIM;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      callback(canvas.toDataURL('image/webp', 0.6));
+    };
+    img.src = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+};
 
 export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist, inline = false, createTriggerKey, createTriggerMode = 'default', addMediaTriggerKey, addMediaSlideType = 'announcement' }: DisplayPlaylistModalProps) {
   const [playlists, setPlaylists] = useState<DisplayPlaylist[]>([]);
@@ -47,9 +76,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
   const [slides, setSlides] = useState<DisplayPlaylistSlide[]>([]);
 
   const nextSlideId = () => {
-    const nextId = slideIdCounterRef.current;
-    slideIdCounterRef.current += 1;
-    return `slide-local-${nextId}`;
+    return `slide-local-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   };
 
   useEffect(() => {
@@ -75,7 +102,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
       duration_seconds: meta?.defaultDuration || 20,
       tatami_filter: isEditing ? tatami : 'ALL',
       announcement_text: addMediaSlideType === 'announcement' ? 'Welcome to KarateTech Championship 2026!' : undefined,
-      media_url: addMediaSlideType === 'image' || addMediaSlideType === 'video' ? '' : undefined
+      media_url: addMediaSlideType === 'image' || addMediaSlideType === 'video' || addMediaSlideType === 'live_stream' ? '' : undefined
     };
 
     if (!isEditing) {
@@ -151,7 +178,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
       duration_seconds: meta?.defaultDuration || 20,
       tatami_filter: tatami,
       announcement_text: type === 'announcement' ? 'Welcome to KarateTech Championship 2026!' : undefined,
-      media_url: type === 'image' || type === 'video' ? '' : undefined
+      media_url: type === 'image' || type === 'video' || type === 'live_stream' ? '' : undefined
     };
     setSlides(prev => [...prev, newSlide]);
   };
@@ -181,7 +208,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
     }
 
     const invalidMediaSlide = slides.find(slide => (
-      (slide.type === 'image' || slide.type === 'video') && !slide.media_url?.trim()
+      (slide.type === 'image' || slide.type === 'video' || slide.type === 'live_stream') && !slide.media_url?.trim()
     ));
     if (invalidMediaSlide) {
       alert(`Please provide a media URL for "${invalidMediaSlide.title}".`);
@@ -221,44 +248,44 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
     if (!file) return;
 
     const slide = slides[idx];
-    if (!slide || (slide.type !== 'image' && slide.type !== 'video')) {
+    if (!slide || slide.type === 'live_stream') {
       event.target.value = '';
       return;
     }
 
-    const expectedTypePrefix = slide.type === 'video' ? 'video/' : 'image/';
-    if (!file.type.startsWith(expectedTypePrefix)) {
-      alert(`Please choose a ${slide.type} file for this slide.`);
-      event.target.value = '';
-      return;
-    }
+    // Relaxed MIME validation since HTML input `accept` already handles it
+    // and some OS/browser combos return empty types for valid videos
 
-    const maxBytes = (slide.type === 'video' ? MAX_VIDEO_UPLOAD_MB : MAX_IMAGE_UPLOAD_MB) * 1024 * 1024;
+    const maxBytes = (slide.type === 'video' ? 15 : MAX_IMAGE_UPLOAD_MB) * 1024 * 1024;
     if (file.size > maxBytes) {
-      alert(`${slide.type === 'video' ? 'Video' : 'Image'} file is too large. Maximum size is ${slide.type === 'video' ? MAX_VIDEO_UPLOAD_MB : MAX_IMAGE_UPLOAD_MB}MB.`);
+      alert(`${slide.type === 'video' ? 'Video' : 'Image'} file is too large. Maximum size is ${slide.type === 'video' ? 15 : MAX_IMAGE_UPLOAD_MB}MB.`);
       event.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      if (!result) {
-        alert('Failed to read selected media file. Please try again.');
-        return;
-      }
+    if (slide.type === 'video') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        if (!result) {
+          alert('Failed to read selected video file. Please try again.');
+          return;
+        }
+        setSlides(prev => prev.map((entry, entryIdx) => (
+          entryIdx === idx ? { ...entry, media_url: result } : entry
+        )));
+        event.target.value = '';
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
 
+    compressImage(file, (result) => {
       setSlides(prev => prev.map((entry, entryIdx) => (
         entryIdx === idx ? { ...entry, media_url: result } : entry
       )));
-    };
-
-    reader.onerror = () => {
-      alert('Failed to read selected media file. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
-    event.target.value = '';
+      event.target.value = '';
+    });
   };
 
   const handleLaunchDisplay = (pl: DisplayPlaylist) => {
@@ -316,7 +343,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                   <p className="text-xs text-muted-foreground">Select a playlist to edit, modify, or launch on the live display screen.</p>
                 </div>
                 <button
-                  onClick={handleCreateNew}
+                  onClick={() => handleCreateNew()}
                   className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -333,7 +360,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                   <Monitor className="h-10 w-10 text-muted-foreground/30 mx-auto" />
                   <div className="text-xs text-muted-foreground font-semibold">No custom playlists created yet.</div>
                   <button
-                    onClick={handleCreateNew}
+                    onClick={() => handleCreateNew()}
                     className="px-3.5 py-1.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -541,7 +568,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                               className="w-full px-2 py-1 bg-secondary/80 border border-border rounded text-[11px] font-medium text-foreground focus:outline-none"
                             />
                           )}
-                          {(s.type === 'image' || s.type === 'video') && (
+                          {(s.type === 'image' || s.type === 'video' || s.type === 'live_stream') && (
                             <div className="space-y-2">
                               <input
                                 type="text"
@@ -551,26 +578,28 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                                   copy[idx].media_url = e.target.value;
                                   setSlides(copy);
                                 }}
-                                placeholder={s.type === 'video' ? 'Paste MP4/WebM video URL...' : 'Paste JPG/PNG/WebP image URL...'}
+                                placeholder={s.type === 'video' ? 'Paste MP4/WebM video URL...' : s.type === 'live_stream' ? 'Paste YouTube stream URL (e.g. https://youtube.com/watch?v=...)' : 'Paste JPG/PNG/WebP image URL...'}
                                 className="w-full px-2 py-1 bg-secondary/80 border border-border rounded text-[11px] font-medium text-foreground focus:outline-none"
                               />
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-semibold text-muted-foreground">
-                                  or upload {s.type} from local drive
-                                </label>
-                                <input
-                                  type="file"
-                                  accept={s.type === 'video' ? 'video/*' : 'image/*'}
-                                  onChange={e => handleMediaFileChange(idx, e)}
-                                  className="block w-full text-[10px] text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/15 file:px-2.5 file:py-1.5 file:text-[10px] file:font-bold file:text-primary hover:file:bg-primary/25"
-                                />
-                                <p className="text-[10px] text-muted-foreground/80">
-                                  {s.type === 'video'
-                                    ? `MP4/WebM recommended. Max ${MAX_VIDEO_UPLOAD_MB}MB for embedded upload.`
-                                    : `PNG/JPG/WebP recommended. Max ${MAX_IMAGE_UPLOAD_MB}MB.`}
-                                </p>
-                              </div>
-                              {s.media_url ? (
+                              {s.type !== 'live_stream' && (
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-semibold text-muted-foreground">
+                                    or upload {s.type} from local drive
+                                  </label>
+                                  <input
+                                    type="file"
+                                    accept={s.type === 'video' ? 'video/*' : 'image/*'}
+                                    onChange={e => handleMediaFileChange(idx, e)}
+                                    className="block w-full text-[10px] text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/15 file:px-2.5 file:py-1.5 file:text-[10px] file:font-bold file:text-primary hover:file:bg-primary/25"
+                                  />
+                                  <p className="text-[10px] text-muted-foreground/80">
+                                    {s.type === 'video'
+                                      ? `MP4/WebM recommended. Max 15MB for embedded upload.`
+                                      : `PNG/JPG/WebP recommended. Max ${MAX_IMAGE_UPLOAD_MB}MB.`}
+                                  </p>
+                                </div>
+                              )}
+                              {s.media_url && s.type !== 'live_stream' ? (
                                 <div className="rounded-lg border border-border bg-secondary/30 p-2">
                                   {s.type === 'image' ? (
                                     <img

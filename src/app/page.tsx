@@ -10,6 +10,16 @@ import { dbManager, supabase } from '@/db/dbClient';
 import { localStore } from '@/db/localStore';
 import { Tournament, TournamentDatabase } from '@/db/types';
 
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export default function TournamentManager() {
   const router = useRouter();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -166,7 +176,7 @@ export default function TournamentManager() {
     if (!newName.trim()) return;
 
     setLoading(true);
-    const newId = crypto.randomUUID(); // proper UUID — same key in IndexedDB AND Supabase
+    const newId = generateUUID(); // proper UUID — same key in IndexedDB AND Supabase
     const newDb: TournamentDatabase = {
       tournament: {
         id: newId,

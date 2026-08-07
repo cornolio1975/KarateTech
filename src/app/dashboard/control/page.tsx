@@ -7,7 +7,7 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant } from '@/db/types';
 import {
   Zap, Play, Square, RotateCcw, X, Award, Timer,
-  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List
+  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List, MonitorPlay, ExternalLink, LayoutDashboard, ArrowRight
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
@@ -38,6 +38,7 @@ export default function ScoreboardControlPage() {
 
   // Track which fighters scored their first valid point in the current stoppage sequence
   const [stoppageScorers, setStoppageScorers] = useState<('aka' | 'ao')[]>([]);
+  const [stoppageInitialSenshu, setStoppageInitialSenshu] = useState<'aka' | 'ao' | 'none' | null>(null);
 
   // Penalties WKF System: C1, C2, C3, HC, H (0 to 5)
   const [c1Aka, setC1Aka] = useState<number>(0);
@@ -71,6 +72,7 @@ export default function ScoreboardControlPage() {
   const [spectatorConnected, setSpectatorConnected] = useState<boolean>(false);
   const [popupBlocked, setPopupBlocked] = useState<boolean>(false);
   const [isSpectatorModalOpen, setIsSpectatorModalOpen] = useState<boolean>(false);
+
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const lastSpectatorHeartbeat = useRef<number>(0);
   const spectatorWindowRef = useRef<Window | null>(null);
@@ -98,14 +100,53 @@ export default function ScoreboardControlPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const soundPlayedRef = useRef<string | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Auto-unlock AudioContext on first user interaction so sounds work without manual click
+  useEffect(() => {
+    const getOrCreateAudioCtx = () => {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      return audioCtxRef.current;
+    };
+
+    const unlock = () => {
+      try {
+        const ctx = getOrCreateAudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+      } catch { /* ignore */ }
+    };
+
+    // Try immediately (works if page was opened via user gesture)
+    unlock();
+
+    // Also unlock on first interaction as a fallback
+    document.addEventListener('click', unlock, { once: true });
+    document.addEventListener('keydown', unlock, { once: true });
+    document.addEventListener('touchstart', unlock, { once: true });
+
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
+  }, []);
 
   // Open Spectator Window helper
-  const openSpectatorWindow = useCallback((mode: 'default' | 'new-tab' | 'new-window' = 'default') => {
+  const openSpectatorWindow = useCallback((mode: 'default' | 'new-tab' | 'new-window' | 'same-page' = 'default') => {
     if (typeof window === 'undefined') return;
     const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
     const tournamentParam = activeTournamentId ? `&tournament=${encodeURIComponent(activeTournamentId)}` : '';
     const specUrl = `${window.location.origin}${basePath}/display?boutId=${boutId}&liveOnly=true${tournamentParam}`;
     let specWindow: Window | null = null;
+    
+    if (mode === 'same-page') {
+      window.location.href = specUrl;
+      return;
+    }
     
     if (mode === 'default') {
       specWindow = window.open(specUrl, 'KarateTechSpectator');
@@ -143,16 +184,44 @@ export default function ScoreboardControlPage() {
       // Send initial handshake ping
       channel.postMessage({ type: 'PING' });
 
+      // Helper to broadcast full state
+      const broadcastFullState = async () => {
+        const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+        if (activeTournamentId && channel) {
+          try {
+            const { localStore } = await import('@/db/localStore');
+            const tournamentDb = await localStore.loadTournament(activeTournamentId);
+            if (tournamentDb) {
+              channel.postMessage({
+                type: 'SYNC_FULL_STATE',
+                allBouts: tournamentDb.bouts || [],
+                allParticipants: tournamentDb.participants || [],
+                allCategories: tournamentDb.categories || [],
+                allClubs: tournamentDb.clubs || [],
+                playlists: tournamentDb.display_playlists || []
+              });
+            }
+          } catch (e) {
+            console.warn('Failed to broadcast full state', e);
+          }
+        }
+      };
+
       // Handle message events
-      channel.onmessage = (event) => {
+      channel.onmessage = async (event) => {
         const data = event.data;
         if (data.type === 'PONG' || data.type === 'SPECTATOR_CONNECTED') {
           lastSpectatorHeartbeat.current = Date.now();
           setSpectatorConnected(true);
         } else if (data.type === 'SPECTATOR_DISCONNECTED') {
           setSpectatorConnected(false);
+        } else if (data.type === 'REQUEST_FULL_STATE') {
+          await broadcastFullState();
         }
       };
+
+      // Save helper to ref so we can use it outside useEffect
+      (window as any)._broadcastFullState = broadcastFullState;
     }
 
     // Ping interval to maintain keep-alive
@@ -285,6 +354,17 @@ export default function ScoreboardControlPage() {
         setMatchDuration(currentBout.timer_seconds ?? 180);
         setHasTimerRun(false);
 
+        let loadedWinnerSide: 'aka' | 'ao' | null = null;
+        if (currentBout.status === 'Completed' && currentBout.winner_id) {
+          if (currentBout.winner_id === currentBout.participant_a_id) {
+            loadedWinnerSide = 'aka';
+          } else if (currentBout.winner_id === currentBout.participant_b_id) {
+            loadedWinnerSide = 'ao';
+          }
+        }
+        setWinnerSide(loadedWinnerSide);
+        setWinMethod(loadedWinnerSide ? 'Points' : ''); // Provide fallback string
+
         // Seed history with clean match start state for complete undo support
         const initialSnap = {
           scoreAka: currentBout.score_a ?? 0,
@@ -300,8 +380,8 @@ export default function ScoreboardControlPage() {
           stoppageScorers: [],
           eventsAka: parsedEventsAka,
           eventsAo: parsedEventsAo,
-          winnerSide: null,
-          winMethod: '',
+          winnerSide: loadedWinnerSide,
+          winMethod: loadedWinnerSide ? 'Points' : '',
           timeLeft: (currentBout.timer_seconds ?? 180) * 10
         };
         setHistory([initialSnap]);
@@ -381,6 +461,7 @@ export default function ScoreboardControlPage() {
       const saveDraft = async () => {
         try {
           await db.bouts.updateBoutState(boutId!, {
+            status: bout?.status === 'Completed' ? 'Completed' : 'Running',
             score_a: scoreAka,
             score_b: scoreAo,
             senshu_a: senshuAka,
@@ -415,7 +496,11 @@ export default function ScoreboardControlPage() {
   const triggerBuzzer = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
 
@@ -438,7 +523,11 @@ export default function ScoreboardControlPage() {
   const triggerBeep = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       
       const playBellRing = (startTime: number) => {
         const gainNode = audioCtx.createGain();
@@ -468,7 +557,11 @@ export default function ScoreboardControlPage() {
   const playSuperiorPointsSound = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       
       const playTone = (freq: number, start: number, duration: number) => {
         const osc = audioCtx.createOscillator();
@@ -495,7 +588,11 @@ export default function ScoreboardControlPage() {
   const playHansokuAlarm = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       
       const playAlarmTone = (start: number) => {
         const osc = audioCtx.createOscillator();
@@ -527,10 +624,18 @@ export default function ScoreboardControlPage() {
       return { side: 'ao', method: 'Points' };
     }
 
-    // Tie score: check superior scoring techniques first (highest scoring technique achieved)
+    // 1. Tie score: First tiebreaker is Senshu (first scorer advantage)
+    if (senshuAka) {
+      return { side: 'aka', method: 'SENSHU' };
+    }
+    if (senshuAo) {
+      return { side: 'ao', method: 'SENSHU' };
+    }
+
+    // 2. Senshu is OFF for both: Second tiebreaker is superior scoring techniques (highest scoring technique achieved)
     const countTech = (arr: number[], tech: number) => arr.filter(x => x === tech).length;
 
-    // 1. Check Ippon (3 points)
+    // 2a. Check Ippon (3 points)
     const ipponAka = countTech(pointsAka, 3);
     const ipponAo = countTech(pointsAo, 3);
     if (ipponAka !== ipponAo) {
@@ -539,7 +644,7 @@ export default function ScoreboardControlPage() {
         : { side: 'ao', method: 'Superior Points' };
     }
 
-    // 2. Check Waza-ari (2 points)
+    // 2b. Check Waza-ari (2 points)
     const wazaAka = countTech(pointsAka, 2);
     const wazaAo = countTech(pointsAo, 2);
     if (wazaAka !== wazaAo) {
@@ -548,21 +653,13 @@ export default function ScoreboardControlPage() {
         : { side: 'ao', method: 'Superior Points' };
     }
 
-    // 3. Check Yuko (1 point)
+    // 2c. Check Yuko (1 point)
     const yukoAka = countTech(pointsAka, 1);
     const yukoAo = countTech(pointsAo, 1);
     if (yukoAka !== yukoAo) {
       return yukoAka > yukoAo
         ? { side: 'aka', method: 'Superior Points' }
         : { side: 'ao', method: 'Superior Points' };
-    }
-
-    // 4. Tie score and identical techniques: check Senshu (first scorer advantage)
-    if (senshuAka) {
-      return { side: 'aka', method: 'SENSHU' };
-    }
-    if (senshuAo) {
-      return { side: 'ao', method: 'SENSHU' };
     }
 
     // Complete tie: default suggestion is Hantei (referee decision)
@@ -621,6 +718,7 @@ export default function ScoreboardControlPage() {
     prevPointsAka = pointsAka,
     prevPointsAo = pointsAo,
     prevStoppageScorers = stoppageScorers,
+    prevStoppageInitialSenshu = stoppageInitialSenshu,
     prevEventsAka = eventsAka,
     prevEventsAo = eventsAo,
     prevWinnerSide = winnerSide,
@@ -641,6 +739,7 @@ export default function ScoreboardControlPage() {
         pointsAka: prevPointsAka,
         pointsAo: prevPointsAo,
         stoppageScorers: prevStoppageScorers,
+        stoppageInitialSenshu: prevStoppageInitialSenshu,
         eventsAka: prevEventsAka,
         eventsAo: prevEventsAo,
         winnerSide: prevWinnerSide,
@@ -667,6 +766,7 @@ export default function ScoreboardControlPage() {
     setEventsAka(lastState.eventsAka ?? []);
     setEventsAo(lastState.eventsAo ?? []);
     setStoppageScorers(lastState.stoppageScorers ?? []);
+    setStoppageInitialSenshu(lastState.stoppageInitialSenshu ?? null);
     setWinnerSide(lastState.winnerSide ?? null);
     setWinMethod(lastState.winMethod ?? '');
     if (lastState.timeLeft !== undefined) {
@@ -778,12 +878,30 @@ export default function ScoreboardControlPage() {
       if (!timerActive) {
         setStoppageScorers((prev) => {
           const next = prev.includes(side) ? prev : [...prev, side];
+          
+          let initialSenshu = stoppageInitialSenshu;
+          if (prev.length === 0) {
+            initialSenshu = firstScorer;
+            setStoppageInitialSenshu(initialSenshu);
+          }
+
           if (next.includes('aka') && next.includes('ao')) {
-            // Rule 4: Both fighters score in the same stoppage sequence -> Senshu remains OFF
-            setFirstScorer('none');
-          } else if (firstScorer === null || firstScorer === 'none') {
-            // Only one scored in this stoppage sequence and Senshu was OFF -> award Senshu to them
-            setFirstScorer(side);
+            // Simultaneous scoring!
+            if (initialSenshu === null || initialSenshu === 'none') {
+              // No one had Senshu before this stoppage -> neither gets it
+              setFirstScorer('none');
+            } else {
+              // Restore Senshu to original owner (already locked in from previous exchanges)
+              setFirstScorer(initialSenshu);
+            }
+          } else {
+            // Only one scored so far in this stoppage sequence
+            if (initialSenshu === null || initialSenshu === 'none') {
+              // Award Senshu to the first scorer
+              setFirstScorer(side);
+            }
+            // If initialSenshu is already set to 'aka' or 'ao', DO NOTHING.
+            // Senshu is retained by the first owner permanently.
           }
           return next;
         });
@@ -792,12 +910,14 @@ export default function ScoreboardControlPage() {
         if (firstScorer === null || firstScorer === 'none') {
           setFirstScorer(side);
         }
+        // If firstScorer is already set, DO NOTHING. It is locked in.
       }
     } else {
       // Points subtraction (undo/correction)
       if (finalScoreAka === 0 && finalScoreAo === 0) {
         setFirstScorer(null);
         setStoppageScorers([]);
+        setStoppageInitialSenshu(null);
       } else if (finalScoreAka === 0) {
         setFirstScorer('ao');
         setStoppageScorers((prev) => prev.filter(s => s !== 'aka'));
@@ -850,6 +970,7 @@ export default function ScoreboardControlPage() {
       setSenshuAo(false);
       setFirstScorer(null);
       setStoppageScorers([]);
+      setStoppageInitialSenshu(null);
       setHasTimerRun(false);
       setTimeLeft(matchDuration * 10);
 
@@ -918,6 +1039,7 @@ export default function ScoreboardControlPage() {
     if (timerActive) {
       setHasTimerRun(true);
       setStoppageScorers([]);
+      setStoppageInitialSenshu(null);
     }
   }, [timerActive]);
 
@@ -1067,6 +1189,11 @@ export default function ScoreboardControlPage() {
         victory_method: winMethod
       });
 
+      // Broadcast full state to display screen hub so bracket updates instantly
+      if (typeof window !== 'undefined' && (window as any)._broadcastFullState) {
+        (window as any)._broadcastFullState();
+      }
+
       setShowFinishModal(false);
       // Auto-navigate back to Match Console Hub (Kumite) to easily start the next match
       router.push(`/dashboard/scoreboard?boutId=${boutId}`);
@@ -1154,6 +1281,7 @@ export default function ScoreboardControlPage() {
       setTimeLeft(matchDuration * 10);
       setTimerActive(false);
       setStoppageScorers([]);
+      setStoppageInitialSenshu(null);
       setHasTimerRun(false);
       setShowFinishModal(false);
       setHistory([]);
@@ -1168,15 +1296,11 @@ export default function ScoreboardControlPage() {
   };
 
   const handleSpectatorIndicatorClick = () => {
-    openSpectatorWindow('default');
+    setIsSpectatorModalOpen(true);
   };
 
   const handleSpectatorButtonClick = () => {
-    if (spectatorConnected) {
-      setIsSpectatorModalOpen(true);
-    } else {
-      openSpectatorWindow('default');
-    }
+    setIsSpectatorModalOpen(true);
   };
 
   if (!mounted || loading) {
@@ -1225,7 +1349,7 @@ export default function ScoreboardControlPage() {
             title={spectatorConnected ? "Focus existing spectator view" : "Launch spectator view"}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${spectatorConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
-            <span>{spectatorConnected ? 'Spectator Connected' : 'Spectator Closed'}</span>
+            <span>{spectatorConnected ? 'Referee Screen Connected' : 'Referee Screen Closed'}</span>
           </button>
 
           {/* Spectator View button */}
@@ -1234,7 +1358,7 @@ export default function ScoreboardControlPage() {
             className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-[10px] font-bold transition cursor-pointer"
           >
             <Tv className="h-3 w-3" />
-            <span>Spectator View</span>
+            <span>Referee Screen</span>
           </button>
 
           {/* Display Playlists button */}
@@ -1274,6 +1398,82 @@ export default function ScoreboardControlPage() {
           </button>
         </div>
       </header>
+
+      {/* Spectator View Management Modal */}
+      {isSpectatorModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-[#0f172a] border border-cyan-500/30 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative">
+            <button 
+              onClick={() => setIsSpectatorModalOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 bg-cyan-500/10 rounded-xl mb-4 border border-cyan-500/20 mx-auto">
+                <Tv className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-black text-center text-white mb-2">Launch Referee Screen</h2>
+              <p className="text-sm text-slate-400 text-center mb-6">
+                Choose how you want to open the live referee screen for this tatami.
+              </p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    openSpectatorWindow('same-page');
+                    setIsSpectatorModalOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <MonitorPlay className="h-5 w-5 text-slate-400 group-hover:text-cyan-400" />
+                    <div>
+                      <div className="font-bold text-sm text-white">Open in This Window</div>
+                      <div className="text-[10px] text-slate-400">Replaces current console view</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-cyan-400" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    openSpectatorWindow('new-tab');
+                    setIsSpectatorModalOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <ExternalLink className="h-5 w-5 text-slate-400 group-hover:text-cyan-400" />
+                    <div>
+                      <div className="font-bold text-sm text-white">Open in New Tab</div>
+                      <div className="text-[10px] text-slate-400">Standard browser tab</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-cyan-400" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    openSpectatorWindow('new-window');
+                    setIsSpectatorModalOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <LayoutDashboard className="h-5 w-5 text-cyan-400" />
+                    <div>
+                      <div className="font-bold text-sm text-cyan-100">Open in Clean Window (Recommended)</div>
+                      <div className="text-[10px] text-cyan-400/80">Popup window without browser chrome, best for external screens</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-cyan-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Popup Blocked Warning */}
       {popupBlocked && (
@@ -1823,65 +2023,6 @@ export default function ScoreboardControlPage() {
                     <Check className="h-4 w-4" /> Confirm & Save
                   </>
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Spectator View Management Modal */}
-      {isSpectatorModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121218] border border-white/10 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-            <div className="text-center space-y-1.5">
-              <div className="w-12 h-12 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mx-auto">
-                <Tv className="h-6 w-6" />
-              </div>
-              <h3 className="text-base font-black uppercase tracking-wider text-white">Spectator View Running</h3>
-              <p className="text-xs text-gray-400 font-medium">
-                Spectator View is already running. Choose an option:
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                onClick={() => {
-                  openSpectatorWindow('default');
-                  setIsSpectatorModalOpen(false);
-                }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition text-left px-4 flex items-center justify-between cursor-pointer"
-              >
-                <span>Focus Existing Window</span>
-                <span className="text-[10px] text-gray-500 font-semibold">Reuses active tab</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  openSpectatorWindow('new-tab');
-                  setIsSpectatorModalOpen(false);
-                }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition text-left px-4 flex items-center justify-between cursor-pointer"
-              >
-                <span>Open New Tab</span>
-                <span className="text-[10px] text-gray-500 font-semibold">Creates another tab</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  openSpectatorWindow('new-window');
-                  setIsSpectatorModalOpen(false);
-                }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition text-left px-4 flex items-center justify-between cursor-pointer"
-              >
-                <span>Open New Browser Window</span>
-                <span className="text-[10px] text-gray-500 font-semibold">For dual screens</span>
-              </button>
-
-              <button
-                onClick={() => setIsSpectatorModalOpen(false)}
-                className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-bold transition text-center mt-2 cursor-pointer"
-              >
-                Cancel
               </button>
             </div>
           </div>

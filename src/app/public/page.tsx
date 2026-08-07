@@ -190,8 +190,15 @@ export default function PublicSpectatorHub() {
 
   if (!mounted) return null;
 
-  // Active bouts running
-  const runningBouts = bouts.filter(b => b.status === 'Running');
+  // Active bouts running or last completed
+  let runningBouts = bouts.filter(b => b.status === 'Running');
+  if (runningBouts.length === 0) {
+    const completedBouts = bouts.filter(b => b.status === 'Completed');
+    if (completedBouts.length > 0) {
+      // Pick the most recently updated/added completed bout
+      runningBouts = [completedBouts[completedBouts.length - 1]];
+    }
+  }
 
   // Group bouts into rounds for single elimination tree
   const activeCategory = categories.find(c => c.id === selectedCatId);
@@ -358,7 +365,9 @@ export default function PublicSpectatorHub() {
                       {/* Display live running bouts or show scheduled */}
                       {runningBouts.length > 0 ? (
                         <div className="bg-[#0b101d] border border-gray-800 rounded-xl p-6 text-center space-y-4">
-                          <span className="bg-amber-500 text-black px-2 py-0.5 rounded text-[9px] font-black uppercase">LIVE SCORE</span>
+                          <span className={runningBouts[0]?.status === 'Completed' ? "bg-green-500 text-black px-2 py-0.5 rounded text-[9px] font-black uppercase" : "bg-amber-500 text-black px-2 py-0.5 rounded text-[9px] font-black uppercase"}>
+                            {runningBouts[0]?.status === 'Completed' ? 'FINAL SCORE' : 'LIVE SCORE'}
+                          </span>
                           
                           {runningBouts.slice(0, 1).map((rb) => {
                             const competitorA = participants.find(p => p.id === rb.participant_a_id);
@@ -370,9 +379,15 @@ export default function PublicSpectatorHub() {
                                   {categories.find(c => c.id === rb.category_id)?.name}
                                 </span>
                                 <div className="grid grid-cols-3 items-center">
-                                  <span className="text-sm font-extrabold text-red-500 truncate">{competitorA?.full_name || 'Aka'}</span>
-                                  <span className="text-4xl font-black font-mono text-white">{rb.score_a} - {rb.score_b}</span>
-                                  <span className="text-sm font-extrabold text-blue-500 truncate">{competitorB?.full_name || 'Ao'}</span>
+                                  <div className={`text-sm font-extrabold flex items-center justify-end gap-1.5 min-w-0 ${((rb.status === 'Completed' && rb.winner_id === rb.participant_a_id) || (rb.score_a - rb.score_b >= 8)) ? 'text-yellow-400' : 'text-red-500'}`}>
+                                    {((rb.status === 'Completed' && rb.winner_id === rb.participant_a_id) || (rb.score_a - rb.score_b >= 8)) && <Trophy className="h-4 w-4 text-yellow-400 shrink-0" />}
+                                    <span className="truncate">{competitorA?.full_name || 'Aka'}</span>
+                                  </div>
+                                  <span className="text-4xl font-black font-mono text-white text-center justify-self-center">{rb.score_a} - {rb.score_b}</span>
+                                  <div className={`text-sm font-extrabold flex items-center justify-start gap-1.5 min-w-0 ${((rb.status === 'Completed' && rb.winner_id === rb.participant_b_id) || (rb.score_b - rb.score_a >= 8)) ? 'text-yellow-400' : 'text-blue-500'}`}>
+                                    <span className="truncate">{competitorB?.full_name || 'Ao'}</span>
+                                    {((rb.status === 'Completed' && rb.winner_id === rb.participant_b_id) || (rb.score_b - rb.score_a >= 8)) && <Trophy className="h-4 w-4 text-yellow-400 shrink-0" />}
+                                  </div>
                                 </div>
                                 <span className="block text-[10px] text-gray-500 font-semibold uppercase">TATAMI: {rb.tatami}</span>
                               </div>

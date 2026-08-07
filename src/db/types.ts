@@ -234,7 +234,7 @@ export interface Tournament {
 
 export interface DisplayPlaylistSlide {
   id: string;
-  type: 'live_scoreboard' | 'kata_scoreboard' | 'bracket' | 'medals' | 'schedule' | 'announcement' | 'image' | 'video';
+  type: 'live_scoreboard' | 'kata_scoreboard' | 'bracket' | 'medals' | 'schedule' | 'announcement' | 'image' | 'video' | 'live_stream';
   title: string;
   duration_seconds: number;
   tatami_filter?: string;

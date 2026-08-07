@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKumiteCategory, isKataCategory } from '@/db/types';
 import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function ScoreboardDashboardPage() {
+  const router = useRouter();
   const { tournamentName } = useTournament();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -297,13 +299,21 @@ export default function ScoreboardDashboardPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
-                      <Link
-                        href={isKataCategory(category) ? `/dashboard/kata-control?boutId=${bout.id}` : `/dashboard/control?boutId=${bout.id}`}
+                      <button
+                        onClick={() => {
+                          // Auto open spectator display in new window
+                          const targetSpectator = `${basePath}/display?boutId=${bout.id}&liveOnly=true`;
+                          window.open(targetSpectator, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
+                          
+                          // Navigate to Control Panel
+                          const targetControl = isKataCategory(category) ? `/dashboard/kata-control?boutId=${bout.id}` : `/dashboard/control?boutId=${bout.id}`;
+                          router.push(targetControl);
+                        }}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
                       >
                         <Play className="h-3.5 w-3.5 fill-black" />
                         {bout.status === 'Completed' ? 'View Results' : 'Control Panel'}
-                      </Link>
+                      </button>
                       
                       {bout.status === 'Completed' && (
                         <button
@@ -316,7 +326,7 @@ export default function ScoreboardDashboardPage() {
                       )}
 
                       <Link
-                        href={`/display?boutId=${bout.id}`}
+                        href={`/display?boutId=${bout.id}&liveOnly=true`}
                         target="_blank"
                         className="flex items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white rounded-xl transition cursor-pointer"
                         title="Open spectator display in new window"
