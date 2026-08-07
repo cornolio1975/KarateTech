@@ -135,6 +135,10 @@ export default function SchedulePage() {
 
   // Filtered Bouts
   const filteredBouts = bouts.filter(b => {
+    if (b.status === 'Walkover') return false;
+    if (b.victory_method?.toUpperCase().includes('BYE')) return false;
+    if (b.victory_method?.toUpperCase().includes('WALKOVER')) return false;
+    
     const cat = categories.find(c => c.id === b.category_id);
     if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
     if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;
