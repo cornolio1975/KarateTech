@@ -102,8 +102,7 @@ function BracketDisplayContent() {
             clubs={clubs}
             categories={categories}
             selectedCatId={categoryId}
-            canModify={false}
-            hideZoomControls={false}
+            theme="dark"
           />
         </div>
       </div>

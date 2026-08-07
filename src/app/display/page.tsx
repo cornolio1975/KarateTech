@@ -1384,13 +1384,20 @@ function SpectatorDisplayContent() {
                       </span>
                     </div>
                     <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-red-400 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)] flex items-center gap-3">
-                      {scoringMethod === 'Flags' ? (
-                        <>
-                          <span>{penaltyH === 'AKA' ? 'H' : penaltyH === 'AO' ? '🏆' : (judgeScoresA.length > 0 ? judgeScoresA.filter(s => Number(s) === 1).length : Math.round(scoreAka))}</span>
-                          {!penaltyH && <Flag className="h-9 w-9 text-red-500 fill-red-500 inline-block drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />}
-                        </>
-                      ) : (
-                        penaltyH === 'AKA' ? 'H' : penaltyH === 'AO' ? '🏆' : scoreAka.toFixed(2)
+                      <span>
+                        {scoringMethod === 'Flags' 
+                          ? (judgeScoresA.length > 0 ? judgeScoresA.filter(s => Number(s) === 1).length : Math.round(scoreAka))
+                          : scoreAka.toFixed(2)}
+                      </span>
+                      
+                      {scoringMethod === 'Flags' && (
+                        <Flag className="h-9 w-9 text-red-500 fill-red-500 inline-block drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                      )}
+
+                      {penaltyH === 'AKA' && (
+                        <div className="bg-red-600 text-white border-2 border-red-400 rounded-xl px-4 py-1 flex items-center justify-center text-4xl lg:text-6xl ml-3 shadow-[0_0_15px_rgba(220,38,38,0.8)]">
+                          H
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1502,13 +1509,20 @@ function SpectatorDisplayContent() {
                       </span>
                     </div>
                     <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-blue-400 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] flex items-center gap-3">
-                      {scoringMethod === 'Flags' ? (
-                        <>
-                          <span>{penaltyH === 'AO' ? 'H' : penaltyH === 'AKA' ? '🏆' : (judgeScoresB.length > 0 ? judgeScoresB.filter(s => Number(s) === 1).length : Math.round(scoreAo))}</span>
-                          {!penaltyH && <Flag className="h-9 w-9 text-blue-500 fill-blue-500 inline-block drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
-                        </>
-                      ) : (
-                        penaltyH === 'AO' ? 'H' : penaltyH === 'AKA' ? '🏆' : scoreAo.toFixed(2)
+                      <span>
+                        {scoringMethod === 'Flags' 
+                          ? (judgeScoresB.length > 0 ? judgeScoresB.filter(s => Number(s) === 1).length : Math.round(scoreAo))
+                          : scoreAo.toFixed(2)}
+                      </span>
+                      
+                      {scoringMethod === 'Flags' && (
+                        <Flag className="h-9 w-9 text-blue-500 fill-blue-500 inline-block drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                      )}
+
+                      {penaltyH === 'AO' && (
+                        <div className="bg-red-600 text-white border-2 border-red-400 rounded-xl px-4 py-1 flex items-center justify-center text-4xl lg:text-6xl ml-3 shadow-[0_0_15px_rgba(220,38,38,0.8)]">
+                          H
+                        </div>
                       )}
                     </div>
                   </div>

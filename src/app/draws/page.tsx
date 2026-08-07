@@ -1081,15 +1081,15 @@ export default function DrawsPage() {
                 </div>
               ) : (
                 <SportdataBracket
-                  bouts={bouts}
-                  categories={categories}
-                  participants={participants}
-                  clubs={clubs}
-                  selectedCatId={cat.id}
-                  canModify={false}
-                  theme="light"
-                  height="auto"
-                />
+                    bouts={bouts}
+                    categories={categories}
+                    participants={participants}
+                    clubs={clubs}
+                    selectedCatId={cat.id}
+                    canModify={false}
+                    theme="light"
+                    height="auto"
+                  />
               )}
             </div>
           );

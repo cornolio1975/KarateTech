@@ -405,6 +405,7 @@ export function KataControlPanelContent() {
         score_a: Math.round(totalScoreA),
         score_b: Math.round(totalScoreB),
         winner_id: winnerId,
+        victory_method: winMtd || undefined,
         status: currentBout.status === 'Scheduled' ? 'Running' : currentBout.status
       });
 

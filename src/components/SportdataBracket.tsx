@@ -473,13 +473,13 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
       );
     }
 
-    let displayScore: React.ReactNode = score;
     const isKata = isKataCategory(selectedCategory);
+    let hasPenaltyH = false;
     if (isKata && bout?.victory_method?.includes("Penalty")) {
-      if (bout.victory_method.includes("Penalty AKA")) {
-        displayScore = isAka ? "H" : score;
-      } else if (bout.victory_method.includes("Penalty AO")) {
-        displayScore = !isAka ? "H" : score;
+      if (bout.victory_method.includes("Penalty AKA") && isAka) {
+        hasPenaltyH = true;
+      } else if (bout.victory_method.includes("Penalty AO") && !isAka) {
+        hasPenaltyH = true;
       }
     }
 
@@ -514,7 +514,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
 
         {/* Score Box */}
         <div
-          className={`w-[20px] shrink-0 border-l flex items-center justify-center font-bold ${typeof displayScore === "string" && displayScore === "🏆" ? "text-[8px]" : "text-[10px]"} ${
+          className={`w-[20px] shrink-0 border-l flex items-center justify-center font-bold text-[10px] ${
             isWinner
               ? theme === "dark"
                 ? "bg-white text-black border-white"
@@ -524,8 +524,15 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                 : "border-black text-black"
           }`}
         >
-          {displayScore}
+          {score}
         </div>
+
+        {/* Penalty Box (H) */}
+        {hasPenaltyH && (
+          <div className="w-[16px] shrink-0 border-l flex items-center justify-center font-bold text-[10px] bg-red-600 text-white border-red-700">
+            H
+          </div>
+        )}
       </div>
     );
   };
