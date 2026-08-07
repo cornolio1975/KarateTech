@@ -478,9 +478,6 @@ export function KataControlPanelContent() {
       setCurrentBout(updatedBout);
       setSelectedWinnerId(winner);
       setIsWinnerRevealed(true);
-      
-      // Refresh list
-      await loadData();
 
       // Broadcast completion & winner reveal to spectator view
       if (broadcastChannelRef.current) {
@@ -1116,7 +1113,13 @@ export function KataControlPanelContent() {
                   DECISION / WINNER DETERMINATION
                 </span>
                 <h3 className="text-xl font-black text-white">
-                  {isWinnerRevealed || currentBout?.status === 'Completed' ? (
+                  {penaltyH ? (
+                    penaltyH === 'AKA' ? (
+                      <span className="text-blue-400">{participantB?.full_name} (AO) - WON BY PENALTY</span>
+                    ) : (
+                      <span className="text-red-400">{participantA?.full_name} (AKA) - WON BY PENALTY</span>
+                    )
+                  ) : isWinnerRevealed || currentBout?.status === 'Completed' ? (
                     selectedWinnerId === participantA?.id ? (
                       <span className="text-red-400">{participantA?.full_name} (AKA)</span>
                     ) : selectedWinnerId === participantB?.id ? (

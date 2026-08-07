@@ -597,12 +597,16 @@ function SpectatorDisplayContent() {
             setScoreAo(bout.total_score_b || bout.score_b || 0);
           }
 
-          if (bout.status === 'Completed' && bout.winner_id) {
+          if ((bout.status === 'Completed' || bout.winner_id) && bout.winner_id) {
             setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
-            setWinMethod(bout.victory_method || 'Completed');
+            setWinMethod(bout.victory_method || (bout.status === 'Completed' ? 'Completed' : 'Winner Declared'));
+            if (bout.victory_method?.includes('Penalty AKA')) setPenaltyH('AKA');
+            else if (bout.victory_method?.includes('Penalty AO')) setPenaltyH('AO');
+            else setPenaltyH(null);
           } else {
             setWinnerSide(null);
             setWinMethod('');
+            setPenaltyH(null);
           }
 
           setAkaName(compAka?.full_name || 'TBD Red');
@@ -769,10 +773,16 @@ function SpectatorDisplayContent() {
             setTimeLeft((updated.timer_seconds ?? 180) * 10);
             setTimerActive(updated.timer_active ?? false);
             
-            if (updated.status === 'Completed') {
+            if (updated.status === 'Completed' || updated.winner_id) {
               setWinnerSide(updated.winner_id === updated.participant_a_id ? 'aka' : 'ao');
-              setWinMethod(updated.victory_method || 'Completed');
-              playBuzzer();
+              setWinMethod(updated.victory_method || (updated.status === 'Completed' ? 'Completed' : 'Winner Declared'));
+              if (updated.victory_method?.includes('Penalty AKA')) setPenaltyH('AKA');
+              else if (updated.victory_method?.includes('Penalty AO')) setPenaltyH('AO');
+              else setPenaltyH(null);
+              
+              if (updated.status === 'Completed') {
+                playBuzzer();
+              }
             } else {
               setWinnerSide(null);
               setWinMethod('');
@@ -1186,7 +1196,7 @@ function SpectatorDisplayContent() {
 
       {/* WKF KATA SPECTATOR DISPLAY */}
       {currentSlideType === 'live_scoreboard' && isKata && (
-        <div className="flex-1 flex flex-col justify-between my-auto max-w-7xl mx-auto w-full pt-8 pb-4 space-y-6">
+        <div className={`flex-1 flex flex-col justify-between my-auto max-w-7xl mx-auto w-full pt-8 pb-4 ${winnerSide ? 'gap-2' : 'gap-6'}`}>
           {/* Top Category Header */}
           <div className="flex justify-between items-center border-b-2 border-white/10 pb-4 shrink-0">
             <div>
@@ -1220,7 +1230,7 @@ function SpectatorDisplayContent() {
 
           {/* Winner Reveal Banner */}
           {winnerSide && (
-            <div className={`py-0.5 px-2 mb-1 rounded text-center flex flex-col items-center justify-center gap-0.5 shadow-sm border font-black uppercase tracking-wider text-xs lg:text-sm leading-none break-words max-w-full ${
+            <div className={`relative py-0.5 px-2 mb-1 rounded text-center flex flex-col items-center justify-center gap-0.5 shrink-0 z-20 shadow-sm border font-black uppercase tracking-wider text-xs lg:text-sm leading-none break-words max-w-full ${
               winnerSide === 'aka'
                 ? 'bg-red-600/90 text-white border-red-400 ring-1 ring-red-500/30'
                 : 'bg-blue-600/90 text-white border-blue-400 ring-1 ring-blue-500/30'
@@ -1376,11 +1386,11 @@ function SpectatorDisplayContent() {
                     <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-red-400 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)] flex items-center gap-3">
                       {scoringMethod === 'Flags' ? (
                         <>
-                          <span>{judgeScoresA.length > 0 ? judgeScoresA.filter(s => Number(s) === 1).length : Math.round(scoreAka)}</span>
-                          <Flag className="h-9 w-9 text-red-500 fill-red-500 inline-block drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                          <span>{penaltyH === 'AKA' ? 'H' : penaltyH === 'AO' ? '🏆' : (judgeScoresA.length > 0 ? judgeScoresA.filter(s => Number(s) === 1).length : Math.round(scoreAka))}</span>
+                          {!penaltyH && <Flag className="h-9 w-9 text-red-500 fill-red-500 inline-block drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />}
                         </>
                       ) : (
-                        scoreAka.toFixed(2)
+                        penaltyH === 'AKA' ? 'H' : penaltyH === 'AO' ? '🏆' : scoreAka.toFixed(2)
                       )}
                     </div>
                   </div>
@@ -1494,11 +1504,11 @@ function SpectatorDisplayContent() {
                     <div className="text-5xl lg:text-7xl font-black font-mono tracking-tight text-blue-400 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] flex items-center gap-3">
                       {scoringMethod === 'Flags' ? (
                         <>
-                          <span>{judgeScoresB.length > 0 ? judgeScoresB.filter(s => Number(s) === 1).length : Math.round(scoreAo)}</span>
-                          <Flag className="h-9 w-9 text-blue-500 fill-blue-500 inline-block drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                          <span>{penaltyH === 'AO' ? 'H' : penaltyH === 'AKA' ? '🏆' : (judgeScoresB.length > 0 ? judgeScoresB.filter(s => Number(s) === 1).length : Math.round(scoreAo))}</span>
+                          {!penaltyH && <Flag className="h-9 w-9 text-blue-500 fill-blue-500 inline-block drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
                         </>
                       ) : (
-                        scoreAo.toFixed(2)
+                        penaltyH === 'AO' ? 'H' : penaltyH === 'AKA' ? '🏆' : scoreAo.toFixed(2)
                       )}
                     </div>
                   </div>
@@ -1541,7 +1551,7 @@ function SpectatorDisplayContent() {
 
       {/* Dynamic Winner Alert Header */}
       {winnerSide && (
-        <div className={`p-0.5 lg:p-1 mb-1 shrink-0 rounded flex flex-wrap items-center justify-center text-center font-bold text-[10px] lg:text-xs tracking-wide uppercase border shadow-none z-20 ${
+        <div className={`relative p-0.5 lg:p-1 mb-1 shrink-0 rounded flex flex-wrap items-center justify-center text-center font-bold text-[10px] lg:text-xs tracking-wide uppercase border shadow-none z-20 ${
           winnerSide === 'aka'
             ? 'bg-red-950/90 text-red-400 border-red-500'
             : 'bg-blue-950/90 text-blue-400 border-blue-500'

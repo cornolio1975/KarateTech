@@ -1003,6 +1003,7 @@ export const db = {
             if (updates.score_b !== undefined) coreUpdates.score_b = updates.score_b;
             if (updates.status !== undefined) coreUpdates.status = updates.status;
             if (updates.winner_id !== undefined) coreUpdates.winner_id = updates.winner_id;
+            if (updates.victory_method !== undefined) coreUpdates.victory_method = updates.victory_method;
             
             const { data: coreData, error: coreErr } = await supabase.from('bouts').update(coreUpdates).eq('id', id).select().single();
             if (coreErr) throw coreErr;
