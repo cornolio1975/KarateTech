@@ -285,7 +285,7 @@ export default function LoginPage() {
                   <ExternalLink className="h-3 w-3 opacity-60 ml-0.5" />
                 </a>
                 <a
-                  href="https://spsportdatasolution.org/karatetech/"
+                  href="https://spsportdatasolution.org/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-500/20 hover:bg-slate-700/60 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer group"
@@ -302,7 +302,7 @@ export default function LoginPage() {
             {/* HEADER */}
             <div className="flex flex-col items-center space-y-4 text-center w-full">
               <a
-                href="https://spsportdatasolution.org/karatetech/"
+                href="https://spsportdatasolution.org/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col items-center space-y-3 group cursor-pointer"

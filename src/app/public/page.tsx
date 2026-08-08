@@ -302,7 +302,7 @@ export default function PublicSpectatorHub() {
             <span>Home</span>
           </Link>
           <a
-            href="https://spsportdatasolution.org/karatetech/"
+            href="https://spsportdatasolution.org/"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 border border-indigo-500/30 hover:border-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg text-xs font-bold transition text-indigo-300 hover:text-indigo-200 cursor-pointer"

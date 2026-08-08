@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       `}
     >
       <a 
-        href="https://spsportdatasolution.org/karatetech/"
+        href="https://spsportdatasolution.org/"
         target="_blank"
         rel="noopener noreferrer"
         className="h-16 flex items-center gap-3 px-6 border-b border-border hover:bg-secondary/40 transition-colors group cursor-pointer"
