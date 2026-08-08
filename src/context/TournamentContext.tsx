@@ -101,7 +101,7 @@ const defaultUsers: SystemUser[] = [
   },
   {
     name: 'Spectator Account',
-    email: 'spectator@senshikarate.com',
+    email: 'spectator@spsportdatasolution.org',
     role: 'Viewer',
     status: 'Active',
     canModify: false,
@@ -402,7 +402,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   };
 
   const login = (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string) => {
-    const emailStr = email || (role === 'Admin' ? 'admin@spsportdatasolution.org' : role === 'Co-Admin' ? 'coadmin@senshikarate.com' : 'spectator@senshikarate.com');
+    const emailStr = email || (role === 'Admin' ? 'admin@spsportdatasolution.org' : role === 'Co-Admin' ? 'coadmin@senshikarate.com' : 'spectator@spsportdatasolution.org');
     setUserRole(role);
     setUserEmail(emailStr);
     setIsLoggedIn(true);

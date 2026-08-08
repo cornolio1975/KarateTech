@@ -13,7 +13,7 @@ import { SportdataBracket } from '@/components/SportdataBracket';
 
 
 export default function PublicSpectatorHub() {
-  const { tournamentName, liveStreamUrl, logoUrl } = useTournament();
+  const { tournamentName, liveStreamUrl, logoUrl, userRole } = useTournament();
   
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -283,14 +283,33 @@ export default function PublicSpectatorHub() {
             </div>
           </div>
 
+          {userRole !== 'Viewer' && (
+            <Link
+              href="/"
+              prefetch={false}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-800 hover:border-gray-700 bg-gray-900/40 hover:bg-gray-900/80 rounded-lg text-xs font-bold transition text-gray-300 hover:text-white cursor-pointer"
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              <span>Go to Admin</span>
+            </Link>
+          )}
           <Link
-            href="/"
+            href="/public/tournaments"
             prefetch={false}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-800 hover:border-gray-700 bg-gray-900/40 hover:bg-gray-900/80 rounded-lg text-xs font-bold transition text-gray-300 hover:text-white cursor-pointer"
           >
             <Home className="h-3.5 w-3.5" />
-            <span>Go to Admin</span>
+            <span>Home</span>
           </Link>
+          <a
+            href="https://spsportdatasolution.org/karatetech/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-indigo-500/30 hover:border-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg text-xs font-bold transition text-indigo-300 hover:text-indigo-200 cursor-pointer"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span>Corporate Home</span>
+          </a>
         </div>
       </header>
 

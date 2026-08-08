@@ -88,6 +88,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {MENU_ITEMS.map((item) => {
+          // If the user is a Viewer, only show the Public Scoreboard and other public pages
+          if (userRole === 'Viewer' && !item.path.startsWith('/public')) {
+            return null;
+          }
+
           const isActive = pathname === item.path;
           const Icon = item.icon;
           const isYellow = item.isYellow;

@@ -63,7 +63,7 @@ export default function LoginPage() {
       }
 
       if (activeRole === 'Viewer' && mode === 'signIn') {
-        login('Viewer', 'spectator@senshikarate.com');
+        login('Viewer', 'spectator@spsportdatasolution.org');
         window.location.href = `${basePath}/public`;
         return;
       }
