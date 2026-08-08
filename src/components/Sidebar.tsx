@@ -86,7 +86,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </a>
 
       {/* Navigation Links */}
-      <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <nav className={`flex-1 overflow-y-auto px-4 py-4 ${userRole === 'Viewer' ? 'space-y-3 py-6' : 'space-y-1'}`}>
         {MENU_ITEMS.map((item) => {
           // If the user is a Viewer, only show the Public Scoreboard and other public pages
           if (userRole === 'Viewer' && !item.path.startsWith('/public')) {
@@ -96,6 +96,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           const isActive = pathname === item.path;
           const Icon = item.icon;
           const isYellow = item.isYellow;
+          const isViewer = userRole === 'Viewer';
 
           return (
             <Link
@@ -103,27 +104,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               href={item.path}
               prefetch={false}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
+              className={`flex items-center gap-3.5 rounded-xl transition-all duration-200 group ${
+                isViewer
+                  ? 'px-4 py-3 text-sm md:text-base font-bold border border-border/40 hover:border-primary/50'
+                  : 'px-3 py-2.5 rounded-lg text-sm font-medium'
+              } ${
                 isYellow
                   ? isActive
-                    ? 'bg-yellow-400/20 text-yellow-400 font-bold border-l-2 border-yellow-400 pl-2.5 shadow-sm'
+                    ? 'bg-yellow-400/20 text-yellow-400 font-bold border-l-4 border-yellow-400 pl-3.5 shadow-sm'
                     : 'text-yellow-400 hover:bg-yellow-400/10 hover:text-yellow-300 font-semibold'
                   : isActive
-                  ? 'bg-secondary text-foreground shadow-sm border-l-2 border-primary pl-2.5'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                  ? 'bg-primary/15 text-foreground shadow-md border-l-4 border-primary pl-3.5 font-extrabold'
+                  : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
               }`}
             >
-              <Icon className={`h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105 ${
+              <Icon className={`shrink-0 transition-transform group-hover:scale-110 ${isViewer ? 'h-5 w-5' : 'h-4.5 w-4.5'} ${
                 isYellow
                   ? 'text-yellow-400'
                   : isActive
-                  ? 'text-foreground'
+                  ? 'text-primary'
                   : 'text-muted-foreground group-hover:text-foreground'
               }`} />
               <span className="truncate">{item.name}</span>
               
               {item.badge && (
-                <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                <span className={`ml-auto font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  isViewer ? 'text-xs px-2.5 py-0.5 border border-primary/30 bg-primary/20 text-primary' : 'text-[10px] px-1.5 py-0.5'
+                } ${
                   isYellow
                     ? 'bg-yellow-400/20 text-yellow-400 border border-yellow-400/30'
                     : 'bg-primary/10 text-primary'
@@ -137,22 +144,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-border bg-secondary/20 space-y-3 shrink-0">
+      <div className={`p-4 border-t border-border bg-secondary/20 space-y-3 shrink-0 ${userRole === 'Viewer' ? 'p-5 space-y-4' : ''}`}>
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm">
+          <div className={`rounded-full bg-primary/15 text-primary font-black flex items-center justify-center border border-primary/20 ${userRole === 'Viewer' ? 'h-11 w-11 text-base' : 'h-9 w-9 text-sm'}`}>
             {getInitials()}
           </div>
           <div className="min-w-0 flex-1">
-            <span className="font-semibold text-xs block text-foreground truncate">{userRole || 'Admin'} Director</span>
-            <span className="text-[10px] text-muted-foreground truncate block">{userEmail || 'admin@spsportdatasolution.org'}</span>
+            <span className={`font-bold block text-foreground truncate ${userRole === 'Viewer' ? 'text-sm' : 'text-xs'}`}>{userRole || 'Admin'} Director</span>
+            <span className={`text-muted-foreground truncate block ${userRole === 'Viewer' ? 'text-xs' : 'text-[10px]'}`}>{userEmail || 'admin@spsportdatasolution.org'}</span>
           </div>
         </div>
         
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-border text-red-500 hover:bg-red-500/10 rounded-lg text-xs font-bold transition cursor-pointer"
+          className={`w-full flex items-center justify-center gap-2 border border-border text-red-500 hover:bg-red-500/10 rounded-xl font-bold transition cursor-pointer ${userRole === 'Viewer' ? 'px-4 py-2.5 text-xs' : 'px-3 py-2 text-xs'}`}
         >
-          <LogOut className="h-3.5 w-3.5" />
+          <LogOut className={userRole === 'Viewer' ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
           <span>Sign Out</span>
         </button>
       </div>
