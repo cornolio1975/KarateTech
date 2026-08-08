@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
 import { db, basePath } from '@/db/dbClient';
-import { Bout, Participant, Category, Club, Country } from '@/db/types';
+import { Bout, Participant, Category, Club, Country, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   Trophy, Tv, Calendar, Flame, RefreshCw, X, ShieldAlert, Award, 
   MapPin, Clock, Search, ExternalLink, ChevronRight, Play, Check, Home
@@ -28,6 +28,7 @@ export default function PublicSpectatorHub() {
   
   // Brackets selection
   const [selectedCatId, setSelectedCatId] = useState<string>('');
+  const [bracketTypeFilter, setBracketTypeFilter] = useState<'Kata' | 'Kumite'>('Kumite');
   const [isRoundRobinDraw, setIsRoundRobinDraw] = useState<boolean>(false);
 
   // Detailed Match Modal
@@ -85,7 +86,9 @@ export default function PublicSpectatorHub() {
 
   useEffect(() => {
     if (categories.length > 0 && !selectedCatId) {
-      setSelectedCatId(categories[0].id);
+      const firstCat = categories[0];
+      setSelectedCatId(firstCat.id);
+      setBracketTypeFilter(isKataCategory(firstCat) ? 'Kata' : 'Kumite');
     }
   }, [categories]);
 
@@ -568,27 +571,132 @@ export default function PublicSpectatorHub() {
         {activeTab === 'BRACKETS' && (
           <div className="space-y-6">
             
-            {/* Category dropdown controller */}
-            <div className="bg-[#0d1322] border border-gray-800 p-4 rounded-xl flex items-center justify-between gap-4 shrink-0 flex-wrap">
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Select Weight Division</span>
-                <select
-                  value={selectedCatId}
-                  onChange={(e) => setSelectedCatId(e.target.value)}
-                  className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+            {/* ── Separate Kata / Kumite Filter Cards with Dropdowns ── */}
+            {(() => {
+              const kataCategories = categories.filter(c => isKataCategory(c));
+              const kumiteCategories = categories.filter(c => isKumiteCategory(c));
+              return (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-              {activeCategory && (
-                <div className="text-right text-[11px] text-gray-400 font-semibold">
-                  <span>Gender: {activeCategory.gender} | Age: {activeCategory.min_age}-{activeCategory.max_age} yrs</span>
+                    {/* Kata Filter Card */}
+                    <button
+                      onClick={() => {
+                        setBracketTypeFilter('Kata');
+                        if (kataCategories.length > 0 && !kataCategories.find(c => c.id === selectedCatId)) {
+                          setSelectedCatId(kataCategories[0].id);
+                        }
+                      }}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                        bracketTypeFilter === 'Kata'
+                          ? 'border-yellow-400/70 bg-yellow-400/10'
+                          : 'border-gray-800 bg-[#0d1322] hover:border-yellow-400/30 hover:bg-yellow-400/5'
+                      }`}
+                    >
+                      <div className={`flex items-center justify-center h-9 w-9 rounded-lg shrink-0 ${
+                        bracketTypeFilter === 'Kata' ? 'bg-yellow-400/20' : 'bg-gray-900'
+                      }`}>
+                        <Trophy className={`h-4 w-4 ${
+                          bracketTypeFilter === 'Kata' ? 'text-yellow-400' : 'text-gray-500'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
+                          bracketTypeFilter === 'Kata' ? 'text-yellow-400' : 'text-gray-500'
+                        }`}>Kata Divisions ({kataCategories.length})</div>
+                        <select
+                          value={bracketTypeFilter === 'Kata' ? selectedCatId : ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setBracketTypeFilter('Kata');
+                            setSelectedCatId(e.target.value);
+                          }}
+                          className={`w-full bg-transparent text-sm font-semibold focus:outline-none truncate cursor-pointer ${
+                            bracketTypeFilter === 'Kata' ? 'text-white' : 'text-gray-500'
+                          }`}
+                        >
+                          {kataCategories.length === 0
+                            ? <option value="">No Kata categories</option>
+                            : kataCategories.map(c => (
+                              <option key={c.id} value={c.id} style={{ background: '#0d1322' }}>{c.name}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-full border shrink-0 ${
+                        bracketTypeFilter === 'Kata'
+                          ? 'bg-yellow-400/20 text-yellow-400 border-yellow-400/30'
+                          : 'bg-gray-900 text-gray-500 border-gray-800'
+                      }`}>
+                        {kataCategories.length}
+                      </span>
+                    </button>
+
+                    {/* Kumite Filter Card */}
+                    <button
+                      onClick={() => {
+                        setBracketTypeFilter('Kumite');
+                        if (kumiteCategories.length > 0 && !kumiteCategories.find(c => c.id === selectedCatId)) {
+                          setSelectedCatId(kumiteCategories[0].id);
+                        }
+                      }}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                        bracketTypeFilter === 'Kumite'
+                          ? 'border-indigo-500/70 bg-indigo-500/10'
+                          : 'border-gray-800 bg-[#0d1322] hover:border-indigo-500/30 hover:bg-indigo-500/5'
+                      }`}
+                    >
+                      <div className={`flex items-center justify-center h-9 w-9 rounded-lg shrink-0 ${
+                        bracketTypeFilter === 'Kumite' ? 'bg-indigo-500/20' : 'bg-gray-900'
+                      }`}>
+                        <Award className={`h-4 w-4 ${
+                          bracketTypeFilter === 'Kumite' ? 'text-indigo-400' : 'text-gray-500'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
+                          bracketTypeFilter === 'Kumite' ? 'text-indigo-400' : 'text-gray-500'
+                        }`}>Kumite Divisions ({kumiteCategories.length})</div>
+                        <select
+                          value={bracketTypeFilter === 'Kumite' ? selectedCatId : ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setBracketTypeFilter('Kumite');
+                            setSelectedCatId(e.target.value);
+                          }}
+                          className={`w-full bg-transparent text-sm font-semibold focus:outline-none truncate cursor-pointer ${
+                            bracketTypeFilter === 'Kumite' ? 'text-white' : 'text-gray-500'
+                          }`}
+                        >
+                          {kumiteCategories.length === 0
+                            ? <option value="">No Kumite categories</option>
+                            : kumiteCategories.map(c => (
+                              <option key={c.id} value={c.id} style={{ background: '#0d1322' }}>{c.name}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-full border shrink-0 ${
+                        bracketTypeFilter === 'Kumite'
+                          ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                          : 'bg-gray-900 text-gray-500 border-gray-800'
+                      }`}>
+                        {kumiteCategories.length}
+                      </span>
+                    </button>
+
+                  </div>
+
+                  {activeCategory && (
+                    <div className="text-[11px] text-gray-400 font-semibold px-1">
+                      <span>Gender: {activeCategory.gender} | Age: {activeCategory.min_age}–{activeCategory.max_age} yrs</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Brackets Draw Grid */}
             <div className="bg-[#0d1322] border border-gray-800 rounded-2xl p-6 min-h-[400px] flex flex-col justify-center overflow-x-auto">
