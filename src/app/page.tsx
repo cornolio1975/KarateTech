@@ -9,6 +9,7 @@ import {
 import { dbManager, supabase } from '@/db/dbClient';
 import { localStore } from '@/db/localStore';
 import { Tournament, TournamentDatabase } from '@/db/types';
+import { useTournament } from '@/context/TournamentContext';
 
 const generateUUID = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {

@@ -38,6 +38,24 @@ export default function PublicSpectatorHub() {
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
   
+  
+  // Fullscreen handlers for all tabs
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
   // Drag & Drop / Popout Tab handlers
   const popoutTab = (tabId: string) => {
     const url = window.location.origin + basePath + '/public?tab=' + tabId;
@@ -352,8 +370,8 @@ export default function PublicSpectatorHub() {
       </header>
 
       {/* SUB MENU TABS WITH DRAG & DROP POPOUT */}
-      <div className="border-b border-gray-900 bg-[#0a0f1c]/50 flex shrink-0 sticky top-[72px] z-30">
-        <div className="w-full px-6 flex items-center gap-1 overflow-x-auto">
+      <div className="border-b border-gray-900 bg-[#0a0f1c]/50 flex items-center justify-between shrink-0 sticky top-[72px] z-30 px-6">
+        <div className="flex items-center gap-1 overflow-x-auto flex-1">
           {[
             { id: 'STREAM', label: 'Live Stream & Arena', icon: Tv },
             { id: 'BRACKETS', label: 'Draws & Brackets', icon: Award },
@@ -395,6 +413,29 @@ export default function PublicSpectatorHub() {
             );
           })}
         </div>
+
+        {/* Fullscreen Toggle Button */}
+        <button
+          onClick={toggleFullscreen}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border shrink-0 cursor-pointer ml-3 my-2 ${
+            isFullscreen
+              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 hover:bg-indigo-500/30'
+              : 'bg-gray-900/60 text-gray-300 border-gray-800 hover:border-gray-700 hover:text-white'
+          }`}
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Display Mode for active tab'}
+        >
+          {isFullscreen ? (
+            <>
+              <Minimize2 className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Exit Fullscreen</span>
+            </>
+          ) : (
+            <>
+              <Maximize2 className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Fullscreen</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* CORE BODY CONTAINER */}
