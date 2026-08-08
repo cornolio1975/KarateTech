@@ -22,6 +22,7 @@ const generateUUID = () => {
 
 export default function TournamentManager() {
   const router = useRouter();
+  const { userRole } = useTournament();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -56,7 +57,8 @@ export default function TournamentManager() {
       setLoading(true);
       const success = await dbManager.setActiveTournament(id);
       if (success) {
-        window.location.href = '/dashboard/scoreboard';
+        const destination = userRole === 'Viewer' ? '/public' : '/dashboard/scoreboard';
+        window.location.href = destination;
         // Add a safety timeout to clear the spinner if the hard navigation takes a second
         setTimeout(() => setLoading(false), 500);
       } else {

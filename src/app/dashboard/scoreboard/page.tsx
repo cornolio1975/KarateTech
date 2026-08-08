@@ -10,7 +10,7 @@ import { useTournament } from '@/context/TournamentContext';
 
 export default function ScoreboardDashboardPage() {
   const router = useRouter();
-  const { tournamentName } = useTournament();
+  const { tournamentName, userRole } = useTournament();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [bouts, setBouts] = useState<Bout[]>([]);
@@ -42,9 +42,13 @@ export default function ScoreboardDashboardPage() {
   }, [bouts]);
 
   useEffect(() => {
+    if (userRole === 'Viewer') {
+      router.replace('/public');
+      return;
+    }
     setMounted(true);
     loadData();
-  }, []);
+  }, [userRole]);
 
   const loadData = async () => {
     try {
