@@ -36,6 +36,41 @@ export default function PublicSpectatorHub() {
   // Polling indicator
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
+  
+  // Drag & Drop / Popout Tab handlers
+  const popoutTab = (tabId: string) => {
+    const url = window.location.origin + basePath + '/public?tab=' + tabId;
+    window.open(url, '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');
+  };
+
+  const handleTabDragStart = (e: React.DragEvent, tabId: string) => {
+    const url = window.location.origin + basePath + '/public?tab=' + tabId;
+    e.dataTransfer.setData('text/uri-list', url);
+    e.dataTransfer.setData('text/plain', url);
+    e.dataTransfer.effectAllowed = 'copyMove';
+  };
+
+  const handleTabDragEnd = (e: React.DragEvent, tabId: string) => {
+    if (
+      e.clientX < 0 ||
+      e.clientX > window.innerWidth ||
+      e.clientY < 0 ||
+      e.clientY > window.innerHeight
+    ) {
+      popoutTab(tabId);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['STREAM', 'BRACKETS', 'SCHEDULE', 'STANDINGS'].includes(tabParam.toUpperCase())) {
+        setActiveTab(tabParam.toUpperCase() as any);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     loadData();
@@ -313,9 +348,9 @@ export default function PublicSpectatorHub() {
         </div>
       </header>
 
-      {/* SUB MENU TABS */}
+      {/* SUB MENU TABS WITH DRAG & DROP POPOUT */}
       <div className="border-b border-gray-900 bg-[#0a0f1c]/50 flex shrink-0 sticky top-[72px] z-30">
-        <div className="w-full px-6 flex">
+        <div className="w-full px-6 flex items-center gap-1 overflow-x-auto">
           {[
             { id: 'STREAM', label: 'Live Stream & Arena', icon: Tv },
             { id: 'BRACKETS', label: 'Draws & Brackets', icon: Award },
@@ -325,18 +360,35 @@ export default function PublicSpectatorHub() {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <button
+              <div
                 key={tab.id}
+                draggable={true}
+                onDragStart={(e) => handleTabDragStart(e, tab.id)}
+                onDragEnd={(e) => handleTabDragEnd(e, tab.id)}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-3.5 px-5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                className={`py-3.5 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-grab active:cursor-grabbing group select-none ${
                   isActive 
-                    ? 'border-indigo-500 text-white bg-indigo-500/5' 
-                    : 'border-transparent text-gray-400 hover:text-white'
+                    ? 'border-indigo-500 text-white bg-indigo-500/10' 
+                    : 'border-transparent text-gray-400 hover:text-white hover:bg-gray-800/30'
                 }`}
+                title="Click to switch tab, or drag out / click popout icon to open in new browser window"
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-gray-400'}`} />
+                <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-gray-400 group-hover:text-gray-300'}`} />
                 <span>{tab.label}</span>
-              </button>
+
+                {/* Drag / Popout Icon Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    popoutTab(tab.id);
+                  }}
+                  className="p-1 hover:bg-gray-700/60 rounded text-gray-500 hover:text-white transition cursor-pointer opacity-70 group-hover:opacity-100"
+                  title={`Open ${tab.label} in a new browser window`}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              </div>
             );
           })}
         </div>
