@@ -7,7 +7,8 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, Country, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   Trophy, Tv, Calendar, Flame, RefreshCw, X, ShieldAlert, Award, 
-  MapPin, Clock, Search, ExternalLink, ChevronRight, Play, Check, Home
+  MapPin, Clock, Search, ExternalLink, ChevronRight, Play, Check, Home,
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { SportdataBracket } from '@/components/SportdataBracket';
 
